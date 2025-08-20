@@ -17,6 +17,7 @@ import { TbSquarePlus } from "react-icons/tb";
 import TicketPreviewModal from "./TicketPreviewModal";
 import VailidationEstatus from "@/hook/validationEstatus";
 import updateInfo from "../validation/updateInfo";
+import { useTotalVenta } from "@/context/TotalVentasContext";
 
 const TicketBuy = () => {
   const [prizes, setPrizes] = useState(null);
@@ -479,6 +480,29 @@ const TicketBuy = () => {
       setAvanceIndex(Number(idx));
       Swal.fire({ icon: 'success', title: 'Sorteo cambiado', timer: 1200, showConfirmButton: false });
     }
+  };
+
+  const TicketBuy = () => {
+    const {addToTotal} = useTotalVenta(); //Usamos el hook
+
+    const addTicketToList = () => {
+      //La validacion actual
+
+      if(ticketNumber && prizebox && name){
+        const precio = parseInt(prizebox);
+
+        setTickets((prevTickets) => [
+          ...prevTickets,
+          {number:ticketNumber,price:precio,name},
+        ]);
+
+        addToTotal(precio);
+
+        setTicketNumber("");
+        setPrizebox("");
+        return true;
+      }
+    };
   };
 
   return (
