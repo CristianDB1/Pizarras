@@ -1,15 +1,11 @@
 "use client"
 import { useState } from "react";
 import { useTotalVenta } from "@/context/TotalVentasContext";
+import { generarPDFTotalVenta } from "../pdf/pdfTotalVenta";
 
 export default function TotalVentasModal(){
     const {total, resetTotal} = useTotalVenta();
     const [open, setOpen] = useState(false);
-
-    const handlePrint = () => {
-        //Voy a dejar aqui el espacio de momento para despues conectarlo con el PDF
-        window.print();
-    };
 
     return(
         <div>
@@ -34,7 +30,7 @@ export default function TotalVentasModal(){
                             Limpiar
                         </button>
                         <button
-                            onClick={handlePrint}
+                            onClick={()=> generarPDFTotalVenta(total)}
                             className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
                         >
                             Imprimir
