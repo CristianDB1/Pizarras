@@ -39,6 +39,7 @@ const TicketBuy = () => {
   const [selectedSorteo, setSelectedSorteo] = useState(null);
   const [avanceIndex, setAvanceIndex] = useState(0); // 0 = sorteo original
   const [originalSorteo, setOriginalSorteo] = useState(null);
+  const {addVenta}= useTotalVenta();
 
   useEffect(() => {
     Promise.all([
@@ -409,10 +410,25 @@ const TicketBuy = () => {
 
     // Agregar el boleto actual a la lista de boletos acumulados
     if (ticketNumber && prizebox && name) {
+      const precio = parseInt(prizebox);
+      const boleto = {
+        numero: ticketNumber,
+        precio: precio,
+        cantidad: 1,
+        subtotal: precio,
+        comprador: name,
+      };
+
+      //Actualizo la lista local
       setTickets((prevTickets) => [
-        ...prevTickets,
-        { number: ticketNumber, price: prizebox, name },
+        ...prevTickets,boleto
       ]);
+
+      //Ahora actualizo el contexto local
+      addVenta(boleto);
+      console.log(boleto);
+
+      //Limpiar los inputs
       setTicketNumber("");
       setPrizebox("");
       return true;
@@ -420,7 +436,7 @@ const TicketBuy = () => {
   };
   const handlePlusTicket = () => {
     if (addTicketToList()) {
-      console.log(tickets);
+      //console.log(tickets);
     }
   };
   const handleDeleteTicket = (index) => {
@@ -449,7 +465,6 @@ const TicketBuy = () => {
       opts[idx] = label;
       return opts;
     }, {});
-
 
     // Si ya está en avance, mostrar opción de revertir
     let showRevert = avanceIndex !== 0;
@@ -480,29 +495,6 @@ const TicketBuy = () => {
       setAvanceIndex(Number(idx));
       Swal.fire({ icon: 'success', title: 'Sorteo cambiado', timer: 1200, showConfirmButton: false });
     }
-  };
-
-  const TicketBuy = () => {
-    const {addToTotal} = useTotalVenta(); //Usamos el hook
-
-    const addTicketToList = () => {
-      //La validacion actual
-
-      if(ticketNumber && prizebox && name){
-        const precio = parseInt(prizebox);
-
-        setTickets((prevTickets) => [
-          ...prevTickets,
-          {number:ticketNumber,price:precio,name},
-        ]);
-
-        addToTotal(precio);
-
-        setTicketNumber("");
-        setPrizebox("");
-        return true;
-      }
-    };
   };
 
   return (

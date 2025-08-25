@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 
-export const generarPDFTotalVenta = (total) => {
+export const generarPDFTotalVenta = (total,ventas) => {
     const doc = new jsPDF();
 
     //Titulo
@@ -13,8 +13,19 @@ export const generarPDFTotalVenta = (total) => {
     doc.text(`Fecha: ${fecha}`,20, 30);
 
     //Total
+    let y = 40;
+    ventas.forEach((v,i) => {
+        doc.setFontSize(12);
+        doc.text(
+            `${i+1}. Boleto: ${v.numero} | Cant: ${v.cantidad} | $${v.subtotal}`,
+            20,
+            y
+        );
+        y+=10;
+    });
+
     doc.setFontSize(16);
-    doc.text(`Total de Venta: $${total}`,20, 50);
+    doc.text(`Total: $${total}`,20, y+10);
 
     //Final
     doc.setFontSize(10);

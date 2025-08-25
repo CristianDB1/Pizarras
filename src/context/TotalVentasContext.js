@@ -5,19 +5,22 @@ const TotalVentaContext = createContext(); //Creamos el contexto de esta manera
 
 //Aqui se crea un provider que es el que va a envolver la app
 export const TotalVentaProvider = ({children}) => {  
+    const [ventas, setVentas] = useState([]); //Aqui va a estar la lista de boletos
     const [total, setTotal] = useState(0);
 
     //Creamos funciones de utilidad
-    const addToTotal = (monto) => {
-        setTotal((prev) => prev + monto);
+    const addVenta = (boleto) => {
+        setVentas((prev) => [...prev,boleto]);
+        setTotal((prev) => prev + boleto.subtotal);
     };
 
-    const resetTotal = () => {
+    const resetVentas = () => {
+        setVentas([]);
         setTotal(0);
     };
 
     return (
-        <TotalVentaContext.Provider value={{total,addToTotal,resetTotal}}>
+        <TotalVentaContext.Provider value={{ventas,total,addVenta,resetVentas}}>
             {children}
         </TotalVentaContext.Provider>
     );
