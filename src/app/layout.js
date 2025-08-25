@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TotalVentaProvider } from "@/context/TotalVentasContext";
+import TotalVentasModal from "@/components/custom/modal/TotalVentaModal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <TotalVentaProvider>
         {children}
+          <TotalVentasModal/>
         </TotalVentaProvider>
       </body>
     </html>
