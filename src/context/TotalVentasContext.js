@@ -25,5 +25,5 @@ export const TotalVentaProvider = ({children}) => {
 
 //Creamos un hook personalizado para usar el contecto mas facil
 export const useTotalVenta = () => {
-    return useContext(Total)
+    return useContext(TotalVentaContext)
 }
