@@ -53,10 +53,22 @@ export default function TotalVentasModal(){
                 </span>
               </p>
             </div>
-            <div className="flex justify-end mt-3">
-              <button onClick={() => setOpen(false)} className="px-3 py-1 bg-gray-300 rounded">
-                Cerrar
-              </button>
+            <div className="flex justify-between mt-3">
+                <button 
+                    onClick={()=> generarPDFTotalVenta(total,ventas)}
+                    className="px-3 py-1 bg-green-500 text-white rounded">
+                    Imprimir
+                </button>
+                <button 
+                    onClick={resetVentas} 
+                    className="px-3 py-1 bg-yellow-500 text-white rounded">
+                    Limpiar
+                </button>
+                <button 
+                    onClick={() => setOpen(false)} 
+                    className="px-3 py-1 bg-gray-300 rounded">
+                    Cerrar
+                </button>
             </div>
           </div>
         </div>

@@ -256,7 +256,7 @@ const TicketBuy = () => {
         idVendedor,
         tipoSorteo: selectedSorteo.Tipo_sorteo,
         idSorteo: selectedSorteo.Idsorteo,
-        topePermitido: foundTope - ticket.price,
+        topePermitido: foundTope - ticket.precio, //antes tambien llamaba a ticket.price
         fecha: selectedSorteo.Fecha,
         primerPremio: selectedSorteo.Primerpremio,
         segundoPremio: selectedSorteo.Segundopremio,
@@ -268,34 +268,37 @@ const TicketBuy = () => {
         },
         body: JSON.stringify(data),
       };
-      await fetch("/api/sell", options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
-            Swal.fire(data.error);
-          } else if (data[0][0]) {
-            const ticketSold = data[0][0];
-            ticketData.push(data[0][0]);
 
-            //Agregamos al contexto
-            addVenta({
-              tipo: "boleto",
-              numero: ticketSold.Numero || ticket.number,
-              cantidad: 1,
-              precio: ticketSold.Precio || ticket.price,
-              subtotal: ticketSold.Precio || ticket.price,
-              comprador: ticketSold.Nombre || ticket.name,
-            });
+      try{
+        const res = await fetch("/api/sell", options);
+        const result = await res.json();
 
-          }
-        });
+        if(result.error){
+          Swal.fire(result.error);
+        }else if(result[0][0]){
+          const ticketSold = result[0][0];
+          ticketData.push(ticketSold);
+
+          //Agregamos al contexto
+           addVenta({
+            tipo: "boleto",
+            numero: ticketSold.Numero || ticket.numero,
+            cantidad: 1,
+            precio: Number(ticketSold.Precio || ticket.precio) || 0,
+            subtotal: (Number(ticketSold.Precio || ticket.precio) || 0) * 1,
+            comprador: ticketSold.Nombre || ticket.comprador,
+          });
+        }
+      }catch(err){
+        console.error("Error confirmVenta:", err);
+      }
     }
     setIsLoading(false);
     setTickets([]);
     setTicketNumber("");
     setPrizebox("");
     setName("");
-    generatePDF(ticketData, fecha);
+    generatePDF(ticketData, selectedSorteo.fecha);
     setShowPreview(false);
   };
   const enviarDatosSerie = async () => {
@@ -425,7 +428,7 @@ const TicketBuy = () => {
     // Agregar el boleto actual a la lista de boletos acumulados
     if (ticketNumber && prizebox && name) {
       const precio = parseInt(prizebox);
-      const boleto = {
+      const nuevoTicket = {
         numero: ticketNumber,
         precio: precio,
         cantidad: 1,
@@ -435,12 +438,8 @@ const TicketBuy = () => {
 
       //Actualizo la lista local
       setTickets((prevTickets) => [
-        ...prevTickets,boleto
+        ...prevTickets,nuevoTicket
       ]);
-
-      //Ahora actualizo el contexto local
-      addVenta(boleto);
-      console.log(boleto);
 
       //Limpiar los inputs
       setTicketNumber("");
