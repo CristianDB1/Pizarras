@@ -2,58 +2,65 @@
 import { useState } from "react";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { generarPDFTotalVenta } from "../pdf/pdfTotalVenta";
+import useSession from "@/hook/useSession";
 
 export default function TotalVentasModal(){
     const {ventas,total,resetVentas} = useTotalVenta();
     const [open, setOpen] = useState(false);
-    return(
-        <div>
-            {/*Boton flotante para abrir y cerrar el modal*/}
-            <button
-                className="fixed bottom-24 right-6 bg-green-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-green-700"
-                onClick={()=>setOpen(!open)}
-            >
-                {open ? "Cerrar Total" : "Ver Total"} 
-            </button>
-            {/*Modal*/}
-            {open &&(
-                <div className="fixed bottom-32 right-6 bg-white border shadow-lg rounded-lg p-4 w-64">
-                    <h2 className="text-lg font-bold mb-2">Resumen de Venta</h2>
-                    
-                    <div className="max-h-40 overflow-y-auto text-sm">
-                        {Array.isArray(ventas) && ventas.length > 0 ?(
-                            ventas.map((v,i) => (
-                                <div key={i} className="border-b py-1">
-                                    <p>
-                                     <strong>{v.numero}</strong> - Cant: {v.cantidad} -Precio: {v.precio} - Subtotal: ${v.subtotal}
-                                    </p>
-                                </div>
-                            ))
-                        ):(
-                            <p className="text-gray-500">No hay boletos aun</p>
-                        )}
-                    </div>
+    const { getUserData } = useSession();
+    const user = getUserData();
 
-                    <p className="text-xl font-semibold text-green-700 mt-2">
-                        Total: ${total}
-                    </p>
+    if (!user) return null;
 
-                    <div className="felx justify-between mt-4">
-                        <button
-                            onClick={resetVentas}
-                            className="bg-red-500 text-white px-3 py-1 rounded hover>bg-red-600"
-                        >
-                            Limpiar
-                        </button>
-                        <button
-                            onClick={()=> generarPDFTotalVenta(total,ventas)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                        >
-                            Imprimir
-                        </button>
-                    </div>
-                </div>
-            )}
+    return (
+    <div>
+      <button 
+        onClick={() => setOpen(true)} 
+        className="fixed bottom-28 right-5 bg-red-600 text-white px-4 py-2 rounded shadow-lg"
+      >
+        Ver Total
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+          <div className="bg-white p-4 rounded-lg w-96 shadow-lg">
+            <h2 className="text-lg font-bold mb-2">Detalle de Ventas</h2>
+            <div className="max-h-60 overflow-y-auto text-sm">
+              {ventas.length > 0 ? (
+                ventas.map((v, i) => (
+                  <div key={i} className="border-b py-1 flex justify-between">
+                    <span>
+                      {v.tipo === "boleto" && "🎟️"}
+                      {v.tipo === "serie" && "📦"}
+                      {v.tipo === "premio" && "💸"}
+                      {" "}
+                      <strong>{v.descripcion || v.numero}</strong>
+                    </span>
+                    <span>
+                      Cant: {v.cantidad} — ${v.subtotal}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500">No hay movimientos aún</p>
+              )}
+            </div>
+            <div className="mt-3 text-right">
+              <p className="font-bold">
+                TOTAL:{" "}
+                <span className={total < 0 ? "text-red-600" : "text-green-600"}>
+                  ${total}
+                </span>
+              </p>
+            </div>
+            <div className="flex justify-end mt-3">
+              <button onClick={() => setOpen(false)} className="px-3 py-1 bg-gray-300 rounded">
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 }

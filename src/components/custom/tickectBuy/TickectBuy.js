@@ -224,6 +224,7 @@ const TicketBuy = () => {
 
   const enviarDatosNormal = async () => {
     VailidationEstatus();
+    console.log("Nuevo ticket:", tickets);
     if (tickets.length === 0 && (!prizebox || !name)) {
       ValidateBox();
       return;
@@ -248,9 +249,10 @@ const TicketBuy = () => {
     const ticketData = [];
     for (const ticket of tickets) {
       const data = {
-        prizebox: ticket.price,
-        name: ticket.name,
-        ticketNumber: ticket.number,
+        //Como cambie el nombre de algunos items para poder guiarme mejor aqui hubo un pequeño cambio
+        prizebox: ticket.precio, //antes llamada a ticket.price
+        name: ticket.comprador, //antes llamaba a ticket.name
+        ticketNumber: ticket.numero, //antes llamaba a ticket.number
         idVendedor,
         tipoSorteo: selectedSorteo.Tipo_sorteo,
         idSorteo: selectedSorteo.Idsorteo,
@@ -272,7 +274,19 @@ const TicketBuy = () => {
           if (data.error) {
             Swal.fire(data.error);
           } else if (data[0][0]) {
+            const ticketSold = data[0][0];
             ticketData.push(data[0][0]);
+
+            //Agregamos al contexto
+            addVenta({
+              tipo: "boleto",
+              numero: ticketSold.Numero || ticket.number,
+              cantidad: 1,
+              precio: ticketSold.Precio || ticket.price,
+              subtotal: ticketSold.Precio || ticket.price,
+              comprador: ticketSold.Nombre || ticket.name,
+            });
+
           }
         });
     }
