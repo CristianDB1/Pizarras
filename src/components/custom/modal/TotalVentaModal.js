@@ -3,14 +3,17 @@ import { useState } from "react";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { generarPDFTotalVenta } from "../pdf/pdfTotalVenta";
 import useSession from "@/hook/useSession";
+import { usePathname } from "next/navigation";
 
 export default function TotalVentasModal(){
     const {ventas,total,resetVentas} = useTotalVenta();
     const [open, setOpen] = useState(false);
     const { getUserData } = useSession();
     const user = getUserData();
+    const pathname = usePathname();
 
-    if (!user) return null;
+    //if (!user) return null;
+    if (!user || pathname === "/") return null;
 
     return (
     <div>
