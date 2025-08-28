@@ -10,9 +10,9 @@ export const TotalVentaProvider = ({children}) => {
 
     //Creamos funciones de utilidad
     const addVenta = (boleto) => {
-
+    const subtotalNum = Number(boleto.subtotal) || 0;
     setVentas((prev) => [...prev, boleto]);
-    setTotal((prev) => prev + boleto.subtotal);
+    setTotal((prev) => prev + subtotalNum);
     };
 
     const resetVentas = () => {

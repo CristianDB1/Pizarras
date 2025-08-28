@@ -364,6 +364,15 @@ const TicketBuy = () => {
         });
     }
 
+    addVenta({
+      tipo: "serie",
+      descripcion: `Serie ${ticketNumbers[0]} - ${ticketNumbers[ticketNumbers.length - 1]}`,
+      cantidad: allTicketData.length,
+      precio: prizebox / 10, // precio de cada boleto
+      subtotal: prizebox,    // monto total de la serie
+      comprador: name,
+    });
+
     setIsLoading(false);
     setTicketNumber("");
     setPrizebox("");
