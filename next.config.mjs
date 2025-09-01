@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
-  },
   async headers() {
     return [
       {
@@ -16,4 +13,5 @@ const nextConfig = {
     ];
   },
 }
-export default nextConfig;
+
+export default nextConfig
