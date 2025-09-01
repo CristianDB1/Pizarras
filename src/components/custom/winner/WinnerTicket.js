@@ -4,6 +4,7 @@ import { FaHome, FaMoneyBillWave, FaCamera, FaShare } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import generateWinnerPDF from "./generateWinnerPDF";
+import { useTotalVenta } from "@/context/TotalVentasContext";
 
 const WinnerTicket = () => {
   const [premiados, setPremiados] = useState([]);
@@ -15,6 +16,7 @@ const WinnerTicket = () => {
   const [userData, setUserData] = useState(null);
   const fileInputRef = useRef(null);
   const router = useRouter();
+  const { addVenta } = useTotalVenta();
 
   // Cargar los boletos premiados al iniciar
   const fetchPremiados = async () => {
@@ -205,7 +207,17 @@ const WinnerTicket = () => {
             imprimirComprobante(id, folio, boletoActualizado);
           }
         });
+
+        console.log(boletoActualizado);
         
+        addVenta({
+          tipo: "premio",
+          descripcion: `Premio boleto ${boletoActualizado.Boleto}`, 
+          cantidad: 1,
+          precio: -Number(boletoActualizado.Premio),
+          subtotal: -Number(boletoActualizado.Premio),
+        });
+
         // Limpiar la imagen seleccionada
         setSelectedImage(null);
         setPreviewImage(null);

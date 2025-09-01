@@ -40,7 +40,7 @@ export default function TotalVentasModal(){
                       <strong>{v.descripcion || v.numero}</strong>
                     </span>
                     <span>
-                      Cant: {v.cantidad} — ${v.subtotal}
+                      Cant: {v.cantidad} — ${v.subtotal < 0 ? `-${Math.abs(v.subtotal)}` : v.subtotal}
                     </span>
                   </div>
                 ))
