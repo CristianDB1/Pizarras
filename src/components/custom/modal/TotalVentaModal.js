@@ -19,14 +19,15 @@ export default function TotalVentasModal(){
     <div>
       <button 
         onClick={() => setOpen(true)} 
-        className="fixed bottom-28 right-5 bg-red-600 text-white px-4 py-2 rounded shadow-lg"
+        className="fixed bottom-28 right-5 text-gray px-4 py-2 rounded shadow-lg" 
+        style={{backgroundColor: "#ffde59",}}
       >
         Ver Total
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-lg w-96 shadow-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[9999]">
+          <div className="bg-white p-4 rounded-lg w-96 shadow-lg relative z-[10000]">
             <h2 className="text-lg font-bold mb-2">Detalle de Ventas</h2>
             <div className="max-h-60 overflow-y-auto text-sm">
               {ventas.length > 0 ? (
