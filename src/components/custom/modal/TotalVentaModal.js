@@ -1,9 +1,10 @@
 "use client"
-import { useState } from "react";
+import { useEffect,useState } from "react";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { generarPDFTotalVenta } from "../pdf/pdfTotalVenta";
 import useSession from "@/hook/useSession";
 import { usePathname } from "next/navigation";
+import ModalPortal from "./ModalPortal";
 
 export default function TotalVentasModal(){
     const {ventas,total,resetVentas} = useTotalVenta();
@@ -11,6 +12,14 @@ export default function TotalVentasModal(){
     const { getUserData } = useSession();
     const user = getUserData();
     const pathname = usePathname();
+
+    useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [open]);
 
     //if (!user) return null;
     if (!user || pathname === "/") return null;
@@ -26,6 +35,7 @@ export default function TotalVentasModal(){
       </button>
 
       {open && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[9999]">
           <div className="bg-white p-4 rounded-lg w-96 shadow-lg relative z-[10000]">
             <h2 className="text-lg font-bold mb-2">Detalle de Ventas</h2>
@@ -76,7 +86,9 @@ export default function TotalVentasModal(){
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
+    
   );
 }
