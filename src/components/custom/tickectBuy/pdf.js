@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import Swal from "sweetalert2";
 
-const generatePDF = async (tickets, fecha) => {
+const generatePDF = async (tickets, fecha, esCopia = false) => {
   try {
     // PASO 1: Pre-calcular altura de leyendas para determinar tamaño de PDF
     let leyenda2 = tickets[0].leyenda2 || "";
@@ -60,7 +60,12 @@ const generatePDF = async (tickets, fecha) => {
     // Resto del encabezado
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(16); // Subido de 14 a 16
-    doc.text(`Factura de boletos`, 5, nextY);
+    //Aqui verificamos si la factura es una copia o no
+    if(esCopia){
+      doc.text(`Factura de boletos (Copia)`, 5, nextY);  
+    }else{
+      doc.text(`Factura de boletos`, 5, nextY);
+    }
     nextY += 12; // Subido de 10 a 12
 
     // Mostrar detalles del comprador con ajustes
