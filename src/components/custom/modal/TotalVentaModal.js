@@ -21,9 +21,18 @@ export default function TotalVentasModal(){
     }
   }, [open]);
 
-    //if (!user) return null;
-    if (!user || pathname === "/") return null;
+    const rutasOcultas = [
+      "/welcomeOnline",
+      "/typeDrawOnline",
+      "/ticketBuyOnline"
+    ];
 
+    const ocultar = rutasOcultas.some(ruta => pathname.startsWith(ruta));
+
+    if(ocultar) return null;
+
+    if (!user || pathname === "/") return null;
+    
     return (
     <div>
       <button 
