@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { FaHome } from "react-icons/fa"
 import Swal from "sweetalert2";
 
 export default function TypeDrawOnline() {
@@ -14,6 +15,10 @@ export default function TypeDrawOnline() {
     // Por ahora mostramos mensaje (lo activamos luego)
     Swal.fire("Pendiente", "La venta especial estará disponible pronto.", "info");
   };
+
+  const goToMenuOnline = () => {
+    router.push("/menuOnline")
+  }
 
   return (
     <div className="max-w-sm w-full">
@@ -32,6 +37,11 @@ export default function TypeDrawOnline() {
           Especial
         </button>
       </div>
+      <button
+        onClick={goToMenuOnline}
+        className="fixed bottom-4 right-4 bg-red-700 text-white flex justify-center items-center rounded-full w-[70px] h-[70px] text-3xl">
+          <FaHome/>
+      </button>
     </div>
   );
 }

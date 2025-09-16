@@ -6,7 +6,7 @@ export default function WelcomeBoletosOnline(){
 
     const handleIngresar = () => {
         //Lleva a la pagina para elegir el tipo de boleto a comprar si normal o especial
-        router.push("/typeDrawOnline");
+        router.push("/menuOnline");
     };
 
     return(
