@@ -410,12 +410,12 @@ const TicketBuy = () => {
 
     // Filtrar boletos con el mismo número de tope
     const boletosConMismoTope = tickets.filter((ticket) => {
-      return parseInt(ticket.number) === numberTop;
+      return parseInt(ticket.numero) === numberTop;
     });
 
     // Calcular la cantidad acumulada de boletos en la lista
     const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
-      return acc + parseInt(ticket.price);
+      return acc + parseInt(ticket.precio);
     }, 0);
     const nuevaCantidad = totalAcumulado + cantidad + parseInt(prizebox);
 
