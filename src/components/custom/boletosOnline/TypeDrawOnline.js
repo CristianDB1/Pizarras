@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { FaHome } from "react-icons/fa"
+import { FaHome } from "react-icons/fa";
 import Swal from "sweetalert2";
 
 export default function TypeDrawOnline() {
