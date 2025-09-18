@@ -250,7 +250,7 @@ const TicketBuy = () => {
     for (const ticket of tickets) {
       const data = {
         //Como cambie el nombre de algunos items para poder guiarme mejor aqui hubo un pequeño cambio
-        prizebox: ticket.precio, //antes llamada a ticket.price
+        prizebox: ticket.precio, //antes llamaba a ticket.price
         name: ticket.comprador, //antes llamaba a ticket.name
         ticketNumber: ticket.numero, //antes llamaba a ticket.number
         idVendedor,
@@ -566,7 +566,7 @@ const TicketBuy = () => {
               className="absolute right-0 bg-green-700 text-white flex justify-center items-center rounded-lg h-[40px] w-[40px] text-4xl"
             >
               <TbSquarePlus />
-            </button>
+            </button> 
           </div>
 
           {/* Fila de Precio */}

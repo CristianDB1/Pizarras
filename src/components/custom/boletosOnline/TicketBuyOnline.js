@@ -1,152 +1,683 @@
-"use client";
-import { useState } from "react";
+// TicketBuyOnline.js
+"use client"
+import { PiNumberSquareOneFill } from "react-icons/pi";
+import { PiNumberSquareTwoFill } from "react-icons/pi";
+import { BsCalendarDateFill } from "react-icons/bs";
+import { useEffect, useState } from "react";
+import {
+  ErrorPrizes,
+  loading,
+  ErrorTope,
+  ValidateBox,
+} from "../alerts/menu/Alerts";
+import { useRouter } from "next/navigation";
+import { FaHome, FaDice, FaForward } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { TbSquarePlus } from "react-icons/tb";
+import TicketPreviewModalOnline from "./TicketPreviewModalOnline";
+import VailidationEstatus from "@/hook/validationEstatus";
+import updateInfo from "../validation/updateInfo";
+import { useTotalVenta } from "@/context/TotalVentasContext";
 
-export default function TicketBuyOnline() {
+const TicketBuyOnline = () => {
+  const [prizes, setPrizes] = useState(null);
+  const [topePermitido, setTopePermitido] = useState(0);
   const [ticketNumber, setTicketNumber] = useState("");
-  const [precio, setPrecio] = useState("");
-  const [nombre, setNombre] = useState("");
-  const [tickets, setTickets] = useState([]);
+  const [foundTope, setFoundTope] = useState(null);
+  const [prizebox, setPrizebox] = useState("");
+  const [name, setName] = useState("");
+  const [prizeboxError, setPrizeboxError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const router = useRouter();
+  const [cantidad, setCantidad] = useState(0);
+  const [tickets, setTickets] = useState([]);
+  const [numberTop, setNumberTop] = useState(0);
+  const [topes, setTopes] = useState({});
+  const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
+  const [sorteos, setSorteos] = useState([]);
+  const [selectedSorteo, setSelectedSorteo] = useState(null);
+  const [avanceIndex, setAvanceIndex] = useState(0); // 0 = sorteo original
+  const [originalSorteo, setOriginalSorteo] = useState(null);
+  const { addVenta } = useTotalVenta();
 
-  //El numero solo de 3 cifras
-  const handleTicketChange = (v) => {
-    const s = v.replace(/\D/g, "").slice(0, 3);
-    setTicketNumber(s);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/ticketBuy")
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => setPrizes(data.result[0])),
+    ]).catch((error) => console.error("Error:", error));
+  }, []);
+
+  // Obtener sorteos activos para avance
+  useEffect(() => {
+    fetch("/api/nextLotteries")
+      .then((res) => res.json())
+      .then((data) => {
+        setSorteos(data.result || []);
+        setSelectedSorteo((data.result && data.result[0]) || null);
+        setOriginalSorteo((data.result && data.result[0]) || null);
+      });
+  }, []);
+
+  const currentHour = new Date().getHours();
+
+  if (!prizes) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="relative w-32 h-32">
+          <div className="absolute top-0 left-0 animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-500"></div>
+          <div className="absolute top-0 left-0 flex items-center justify-center h-32 w-32">
+            <span className="text-white text-sm">Cargando...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const handleTicketNumberChange = async (e) => {
+    let value = e.target.value;
+    if (!/^[0-9]*$/.test(value)) {
+      value = value.slice(0, -1);
+    }
+    setTicketNumber(value);
+
+    // Asegúrate de que el valor tenga una longitud de 3 caracteres
+    value = value.padStart(3, "0");
   };
 
-  const addTicket = () => {
-    if (!ticketNumber || !precio || !nombre) {
-      Swal.fire("Faltan datos", "Completa número, precio y nombre", "warning");
+  // Usar selectedSorteo para la fecha y formattedFecha
+  const fecha = selectedSorteo
+    ? new Date(
+        new Date(selectedSorteo.Fecha).getTime() +
+          new Date().getTimezoneOffset() * 60000
+      ).toLocaleDateString()
+    : "";
+  const [day, month, year] = fecha.split("/").map((num) => num.padStart(2, "0"));
+  const formattedFecha = `${day}/${month}/${year}`;
+
+  // Función para obtener un número aleatorio disponible (igual que en TicketBuy)
+  const getRandomNumber = async () => {
+    try {
+      setIsGeneratingRandom(true);
+
+      const response = await fetch("/api/topes", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fecha: formattedFecha }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Formatear el número para que tenga 3 dígitos con ceros a la izquierda
+        const numeroFormateado = data.numero.toString().padStart(3, "0");
+        setTicketNumber(numeroFormateado);
+
+        // Establecer valores predeterminados
+        setPrizebox("10");
+        setName("Trébol de la Suerte");
+
+        // Limpiar errores de validación del precio
+        setPrizeboxError(null);
+
+        // Simular evento de blur para cargar la información del tope
+        const event = { target: { value: numeroFormateado } };
+        handleBlur(event);
+
+        // Mostrar mensaje de éxito
+        Swal.fire({
+          icon: "success",
+          title: "Número aleatorio generado",
+          text: `Número: ${numeroFormateado}\nDisponibles: ${data.disponibles} de ${data.tope}`,
+          timer: 1500,
+          timerProgressBar: true,
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: data.message || "No se pudo generar un número aleatorio",
+        });
+      }
+    } catch (error) {
+      console.error("Error al obtener número aleatorio:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error al conectar con el servidor",
+      });
+    } finally {
+      setIsGeneratingRandom(false);
+    }
+  };
+
+  const handleBlur = async (e) => {
+    let value = e.target.value;
+    // Asegúrate de que el valor sea un número y tenga una longitud de 3 caracteres
+    value = value.padStart(3, "0");
+    setTicketNumber(value);
+
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ticketNumber: value, fecha: formattedFecha }),
+    };
+
+    try {
+      const response = await fetch("/api/topes", options);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (Array.isArray(data.tope)) {
+        const matchingTope = data.tope.find(
+          (tope) => tope.Numero === Number(value)
+        );
+
+        if (matchingTope) {
+          setFoundTope(matchingTope.Tope); // Guarda el tope encontrado en el estado
+          setCantidad(matchingTope.Cantidad);
+          setNumberTop(matchingTope.Numero);
+          setTopes((prevTopes) => ({
+            ...prevTopes,
+            [matchingTope.Numero]: matchingTope.Cantidad,
+          }));
+        } else {
+          setFoundTope(null); // Si no se encuentra un tope, establece el estado a null
+        }
+      } else {
+        setFoundTope(null);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
+  const idVendedor = userData.Idvendedor;
+  const idSorteo = selectedSorteo?.Idsorteo;
+
+  const Validate = () => {
+    if (foundTope == 0) {
+      if (cantidad >= foundTope) {
+        Swal.fire(`No se pueden vender más boletos de este número`);
+        setTicketNumber("");
+        setPrizebox("");
+        return false;
+      }
+    }
+
+    if (prizeboxError) {
+      ErrorPrizes();
+      setPrizebox("");
+      return false;
+    }
+    return true;
+  };
+
+  const enviarDatosNormal = async () => {
+    VailidationEstatus();
+    console.log("Nuevo ticket:", tickets);
+    if (tickets.length === 0 && (!prizebox || !name)) {
+      ValidateBox();
       return;
     }
-    const t = {
-      ticketNumber: ticketNumber.padStart(3, "0"),
-      prizebox: Number(precio),
-      name: nombre,
-    };
-    setTickets((p) => [...p, t]);
+    if (tickets.length > 0) {
+      setShowPreview(true);
+    }
+    if (!Validate()) {
+      return;
+    }
+
+    if (!addTicketToList()) {
+      return;
+    }
+
+    setShowPreview(true);
+  };
+
+  // confirmVenta ahora envia TODOS los boletos en un solo POST a /api/boletosOnline
+  // y recibe { success: true, boletos: [...] } según el route que creamos
+  const confirmVenta = async ({ telefono, metodoPago }) => {
+    VailidationEstatus();
+    setIsLoading(true);
+
+    // Armamos el array de boletos según lo que espera el route de boletosOnline
+    const boletosPayload = tickets.map((ticket) => ({
+      idSorteo: selectedSorteo?.Idsorteo,
+      ticketNumber: ticket.numero,
+      prizebox: ticket.precio,
+      name: ticket.comprador,
+      tipoSorteo: selectedSorteo?.Tipo_sorteo,
+      fecha: selectedSorteo?.Fecha,
+      primerPremio: selectedSorteo?.Primerpremio,
+      segundoPremio: selectedSorteo?.Segundopremio,
+    }));
+
+    try {
+      const res = await fetch("/api/boletosOnline", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          boletos: boletosPayload,
+          telefono: telefono || "",
+          metodo_pago: metodoPago || "",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        Swal.fire(data.error);
+      } else if (data.success) {
+        const guardados = data.boletos || [];
+
+        // Agregamos al contexto cada boleto guardado
+        guardados.forEach((b, idx) => {
+          addVenta({
+            tipo: "boleto",
+            numero: b.numero_boleto || boletosPayload[idx]?.ticketNumber,
+            cantidad: 1,
+            precio:
+              Number(b.costo ?? boletosPayload[idx]?.prizebox) || 0,
+            subtotal:
+              Number(b.costo ?? boletosPayload[idx]?.prizebox) || 0,
+            comprador: b.comprador || boletosPayload[idx]?.name,
+          });
+        });
+
+        // Abrir WhatsApp con el resumen y contacto
+        const mensaje = encodeURIComponent(
+          `🎟️ *Compra de boletos*\n\n` +
+          tickets.map(
+            (t) => `➡️ Boleto: ${t.numero}\n💰 Precio: $${t.precio}\n👤 Nombre: ${t.comprador}`
+          ).join("\n\n") +
+          `\n\n📅 Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${selectedSorteo?.Fecha}\n` +
+          `📞 Teléfono: ${telefono}\n💳 Método de pago: ${metodoPago}`
+        );
+        const numeroAdmin = "573137053410";
+        // Reemplaza por tu número real (ej: 57300xxxxxxx)
+        window.open(`https://wa.me/${numeroAdmin}?text=${mensaje}`, "_blank");
+      }
+    } catch (err) {
+      console.error("Error confirmVenta:", err);
+      Swal.fire("Error al confirmar la compra");
+    }
+
+    setIsLoading(false);
+    setTickets([]);
     setTicketNumber("");
-    setPrecio("");
+    setPrizebox("");
+    setName("");
+    setShowPreview(false);
   };
 
-  const removeTicket = (i) => {
-    setTickets((p) => p.filter((_, idx) => idx !== i));
-  };
+  const enviarDatosSerie = async () => {
+    if (!prizebox || !name) {
+      ValidateBox();
+      return;
+    }
 
-  const confirmCompra = async () => {
-    if (tickets.length === 0) {
-      Swal.fire("Sin boletos", "Agrega al menos un boleto", "info");
+    if (parseInt(prizebox) < 100 || parseInt(prizebox) % 100 !== 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Monto inválido",
+        text:
+          "Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100 (100, 200, ...900)",
+      });
+      return;
+    }
+
+    if (!Validate()) {
       return;
     }
     setIsLoading(true);
-    try {
-      //Como es la primera version vamos a utilizar idsorteo 1, solo de momento
-      const fecha = new Date().toISOString();
-      const payload = {
-        boletos: tickets.map((t) => ({
-          ticketNumber: t.ticketNumber,
-          prizebox: t.prizebox,
-          name: t.name,
-          idSorteo: 1,
-          tipoSorteo: "normal",
-          fecha,
-          primerPremio: "",
-          segundoPremio: ""
-        }))
-      };
 
+    // Calcula la cantidad de boletos en la serie
+    const numTickets = 10;
+
+    // Genera los números de boleto en serie
+    const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
+      let ticket = Number(ticketNumber) + 100 * i;
+      if (ticket >= 1000) {
+        ticket = ticket - 1000;
+      }
+      return ticket.toString().padStart(3, "0");
+    });
+
+    // Armamos payload para enviar en bloque a /api/boletosOnline
+    const boletosParaEnviar = ticketNumbers.map((tn) => ({
+      idSorteo: selectedSorteo?.Idsorteo,
+      ticketNumber: tn,
+      prizebox: prizebox / 10, // precio por boleto en la serie
+      name,
+      tipoSorteo: selectedSorteo?.Tipo_sorteo,
+      fecha: selectedSorteo?.Fecha,
+      primerPremio: selectedSorteo?.Primerpremio,
+      segundoPremio: selectedSorteo?.Segundopremio,
+    }));
+
+    try {
       const res = await fetch("/api/boletosOnline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          boletos: boletosParaEnviar,
+          telefono: "", 
+          metodo_pago: "",
+        }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Error al guardar la compra");
-      }
 
-      //Generar mensaje de WhatsApp
-      const phone = (process?.env?.NEXT_PUBLIC_WHATSAPP_NUMBER || "521234567890").replace(/\D/g, "");
-      let mensaje = `Compra de boletos\nCliente: ${nombre}\n\n`;
-      tickets.forEach((t, i) => {
-        mensaje += `${i + 1}. Boleto: ${t.ticketNumber} — $${t.prizebox}\n`;
-      });
-      const total = tickets.reduce((s, x) => s + Number(x.prizebox || 0), 0);
-      mensaje += `\nTotal: $${total}\n\nMétodos de pago:\n- Transferencia\n- Tarjeta\n\nGracias por tu compra.`;
+      const allTicketData = data.boletos || [];
 
-      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
-
-      await Swal.fire({
-        icon: "success",
-        title: "Compra registrada",
-        text: "Se abrirá WhatsApp para completar el pago",
-        confirmButtonText: "Abrir WhatsApp"
+      // Agregar entrada al contexto (serie)
+      addVenta({
+        tipo: "serie",
+        descripcion: `Serie ${ticketNumbers[0]} - ${ticketNumbers[ticketNumbers.length - 1]}`,
+        cantidad: allTicketData.length,
+        precio: prizebox / 10, // precio de cada boleto
+        subtotal: prizebox, // monto total de la serie
+        comprador: name,
       });
 
-      window.open(waUrl, "_blank");
-      setTickets([]);
-      setNombre("");
     } catch (err) {
-      console.error("Error confirmCompra:", err);
-      Swal.fire("Error", err.message || "Ocurrió un error", "error");
-    } finally {
-      setIsLoading(false);
+      console.error("Error enviarDatosSerie:", err);
+      Swal.fire("Error al registrar la serie online");
+    }
+
+    setIsLoading(false);
+    setTicketNumber("");
+    setPrizebox("");
+    setName("");
+  };
+
+  const handlePrizeboxChange = (e) => {
+    let value = e.target.value;
+    setPrizebox(value);
+    // Verifica si el valor es un múltiplo de 10
+    if (value % 10 !== 0) {
+      setPrizeboxError("El precio debe ser un múltiplo de 10");
+    } else {
+      setPrizeboxError(null);
+    }
+  };
+
+  if (isLoading) {
+    loading();
+  }
+
+  const goToMenu = () => {
+    updateInfo(idVendedor).then(() => {
+      router.push("/typeDrawOnline");
+    });
+  };
+
+  const addTicketToList = () => {
+    VailidationEstatus();
+    if (!Validate()) {
+      return false;
+    }
+
+    // Filtrar boletos con el mismo número de tope
+    const boletosConMismoTope = tickets.filter((ticket) => {
+      return parseInt(ticket.numero) === numberTop;
+    });
+
+    // Calcular la cantidad acumulada de boletos en la lista
+    const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
+      return acc + parseInt(ticket.precio);
+    }, 0);
+    const nuevaCantidad = totalAcumulado + cantidad + parseInt(prizebox);
+
+    if (foundTope > 0) {
+      if (nuevaCantidad > foundTope) {
+        Swal.fire(
+          `La cantidad permitida es ${(totalAcumulado + cantidad - foundTope) * -1
+          }. Te estás pasando en ${nuevaCantidad - foundTope} pesos.`
+        );
+        setPrizebox("");
+        return false;
+      }
+    } else if (foundTope === 0) {
+      ErrorTope();
+      setTicketNumber("");
+      return false;
+    }
+
+    // Agregar el boleto actual a la lista de boletos acumulados
+    if (ticketNumber && prizebox && name) {
+      const precio = parseInt(prizebox);
+      const nuevoTicket = {
+        numero: ticketNumber,
+        precio: precio,
+        cantidad: 1,
+        subtotal: precio,
+        comprador: name,
+      };
+
+      //Actualizo la lista local
+      setTickets((prevTickets) => [...prevTickets, nuevoTicket]);
+
+      //Limpiar los inputs
+      setTicketNumber("");
+      setPrizebox("");
+      return true;
+    }
+  };
+  const handlePlusTicket = () => {
+    if (addTicketToList()) {
+      //console.log(tickets);
+    }
+  };
+  const handleDeleteTicket = (index) => {
+    setTickets((prevTickets) => prevTickets.filter((_, i) => i !== index));
+  };
+
+  const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+  // Cambia el sorteo activo según el índice
+  const handleSelectSorteoAvance = async () => {
+    if (!sorteos.length) return;
+    const inputOptions = sorteos.reduce((opts, s, idx) => {
+      let label = s.Fecha;
+      try {
+        const fechaObj = new Date(s.Fecha);
+        label = fechaObj.toLocaleDateString("es-MX", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          timeZone: "UTC",
+        });
+        label = label.charAt(0).toUpperCase() + label.slice(1);
+      } catch (e) {
+        label = s.Fecha;
+      }
+      opts[idx] = label;
+      return opts;
+    }, {});
+
+    let showRevert = avanceIndex !== 0;
+    let html = showRevert
+      ? '<button id="revertSorteo" class="swal2-confirm swal2-styled" style="margin-bottom:10px;background:#4b5563;">Revertir a sorteo original</button><br/>'
+      : "";
+    const { value: idx } = await Swal.fire({
+      title: "Sorteo en avance",
+      html: html + "<div id='selectSorteoAvance'></div>",
+      input: "select",
+      inputOptions,
+      inputPlaceholder: "Selecciona el sorteo",
+      showCancelButton: true,
+      cancelButtonText: "Cancelar",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        if (showRevert) {
+          document.getElementById("revertSorteo").onclick = () => {
+            setSelectedSorteo(originalSorteo);
+            setAvanceIndex(0);
+            Swal.close();
+            Swal.fire({ icon: "success", title: "Sorteo original restaurado", timer: 1200, showConfirmButton: false });
+          };
+        }
+      },
+    });
+    if (idx !== undefined && idx !== null && idx !== "") {
+      setSelectedSorteo(sorteos[idx]);
+      setAvanceIndex(Number(idx));
+      Swal.fire({ icon: "success", title: "Sorteo cambiado", timer: 1200, showConfirmButton: false });
     }
   };
 
   return (
-    <div className="max-w-sm w-full bg-[rgb(38,38,38)] p-6 rounded">
-      <h2 className="text-xl font-bold text-white mb-4 text-center">Comprar boletos (público)</h2>
-
-      <div className="space-y-3">
-        <input
-          value={ticketNumber}
-          onChange={(e) => handleTicketChange(e.target.value)}
-          placeholder="Número (3 cifras)"
-          className="w-full p-2 rounded"
-        />
-        <input
-          value={precio}
-          onChange={(e) => setPrecio(e.target.value.replace(/\D/g, ""))}
-          placeholder="Precio"
-          className="w-full p-2 rounded"
-        />
-        <input
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder="Tu nombre"
-          className="w-full p-2 rounded"
-        />
-
-        <div className="flex gap-2">
-          <button onClick={addTicket} className="flex-1 bg-green-600 text-white p-2 rounded">
-            Añadir
-          </button>
-          <button onClick={() => { setTickets([]); setTicketNumber(""); setPrecio(""); }} className="flex-1 bg-gray-500 text-white p-2 rounded">
-            Limpiar
-          </button>
+    <div className="relative min-h-screen">
+      <div className="max-w-sm mx-auto w-full bg-[rgb(38,38,38)]">
+        <div className="text-2xl text-white flex justify-center items-center pb-4 pt-6 ">
+          Boletos Online
         </div>
-      </div>
+        <div className="w-full flex justify-center items-center flex-col space-y-1  relative">
+          <label className="text-white text-xl flex justify-center items-center realative pr-8 ">
+            <BsCalendarDateFill className="inline-block h-6 w-6 mr-1 text-red-600 " />{" "}
+            Sorteo:{fecha}
+          </label>
+          <label className="text-white text-xl flex justify-center items-center relative">
+            <PiNumberSquareOneFill className="text-red-600 inline-block h-6 w-6 mr-1" />
+            Premio:{selectedSorteo?.Primerpremio}
+          </label>
+          <label className="text-white text-xl flex justify-center items-center  realative">
+            <PiNumberSquareTwoFill className="inline-block h-6 w-6 mr-1 text-red-600" />{" "}
+            Premio:{selectedSorteo?.Segundopremio}
+          </label>
+        </div>
 
-      {tickets.length > 0 && (
-        <div className="mt-4 bg-white rounded p-3 text-black">
-          <h3 className="font-semibold mb-2">Boletos seleccionados</h3>
-          <ul className="space-y-1 text-sm">
-            {tickets.map((t, i) => (
-              <li key={i} className="flex justify-between items-center">
-                <span>{t.ticketNumber} — ${t.prizebox}</span>
-                <button onClick={() => removeTicket(i)} className="text-red-600">Eliminar</button>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3">
-            <button onClick={confirmCompra} disabled={isLoading} className="w-full bg-blue-600 text-white p-2 rounded">
-              {isLoading ? "Procesando..." : "Confirmar compra"}
+        {foundTope !== null ? (
+          <div className="text-xl text-red-500 text-center pt-6">
+            Tope permitido: {foundTope - cantidad}
+          </div>
+        ) : (
+          <div className="text-xl text-red-500 text-center pt-6"></div>
+        )}
+
+        <div className="flex mx-8 flex-col space-y-3 pt-6">
+          {/* Fila de Boleto */}
+          <div className="flex flex-row gap-12 relative">
+            <div className="text-white flex justify-center items-center text-2xl w-[80px]">
+              Boleto
+            </div>
+            <input
+              className="bg-neutral-300 border rounded w-[150px] outline-none h-[40px] pl-10"
+              value={ticketNumber}
+              onChange={handleTicketNumberChange}
+              onBlur={handleBlur}
+              maxLength={3}
+            />
+            <button
+              onClick={handlePlusTicket}
+              className="absolute right-0 bg-green-700 text-white flex justify-center items-center rounded-lg h-[40px] w-[40px] text-4xl"
+            >
+              <TbSquarePlus />
+            </button>
+          </div>
+
+          {/* Fila de Precio */}
+          <div className="flex flex-row gap-12 relative">
+            <div className="text-white flex justify-center items-center text-2xl w-[80px]">
+              Precio
+            </div>
+            <input
+              className="bg-neutral-300 border rounded w-[150px] outline-none h-[40px] pl-10"
+              value={prizebox}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (!/^[0-9]*$/.test(value)) {
+                  event.target.value = value.slice(0, -1);
+                }
+                handlePrizeboxChange(event);
+              }}
+              maxLength={4}
+            />
+          </div>
+
+          {/* Fila de Nombre */}
+          <div className="flex flex-row gap-12 relative">
+            <div className="text-white flex justify-center items-center text-2xl w-[80px]">
+              Nombre
+            </div>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="bg-neutral-300 border rounded w-[150px] outline-none h-[40px] pl-3"
+            />
+          </div>
+
+          {/* Fila de botones Azar y Avance */}
+          <div className="flex flex-row gap-4 justify-center items-center pt-2">
+            <button
+              onClick={getRandomNumber}
+              disabled={isGeneratingRandom}
+              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""}`}
+              title="Generar número aleatorio"
+            >
+              <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-2xl`} />
+              <span className="text-xs font-semibold mt-1">Azar</span>
+            </button>
+            <button
+              onClick={handleSelectSorteoAvance}
+              className="bg-gray-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl"
+              title="Sorteo en avance"
+            >
+              <FaForward className="text-2xl" />
+              <span className="text-xs font-semibold mt-1">Avance</span>
             </button>
           </div>
         </div>
+
+        <div className="flex justify-center items-center flex-col space-y-2 pt-4 px-8">
+          <button
+            onClick={enviarDatosNormal}
+            className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
+          >
+            Normal
+          </button>
+          <button
+            onClick={enviarDatosSerie}
+            className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
+          >
+            Serie
+          </button>
+        </div>
+
+      </div>
+      <button
+        onClick={goToMenu}
+        className="fixed bottom-4 right-4 bg-red-700 text-white flex justify-center items-center rounded-full w-[60px] h-[60px] text-3xl"
+      >
+        <FaHome />
+      </button>
+
+      {showPreview && (
+        <TicketPreviewModalOnline
+          tickets={tickets}
+          onClose={() => setShowPreview(false)}
+          onConfirm={confirmVenta}
+          onDelete={handleDeleteTicket}
+        />
       )}
     </div>
   );
-}
+};
+
+export default TicketBuyOnline;
