@@ -26,6 +26,7 @@ const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => 
                 <div>Nombre: {ticket.comprador}</div>
               </div>
               <button
+                type="button"
                 onClick={() => onDelete(index)}
                 className="bg-red-500 text-white px-2 py-1 rounded"
               >
@@ -62,10 +63,16 @@ const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => 
         </div>
 
         <div className="flex justify-end space-x-4">
-          <button onClick={onClose} className="bg-gray-500 text-white px-4 py-2 rounded">
+          <button 
+          type="button"
+          onClick={onClose} 
+          className="bg-gray-500 text-white px-4 py-2 rounded">
             Cancelar
           </button>
-          <button onClick={handleConfirm} className="bg-red-700 text-white px-4 py-2 rounded">
+          <button 
+          type="button"
+          onClick={handleConfirm} 
+          className="bg-red-700 text-white px-4 py-2 rounded">
             Confirmar
           </button>
         </div>
