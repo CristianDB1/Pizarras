@@ -341,8 +341,16 @@ const TicketBuyOnline = () => {
         );
 
 
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        window.open(`https://wa.me/573137053410?text=${mensaje}`, "_blank"); 
+        if (isMobile) {
+          //En móvil abre la app de WhatsApp
+          window.location.href = `whatsapp://send?phone=573137053410&text=${mensaje}`;
+        } else {
+          //En PC abre WhatsApp Web
+          window.open(`https://wa.me/573137053410?text=${mensaje}`, "_blank");
+        }
+        //window.open(`https://wa.me/573137053410?text=${mensaje}`, "_blank"); 
 
         Swal.fire({
           icon: "success",
