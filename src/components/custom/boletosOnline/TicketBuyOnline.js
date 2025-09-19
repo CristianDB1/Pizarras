@@ -637,12 +637,14 @@ const TicketBuyOnline = () => {
 
         <div className="flex justify-center items-center flex-col space-y-2 pt-4 px-8">
           <button
+            type="button"
             onClick={enviarDatosNormal}
             className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
           >
             Normal
           </button>
           <button
+            type="button"
             onClick={enviarDatosSerie}
             className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
           >
