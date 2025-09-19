@@ -325,6 +325,17 @@ const TicketBuyOnline = () => {
                 `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`
         );
 
+
+        if (!whatsappNumber) {
+          Swal.fire("⚠️ No se ha configurado el número de WhatsApp");
+          return;
+        }
+
+        if (!mensaje) {
+          Swal.fire("⚠️ No se pudo generar el mensaje");
+          return;
+        }
+
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
