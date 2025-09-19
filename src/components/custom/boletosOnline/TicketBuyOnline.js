@@ -37,9 +37,10 @@ const TicketBuyOnline = () => {
   const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
   const [sorteos, setSorteos] = useState([]);
   const [selectedSorteo, setSelectedSorteo] = useState(null);
-  const [avanceIndex, setAvanceIndex] = useState(0); // 0 = sorteo original
+  const [avanceIndex, setAvanceIndex] = useState(0); 
   const [originalSorteo, setOriginalSorteo] = useState(null);
   const { addVenta } = useTotalVenta();
+  const [tipoCompra, setTipoCompra] = useState("normal");
 
   useEffect(() => {
     Promise.all([
@@ -87,11 +88,11 @@ const TicketBuyOnline = () => {
     }
     setTicketNumber(value);
 
-    // Asegúrate de que el valor tenga una longitud de 3 caracteres
+    //Asegurar de que el valor tenga una longitud de 3 caracteres
     value = value.padStart(3, "0");
   };
 
-  // Usar selectedSorteo para la fecha y formattedFecha
+  //Usar selectedSorteo para la fecha y formattedFecha
   const fecha = selectedSorteo
     ? new Date(
         new Date(selectedSorteo.Fecha).getTime() +
@@ -101,7 +102,7 @@ const TicketBuyOnline = () => {
   const [day, month, year] = fecha.split("/").map((num) => num.padStart(2, "0"));
   const formattedFecha = `${day}/${month}/${year}`;
 
-  // Función para obtener un número aleatorio disponible (igual que en TicketBuy)
+  //Función para obtener un número aleatorio disponible
   const getRandomNumber = async () => {
     try {
       setIsGeneratingRandom(true);
@@ -117,22 +118,22 @@ const TicketBuyOnline = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Formatear el número para que tenga 3 dígitos con ceros a la izquierda
+        //Formatear el número para que tenga 3 dígitos con ceros a la izquierda
         const numeroFormateado = data.numero.toString().padStart(3, "0");
         setTicketNumber(numeroFormateado);
 
-        // Establecer valores predeterminados
+        //Establecer valores predeterminados
         setPrizebox("10");
         setName("Trébol de la Suerte");
 
-        // Limpiar errores de validación del precio
+        //Limpiar errores de validación del precio
         setPrizeboxError(null);
 
-        // Simular evento de blur para cargar la información del tope
+        //Simular evento de blur para cargar la información del tope
         const event = { target: { value: numeroFormateado } };
         handleBlur(event);
 
-        // Mostrar mensaje de éxito
+        //Mostrar mensaje de éxito
         Swal.fire({
           icon: "success",
           title: "Número aleatorio generado",
@@ -162,7 +163,6 @@ const TicketBuyOnline = () => {
 
   const handleBlur = async (e) => {
     let value = e.target.value;
-    // Asegúrate de que el valor sea un número y tenga una longitud de 3 caracteres
     value = value.padStart(3, "0");
     setTicketNumber(value);
 
@@ -228,14 +228,11 @@ const TicketBuyOnline = () => {
 
   const enviarDatosNormal = async () => {
     VailidationEstatus();
-    console.log("Nuevo ticket:", tickets);
     if (tickets.length === 0 && (!prizebox || !name)) {
       ValidateBox();
       return;
     }
-    if (tickets.length > 0) {
-      setShowPreview(true);
-    }
+
     if (!Validate()) {
       return;
     }
@@ -244,85 +241,131 @@ const TicketBuyOnline = () => {
       return;
     }
 
+    // 👉 Definimos tipoCompra como "normal"
+    setTipoCompra("normal");
     setShowPreview(true);
   };
 
-  // confirmVenta ahora envia TODOS los boletos en un solo POST a /api/boletosOnline
-  // y recibe { success: true, boletos: [...] } según el route que creamos
   const confirmVenta = async ({ telefono, metodoPago }) => {
-    VailidationEstatus();
     setIsLoading(true);
 
-    // Armamos el array de boletos según lo que espera el route de boletosOnline
-    const boletosPayload = tickets.map((ticket) => ({
-      idSorteo: selectedSorteo?.Idsorteo,
-      ticketNumber: ticket.numero,
-      prizebox: ticket.precio,
-      name: ticket.comprador,
-      tipoSorteo: selectedSorteo?.Tipo_sorteo,
-      fecha: selectedSorteo?.Fecha,
-      primerPremio: selectedSorteo?.Primerpremio,
-      segundoPremio: selectedSorteo?.Segundopremio,
-    }));
-
     try {
+      let boletosPayload = [];
+
+      if (tipoCompra === "serie") {
+        //Compra en serie
+        const numTickets = 10;
+        const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
+          let ticket = Number(ticketNumber) + 100 * i;
+          if (ticket >= 1000) {
+            ticket = ticket - 1000;
+          }
+          return ticket.toString().padStart(3, "0");
+        });
+
+        boletosPayload = ticketNumbers.map((tn) => ({
+          idSorteo: selectedSorteo?.Idsorteo,
+          ticketNumber: tn,
+          prizebox: prizebox / 10, //precio unitario en serie
+          name,
+          tipoSorteo: selectedSorteo?.Tipo_sorteo,
+          fecha: selectedSorteo?.Fecha,
+          primerPremio: selectedSorteo?.Primerpremio,
+          segundoPremio: selectedSorteo?.Segundopremio,
+        }));
+      } else {
+        //Compra normal
+        boletosPayload = tickets.map((t) => ({
+          idSorteo: selectedSorteo?.Idsorteo,
+          ticketNumber: t.numero,
+          prizebox: t.precio,
+          name: t.comprador,
+          tipoSorteo: selectedSorteo?.Tipo_sorteo,
+          fecha: selectedSorteo?.Fecha,
+          primerPremio: selectedSorteo?.Primerpremio,
+          segundoPremio: selectedSorteo?.Segundopremio,
+        }));
+      }
+
       const res = await fetch("/api/boletosOnline", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           boletos: boletosPayload,
-          telefono: telefono || "",
-          metodo_pago: metodoPago || "",
+          telefono,
+          metodo_pago: metodoPago,
         }),
       });
 
       const data = await res.json();
 
-      if (data.error) {
-        Swal.fire(data.error);
-      } else if (data.success) {
-        const guardados = data.boletos || [];
+      //Para formatear la fecha (sin la hora)
+      const fechaFormateada = selectedSorteo?.Fecha
+        ? new Date(selectedSorteo.Fecha).toISOString().split("T")[0] 
+        : "";
 
-        // Agregamos al contexto cada boleto guardado
-        guardados.forEach((b, idx) => {
-          addVenta({
-            tipo: "boleto",
-            numero: b.numero_boleto || boletosPayload[idx]?.ticketNumber,
-            cantidad: 1,
-            precio:
-              Number(b.costo ?? boletosPayload[idx]?.prizebox) || 0,
-            subtotal:
-              Number(b.costo ?? boletosPayload[idx]?.prizebox) || 0,
-            comprador: b.comprador || boletosPayload[idx]?.name,
-          });
-        });
 
-        // Abrir WhatsApp con el resumen y contacto
+      if (res.ok && data.success) {
+        /*const mensaje = encodeURIComponent(
+          tipoCompra === "serie"
+            ? `🎟️ *Compra de Serie* 🎟️\n\n` +
+                `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
+                  boletosPayload[boletosPayload.length - 1].ticketNumber
+                }\n📦 Cantidad: ${boletosPayload.length} boletos\n💰 Total: $${prizebox}\n👤 Nombre: ${name}` +
+                `\n\n📅 Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${selectedSorteo?.Fecha}\n📞 Teléfono: ${telefono}\n💳 Método de pago: ${metodoPago}`
+            : `🎟️ *Compra de boletos online* 🎟️\n\n` +
+                boletosPayload
+                  .map(
+                    (b) =>
+                      `➡️ Boleto: ${b.ticketNumber}\n💰 Precio: $${b.prizebox}\n👤 Nombre: ${b.name}`
+                  )
+                  .join("\n\n") +
+                `\n\n📅 Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${selectedSorteo?.Fecha}\n📞 Teléfono: ${telefono}\n💳 Método de pago: ${metodoPago}`
+        );*/
+
         const mensaje = encodeURIComponent(
-          `🎟️ *Compra de boletos*\n\n` +
-          tickets.map(
-            (t) => `➡️ Boleto: ${t.numero}\n💰 Precio: $${t.precio}\n👤 Nombre: ${t.comprador}`
-          ).join("\n\n") +
-          `\n\n📅 Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${selectedSorteo?.Fecha}\n` +
-          `📞 Teléfono: ${telefono}\n💳 Método de pago: ${metodoPago}`
+          tipoCompra === "serie"
+            ? `\u{1F39F}\uFE0F *Compra de Serie* \u{1F39F}\uFE0F\n\n` +
+                `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
+                  boletosPayload[boletosPayload.length - 1].ticketNumber
+                }\n\u{1F4E6} Cantidad: ${boletosPayload.length} boletos\n\u{1F4B0} Total: $${prizebox}\n\u{1F464} Nombre: ${name}` +
+                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`
+            : `\u{1F39F}\uFE0F *Compra de boletos online* \u{1F39F}\uFE0F\n\n` +
+                boletosPayload
+                  .map(
+                    (b) =>
+                      `➡️ Boleto: ${b.ticketNumber}\n\u{1F4B0} Precio: $${b.prizebox}\n\u{1F464} Nombre: ${b.name}`
+                  )
+                  .join("\n\n") +
+                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`
         );
-        const numeroAdmin = "573137053410";
-        // Reemplaza por tu número real (ej: 57300xxxxxxx)
-        window.open(`https://wa.me/${numeroAdmin}?text=${mensaje}`, "_blank");
+
+
+
+        window.open(`https://wa.me/573137053410?text=${mensaje}`, "_blank"); 
+
+        Swal.fire({
+          icon: "success",
+          title: "Compra registrada",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        console.error("Respuesta backend:", data);
+        Swal.fire("Error al guardar la compra online");
       }
     } catch (err) {
       console.error("Error confirmVenta:", err);
-      Swal.fire("Error al confirmar la compra");
+      Swal.fire("Error de conexión con el servidor");
     }
 
+    // Reset
     setIsLoading(false);
     setTickets([]);
+    setShowPreview(false);
     setTicketNumber("");
     setPrizebox("");
     setName("");
-    setShowPreview(false);
   };
 
   const enviarDatosSerie = async () => {
@@ -344,65 +387,10 @@ const TicketBuyOnline = () => {
     if (!Validate()) {
       return;
     }
-    setIsLoading(true);
 
-    // Calcula la cantidad de boletos en la serie
-    const numTickets = 10;
-
-    // Genera los números de boleto en serie
-    const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
-      let ticket = Number(ticketNumber) + 100 * i;
-      if (ticket >= 1000) {
-        ticket = ticket - 1000;
-      }
-      return ticket.toString().padStart(3, "0");
-    });
-
-    // Armamos payload para enviar en bloque a /api/boletosOnline
-    const boletosParaEnviar = ticketNumbers.map((tn) => ({
-      idSorteo: selectedSorteo?.Idsorteo,
-      ticketNumber: tn,
-      prizebox: prizebox / 10, // precio por boleto en la serie
-      name,
-      tipoSorteo: selectedSorteo?.Tipo_sorteo,
-      fecha: selectedSorteo?.Fecha,
-      primerPremio: selectedSorteo?.Primerpremio,
-      segundoPremio: selectedSorteo?.Segundopremio,
-    }));
-
-    try {
-      const res = await fetch("/api/boletosOnline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          boletos: boletosParaEnviar,
-          telefono: "", 
-          metodo_pago: "",
-        }),
-      });
-      const data = await res.json();
-
-      const allTicketData = data.boletos || [];
-
-      // Agregar entrada al contexto (serie)
-      addVenta({
-        tipo: "serie",
-        descripcion: `Serie ${ticketNumbers[0]} - ${ticketNumbers[ticketNumbers.length - 1]}`,
-        cantidad: allTicketData.length,
-        precio: prizebox / 10, // precio de cada boleto
-        subtotal: prizebox, // monto total de la serie
-        comprador: name,
-      });
-
-    } catch (err) {
-      console.error("Error enviarDatosSerie:", err);
-      Swal.fire("Error al registrar la serie online");
-    }
-
-    setIsLoading(false);
-    setTicketNumber("");
-    setPrizebox("");
-    setName("");
+    //Definimos tipoCompra como "serie"
+    setTipoCompra("serie");
+    setShowPreview(true);
   };
 
   const handlePrizeboxChange = (e) => {
@@ -432,12 +420,12 @@ const TicketBuyOnline = () => {
       return false;
     }
 
-    // Filtrar boletos con el mismo número de tope
+    //Filtrar boletos con el mismo número de tope
     const boletosConMismoTope = tickets.filter((ticket) => {
       return parseInt(ticket.numero) === numberTop;
     });
 
-    // Calcular la cantidad acumulada de boletos en la lista
+    //Calcular la cantidad acumulada de boletos en la lista
     const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
       return acc + parseInt(ticket.precio);
     }, 0);
@@ -458,7 +446,7 @@ const TicketBuyOnline = () => {
       return false;
     }
 
-    // Agregar el boleto actual a la lista de boletos acumulados
+    //Agregar el boleto actual a la lista de boletos acumulados
     if (ticketNumber && prizebox && name) {
       const precio = parseInt(prizebox);
       const nuevoTicket = {
@@ -489,7 +477,7 @@ const TicketBuyOnline = () => {
 
   const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
-  // Cambia el sorteo activo según el índice
+  //Cambia el sorteo activo según el índice
   const handleSelectSorteoAvance = async () => {
     if (!sorteos.length) return;
     const inputOptions = sorteos.reduce((opts, s, idx) => {
