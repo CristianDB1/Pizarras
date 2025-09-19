@@ -230,7 +230,6 @@ const TicketBuyOnline = () => {
 
   const enviarDatosNormal = async (e) => {
     e.preventDefault();
-    VailidationEstatus();
     if (tickets.length === 0 && (!prizebox || !name)) {
       ValidateBox();
       return;
@@ -419,7 +418,6 @@ const TicketBuyOnline = () => {
   };
 
   const addTicketToList = () => {
-    VailidationEstatus();
     if (!Validate()) {
       return false;
     }
