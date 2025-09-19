@@ -41,6 +41,8 @@ const TicketBuyOnline = () => {
   const [originalSorteo, setOriginalSorteo] = useState(null);
   const { addVenta } = useTotalVenta();
   const [tipoCompra, setTipoCompra] = useState("normal");
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+
 
   useEffect(() => {
     Promise.all([
@@ -241,7 +243,7 @@ const TicketBuyOnline = () => {
       return;
     }
 
-    // 👉 Definimos tipoCompra como "normal"
+    //Definimos tipoCompra como "normal"
     setTipoCompra("normal");
     setShowPreview(true);
   };
@@ -306,23 +308,6 @@ const TicketBuyOnline = () => {
 
 
       if (res.ok && data.success) {
-        /*const mensaje = encodeURIComponent(
-          tipoCompra === "serie"
-            ? `🎟️ *Compra de Serie* 🎟️\n\n` +
-                `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
-                  boletosPayload[boletosPayload.length - 1].ticketNumber
-                }\n📦 Cantidad: ${boletosPayload.length} boletos\n💰 Total: $${prizebox}\n👤 Nombre: ${name}` +
-                `\n\n📅 Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${selectedSorteo?.Fecha}\n📞 Teléfono: ${telefono}\n💳 Método de pago: ${metodoPago}`
-            : `🎟️ *Compra de boletos online* 🎟️\n\n` +
-                boletosPayload
-                  .map(
-                    (b) =>
-                      `➡️ Boleto: ${b.ticketNumber}\n💰 Precio: $${b.prizebox}\n👤 Nombre: ${b.name}`
-                  )
-                  .join("\n\n") +
-                `\n\n📅 Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${selectedSorteo?.Fecha}\n📞 Teléfono: ${telefono}\n💳 Método de pago: ${metodoPago}`
-        );*/
-
         const mensaje = encodeURIComponent(
           tipoCompra === "serie"
             ? `\u{1F39F}\uFE0F *Compra de Serie* \u{1F39F}\uFE0F\n\n` +
@@ -340,17 +325,15 @@ const TicketBuyOnline = () => {
                 `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`
         );
 
-
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
           //En móvil abre la app de WhatsApp
-          window.location.href = `whatsapp://send?phone=573137053410&text=${mensaje}`;
+          window.location.href = `whatsapp://send?phone=${whatsappNumber}&text=${mensaje}`;
         } else {
           //En PC abre WhatsApp Web
-          window.open(`https://wa.me/573137053410?text=${mensaje}`, "_blank");
+          window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
         }
-        //window.open(`https://wa.me/573137053410?text=${mensaje}`, "_blank"); 
 
         Swal.fire({
           icon: "success",
