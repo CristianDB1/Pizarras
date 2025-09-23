@@ -304,7 +304,7 @@ const TicketBuyOnline = () => {
       if (res.ok && data.success) {
         const mensaje = encodeURIComponent(
           tipoCompra === "serie"
-            ? `\u{1F39F}\uFE0F *Compra de Serie* \u{1F39F}\uFE0F\n\n` +
+            ? `\u{1F39F}\uFE0F *Compra de Serie Online* \u{1F39F}\uFE0F\n\n` +
                 `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
                   boletosPayload[boletosPayload.length - 1].ticketNumber
                 }\n\u{1F4E6} Cantidad: ${boletosPayload.length} boletos\n\u{1F4B0} Total: $${prizebox}\n\u{1F464} Nombre: ${name}` +
@@ -313,7 +313,7 @@ const TicketBuyOnline = () => {
                   ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
                   : "") +
                 `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
-            : `\u{1F39F}\uFE0F *Compra de boletos online* \u{1F39F}\uFE0F\n\n` +
+            : `\u{1F39F}\uFE0F *Compra de Boletos Online* \u{1F39F}\uFE0F\n\n` +
                 boletosPayload
                   .map(
                     (b) =>
