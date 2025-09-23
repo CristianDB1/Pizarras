@@ -1,4 +1,4 @@
-"use client"
+'use client'
 import { useEffect,useState } from "react";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { generarPDFTotalVenta } from "../pdf/pdfTotalVenta";
@@ -21,9 +21,21 @@ export default function TotalVentasModal(){
     }
   }, [open]);
 
-    //if (!user) return null;
-    if (!user || pathname === "/") return null;
+    const rutasOcultas = [
+      "/welcomeOnline",
+      "/typeDrawOnline",
+      "/ticketBuyOnline",
+      "/menuOnline",
+      "/ticketBuyEspecialOnline",
+      "/winnerSraffleOnline"
+    ];
 
+    const ocultar = rutasOcultas.some(ruta => pathname.startsWith(ruta));
+
+    if(ocultar) return null;
+
+    if (!user || pathname === "/") return null;
+    
     return (
     <div>
       <button 

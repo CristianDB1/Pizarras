@@ -1,8 +1,8 @@
+'use client'
 import { PiNumberSquareOneFill } from "react-icons/pi";
 import { PiNumberSquareTwoFill } from "react-icons/pi";
 import { BsCalendarDateFill } from "react-icons/bs";
 import { useEffect, useState } from "react";
-import generatePDF from "./pdf";
 import {
   ErrorPrizes,
   loading,
@@ -11,15 +11,11 @@ import {
 } from "../alerts/menu/Alerts";
 import { useRouter } from "next/navigation";
 import { FaHome, FaDice, FaForward } from "react-icons/fa";
-import generatePDFSerie from "./pdfSerie";
 import Swal from "sweetalert2";
 import { TbSquarePlus } from "react-icons/tb";
-import TicketPreviewModal from "./TicketPreviewModal";
-import VailidationEstatus from "@/hook/validationEstatus";
-import updateInfo from "../validation/updateInfo";
-import { useTotalVenta } from "@/context/TotalVentasContext";
+import TicketPreviewModalOnline from "./TicketPreviewModalOnline";
 
-const TicketBuy = () => {
+const TicketBuyOnline = () => {
   const [prizes, setPrizes] = useState(null);
   const [topePermitido, setTopePermitido] = useState(0);
   const [ticketNumber, setTicketNumber] = useState("");
@@ -37,9 +33,11 @@ const TicketBuy = () => {
   const [isGeneratingRandom, setIsGeneratingRandom] = useState(false);
   const [sorteos, setSorteos] = useState([]);
   const [selectedSorteo, setSelectedSorteo] = useState(null);
-  const [avanceIndex, setAvanceIndex] = useState(0); // 0 = sorteo original
+  const [avanceIndex, setAvanceIndex] = useState(0); 
   const [originalSorteo, setOriginalSorteo] = useState(null);
-  const {addVenta}= useTotalVenta();
+  const [tipoCompra, setTipoCompra] = useState("normal");
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+
 
   useEffect(() => {
     Promise.all([
@@ -79,6 +77,7 @@ const TicketBuy = () => {
       </div>
     );
   }
+
   const handleTicketNumberChange = async (e) => {
     let value = e.target.value;
     if (!/^[0-9]*$/.test(value)) {
@@ -86,18 +85,21 @@ const TicketBuy = () => {
     }
     setTicketNumber(value);
 
-    // Asegúrate de que el valor tenga una longitud de 3 caracteres
+    //Asegurar de que el valor tenga una longitud de 3 caracteres
     value = value.padStart(3, "0");
   };
 
-  // Usar selectedSorteo para la fecha y formattedFecha
-  const fecha = selectedSorteo ? new Date(
-    new Date(selectedSorteo.Fecha).getTime() + new Date().getTimezoneOffset() * 60000
-  ).toLocaleDateString() : "";
-  const [day, month, year] = fecha.split('/').map(num => num.padStart(2, '0'));
+  //Usar selectedSorteo para la fecha y formattedFecha
+  const fecha = selectedSorteo
+    ? new Date(
+        new Date(selectedSorteo.Fecha).getTime() +
+          new Date().getTimezoneOffset() * 60000
+      ).toLocaleDateString()
+    : "";
+  const [day, month, year] = fecha.split("/").map((num) => num.padStart(2, "0"));
   const formattedFecha = `${day}/${month}/${year}`;
 
-  // Función para obtener un número aleatorio disponible
+  //Función para obtener un número aleatorio disponible
   const getRandomNumber = async () => {
     try {
       setIsGeneratingRandom(true);
@@ -113,43 +115,43 @@ const TicketBuy = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Formatear el número para que tenga 3 dígitos con ceros a la izquierda
-        const numeroFormateado = data.numero.toString().padStart(3, '0');
+        //Formatear el número para que tenga 3 dígitos con ceros a la izquierda
+        const numeroFormateado = data.numero.toString().padStart(3, "0");
         setTicketNumber(numeroFormateado);
 
-        // Establecer valores predeterminados
+        //Establecer valores predeterminados
         setPrizebox("10");
         setName("Trébol de la Suerte");
 
-        // Limpiar errores de validación del precio
+        //Limpiar errores de validación del precio
         setPrizeboxError(null);
 
-        // Simular evento de blur para cargar la información del tope
+        //Simular evento de blur para cargar la información del tope
         const event = { target: { value: numeroFormateado } };
         handleBlur(event);
 
-        // Mostrar mensaje de éxito
+        //Mostrar mensaje de éxito
         Swal.fire({
-          icon: 'success',
-          title: 'Número aleatorio generado',
+          icon: "success",
+          title: "Número aleatorio generado",
           text: `Número: ${numeroFormateado}\nDisponibles: ${data.disponibles} de ${data.tope}`,
           timer: 1500,
           timerProgressBar: true,
-          showConfirmButton: false
+          showConfirmButton: false,
         });
       } else {
         Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: data.message || 'No se pudo generar un número aleatorio'
+          icon: "error",
+          title: "Error",
+          text: data.message || "No se pudo generar un número aleatorio",
         });
       }
     } catch (error) {
       console.error("Error al obtener número aleatorio:", error);
       Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Error al conectar con el servidor'
+        icon: "error",
+        title: "Error",
+        text: "Error al conectar con el servidor",
       });
     } finally {
       setIsGeneratingRandom(false);
@@ -158,7 +160,6 @@ const TicketBuy = () => {
 
   const handleBlur = async (e) => {
     let value = e.target.value;
-    // Asegúrate de que el valor sea un número y tenga una longitud de 3 caracteres
     value = value.padStart(3, "0");
     setTicketNumber(value);
 
@@ -200,7 +201,7 @@ const TicketBuy = () => {
     }
   };
 
-  const userData = JSON.parse(localStorage.getItem("userData"));
+  const userData = JSON.parse(localStorage.getItem("userData") || "{}");
   const idVendedor = userData.Idvendedor;
   const idSorteo = selectedSorteo?.Idsorteo;
 
@@ -222,16 +223,13 @@ const TicketBuy = () => {
     return true;
   };
 
-  const enviarDatosNormal = async () => {
-    VailidationEstatus();
-    console.log("Nuevo ticket:", tickets);
+  const enviarDatosNormal = async (e) => {
+    e.preventDefault();
     if (tickets.length === 0 && (!prizebox || !name)) {
       ValidateBox();
       return;
     }
-    if (tickets.length > 0) {
-      setShowPreview(true);
-    }
+
     if (!Validate()) {
       return;
     }
@@ -240,68 +238,142 @@ const TicketBuy = () => {
       return;
     }
 
+    //Definimos tipoCompra como "normal"
+    setTipoCompra("normal");
     setShowPreview(true);
   };
 
-  const confirmVenta = async () => {
-    VailidationEstatus();
+  const confirmVenta = async ({ telefono, metodoPago, bancoSeleccionado }) => {
     setIsLoading(true);
-    const ticketData = [];
-    for (const ticket of tickets) {
-      const data = {
-        //Como cambie el nombre de algunos items para poder guiarme mejor aqui hubo un pequeño cambio
-        prizebox: ticket.precio, //antes llamaba a ticket.price
-        name: ticket.comprador, //antes llamaba a ticket.name
-        ticketNumber: ticket.numero, //antes llamaba a ticket.number
-        idVendedor,
-        tipoSorteo: selectedSorteo.Tipo_sorteo,
-        idSorteo: selectedSorteo.Idsorteo,
-        topePermitido: foundTope - ticket.precio, //antes tambien llamaba a ticket.price
-        fecha: selectedSorteo.Fecha,
-        primerPremio: selectedSorteo.Primerpremio,
-        segundoPremio: selectedSorteo.Segundopremio,
-      };
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      };
 
-      try{
-        const res = await fetch("/api/sell", options);
-        const result = await res.json();
+    try {
+      let boletosPayload = [];
 
-        if(result.error){
-          Swal.fire(result.error);
-        }else if(result[0][0]){
-          const ticketSold = result[0][0];
-          ticketData.push(ticketSold);
+      if (tipoCompra === "serie") {
+        // Compra en serie
+        const numTickets = 10;
+        const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
+          let ticket = Number(ticketNumber) + 100 * i;
+          if (ticket >= 1000) {
+            ticket = ticket - 1000;
+          }
+          return ticket.toString().padStart(3, "0");
+        });
 
-          //Agregamos al contexto
-           addVenta({
-            tipo: "boleto",
-            numero: ticketSold.Numero || ticket.numero,
-            cantidad: 1,
-            precio: Number(ticketSold.Precio || ticket.precio) || 0,
-            subtotal: (Number(ticketSold.Precio || ticket.precio) || 0) * 1,
-            comprador: ticketSold.Nombre || ticket.comprador,
-          });
-        }
-      }catch(err){
-        console.error("Error confirmVenta:", err);
+        boletosPayload = ticketNumbers.map((tn) => ({
+          idSorteo: selectedSorteo?.Idsorteo,
+          ticketNumber: tn,
+          prizebox: prizebox / 10, // precio unitario en serie
+          name,
+          tipoSorteo: selectedSorteo?.Tipo_sorteo,
+          fecha: selectedSorteo?.Fecha,
+          primerPremio: selectedSorteo?.Primerpremio,
+          segundoPremio: selectedSorteo?.Segundopremio,
+        }));
+      } else {
+        // Compra normal
+        boletosPayload = tickets.map((t) => ({
+          idSorteo: selectedSorteo?.Idsorteo,
+          ticketNumber: t.numero,
+          prizebox: t.precio,
+          name: t.comprador,
+          tipoSorteo: selectedSorteo?.Tipo_sorteo,
+          fecha: selectedSorteo?.Fecha,
+          primerPremio: selectedSorteo?.Primerpremio,
+          segundoPremio: selectedSorteo?.Segundopremio,
+        }));
       }
+
+      const res = await fetch("/api/boletosOnline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boletos: boletosPayload,
+          telefono,
+          metodo_pago: metodoPago,
+        }),
+      });
+
+      const data = await res.json();
+
+      // Formatear la fecha (sin hora)
+      const fechaFormateada = selectedSorteo?.Fecha
+        ? new Date(selectedSorteo.Fecha).toISOString().split("T")[0]
+        : "";
+
+      if (res.ok && data.success) {
+        const mensaje = encodeURIComponent(
+          tipoCompra === "serie"
+            ? `\u{1F39F}\uFE0F *Compra de Serie Online* \u{1F39F}\uFE0F\n\n` +
+                `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
+                  boletosPayload[boletosPayload.length - 1].ticketNumber
+                }\n\u{1F4E6} Cantidad: ${boletosPayload.length} boletos\n\u{1F4B0} Total: $${prizebox}\n\u{1F464} Nombre: ${name}` +
+                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}` +
+                (metodoPago === "Banco" && bancoSeleccionado
+                  ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
+                  : "") +
+                `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
+            : `\u{1F39F}\uFE0F *Compra de Boletos Online* \u{1F39F}\uFE0F\n\n` +
+                boletosPayload
+                  .map(
+                    (b) =>
+                      `➡️ Boleto: ${b.ticketNumber}\n\u{1F4B0} Precio: $${b.prizebox}\n\u{1F464} Nombre: ${b.name}`
+                  )
+                  .join("\n\n") +
+                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}` +
+                (metodoPago === "Banco" && bancoSeleccionado
+                  ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
+                  : "") +
+                `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
+        );
+
+        if (!whatsappNumber) {
+          Swal.fire("⚠️ No se ha configurado el número de WhatsApp");
+          return;
+        }
+
+        if (!mensaje) {
+          Swal.fire("⚠️ No se pudo generar el mensaje");
+          return;
+        }
+
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+          // En telefono abre la app de WhatsApp
+          window.location.href = `whatsapp://send?phone=${whatsappNumber}&text=${mensaje}`;
+        } else {
+          // En PC abre WhatsApp Web
+          window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
+        }
+
+        Swal.fire({
+          icon: "success",
+          title: "Compra registrada",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        console.error("Respuesta backend:", data);
+        Swal.fire("Error al guardar la compra online");
+      }
+    } catch (err) {
+      console.error("Error confirmVenta:", err);
+      Swal.fire("Error de conexión con el servidor");
     }
+
+    // Reset
     setIsLoading(false);
     setTickets([]);
+    setShowPreview(false);
     setTicketNumber("");
     setPrizebox("");
     setName("");
-    generatePDF(ticketData, selectedSorteo.fecha);
-    setShowPreview(false);
   };
-  const enviarDatosSerie = async () => {
+
+
+  const enviarDatosSerie = async (e) => {
+    e.preventDefault();
     if (!prizebox || !name) {
       ValidateBox();
       return;
@@ -309,9 +381,10 @@ const TicketBuy = () => {
 
     if (parseInt(prizebox) < 100 || parseInt(prizebox) % 100 !== 0) {
       Swal.fire({
-        icon: 'error',
-        title: 'Monto inválido',
-        text: 'Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100 (100, 200, ...900)',
+        icon: "error",
+        title: "Monto inválido",
+        text:
+          "Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100 (100, 200, ...900)",
       });
       return;
     }
@@ -319,66 +392,10 @@ const TicketBuy = () => {
     if (!Validate()) {
       return;
     }
-    setIsLoading(true);
 
-    // Calcula la cantidad de boletos en la serie
-    const numTickets = 10;
-
-    // Genera los números de boleto en serie
-    const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
-      let ticket = Number(ticketNumber) + 100 * i;
-      if (ticket >= 1000) {
-        ticket = ticket - 1000;
-      }
-      return ticket.toString().padStart(3, "0");
-    });
-
-    const allTicketData = [];
-
-    // Envía cada boleto al servidor
-    for (const ticketNumber of ticketNumbers) {
-      const data = {
-        prizebox: prizebox / 10,
-        name,
-        ticketNumber,
-        idVendedor,
-        idSorteo: selectedSorteo.Idsorteo,
-        topePermitido: foundTope - prizebox,
-        fecha: selectedSorteo.Fecha,
-        primerPremio: selectedSorteo.Primerpremio,
-        segundoPremio: selectedSorteo.Segundopremio,
-      };
-      const options = {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      };
-      await fetch("/api/sell", options)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data[0]) {
-            allTicketData.push(data[0][0]);
-          }
-        });
-    }
-
-    addVenta({
-      tipo: "serie",
-      descripcion: `Serie ${ticketNumbers[0]} - ${ticketNumbers[ticketNumbers.length - 1]}`,
-      cantidad: allTicketData.length,
-      precio: prizebox / 10, // precio de cada boleto
-      subtotal: prizebox,    // monto total de la serie
-      comprador: name,
-    });
-
-    setIsLoading(false);
-    setTicketNumber("");
-    setPrizebox("");
-    setName("");
-
-    generatePDFSerie(allTicketData, fecha);
+    //Definimos tipoCompra como "serie"
+    setTipoCompra("serie");
+    setShowPreview(true);
   };
 
   const handlePrizeboxChange = (e) => {
@@ -397,23 +414,20 @@ const TicketBuy = () => {
   }
 
   const goToMenu = () => {
-    updateInfo(idVendedor).then(() => {
-      router.push("/menu");
-    });
+      router.push("/typeDrawOnline");
   };
 
   const addTicketToList = () => {
-    VailidationEstatus();
     if (!Validate()) {
       return false;
     }
 
-    // Filtrar boletos con el mismo número de tope
+    //Filtrar boletos con el mismo número de tope
     const boletosConMismoTope = tickets.filter((ticket) => {
       return parseInt(ticket.numero) === numberTop;
     });
 
-    // Calcular la cantidad acumulada de boletos en la lista
+    //Calcular la cantidad acumulada de boletos en la lista
     const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
       return acc + parseInt(ticket.precio);
     }, 0);
@@ -434,7 +448,7 @@ const TicketBuy = () => {
       return false;
     }
 
-    // Agregar el boleto actual a la lista de boletos acumulados
+    //Agregar el boleto actual a la lista de boletos acumulados
     if (ticketNumber && prizebox && name) {
       const precio = parseInt(prizebox);
       const nuevoTicket = {
@@ -446,9 +460,7 @@ const TicketBuy = () => {
       };
 
       //Actualizo la lista local
-      setTickets((prevTickets) => [
-        ...prevTickets,nuevoTicket
-      ]);
+      setTickets((prevTickets) => [...prevTickets, nuevoTicket]);
 
       //Limpiar los inputs
       setTicketNumber("");
@@ -465,32 +477,33 @@ const TicketBuy = () => {
     setTickets((prevTickets) => prevTickets.filter((_, i) => i !== index));
   };
 
-  const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
-  // Cambia el sorteo activo según el índice
+  //Cambia el sorteo activo según el índice
   const handleSelectSorteoAvance = async () => {
     if (!sorteos.length) return;
     const inputOptions = sorteos.reduce((opts, s, idx) => {
       let label = s.Fecha;
       try {
-        // Usar toLocaleDateString para obtener día y fecha en español, robusto a zona horaria
         const fechaObj = new Date(s.Fecha);
-        label = fechaObj.toLocaleDateString('es-MX', {
-          weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC'
+        label = fechaObj.toLocaleDateString("es-MX", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          timeZone: "UTC",
         });
-        // Capitalizar la primera letra
         label = label.charAt(0).toUpperCase() + label.slice(1);
       } catch (e) {
-        // Fallback a la fecha cruda si algo falla
         label = s.Fecha;
       }
       opts[idx] = label;
       return opts;
     }, {});
 
-    // Si ya está en avance, mostrar opción de revertir
     let showRevert = avanceIndex !== 0;
-    let html = showRevert ? '<button id="revertSorteo" class="swal2-confirm swal2-styled" style="margin-bottom:10px;background:#4b5563;">Revertir a sorteo original</button><br/>' : '';
+    let html = showRevert
+      ? '<button id="revertSorteo" class="swal2-confirm swal2-styled" style="margin-bottom:10px;background:#4b5563;">Revertir a sorteo original</button><br/>'
+      : "";
     const { value: idx } = await Swal.fire({
       title: "Sorteo en avance",
       html: html + "<div id='selectSorteoAvance'></div>",
@@ -507,15 +520,15 @@ const TicketBuy = () => {
             setSelectedSorteo(originalSorteo);
             setAvanceIndex(0);
             Swal.close();
-            Swal.fire({ icon: 'success', title: 'Sorteo original restaurado', timer: 1200, showConfirmButton: false });
+            Swal.fire({ icon: "success", title: "Sorteo original restaurado", timer: 1200, showConfirmButton: false });
           };
         }
-      }
+      },
     });
     if (idx !== undefined && idx !== null && idx !== "") {
       setSelectedSorteo(sorteos[idx]);
       setAvanceIndex(Number(idx));
-      Swal.fire({ icon: 'success', title: 'Sorteo cambiado', timer: 1200, showConfirmButton: false });
+      Swal.fire({ icon: "success", title: "Sorteo cambiado", timer: 1200, showConfirmButton: false });
     }
   };
 
@@ -523,7 +536,7 @@ const TicketBuy = () => {
     <div className="relative min-h-screen">
       <div className="max-w-sm mx-auto w-full bg-[rgb(38,38,38)]">
         <div className="text-2xl text-white flex justify-center items-center pb-4 pt-6 ">
-          Boletos
+          Boletos Online
         </div>
         <div className="w-full flex justify-center items-center flex-col space-y-1  relative">
           <label className="text-white text-xl flex justify-center items-center realative pr-8 ">
@@ -566,7 +579,7 @@ const TicketBuy = () => {
               className="absolute right-0 bg-green-700 text-white flex justify-center items-center rounded-lg h-[40px] w-[40px] text-4xl"
             >
               <TbSquarePlus />
-            </button> 
+            </button>
           </div>
 
           {/* Fila de Precio */}
@@ -605,10 +618,10 @@ const TicketBuy = () => {
             <button
               onClick={getRandomNumber}
               disabled={isGeneratingRandom}
-              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isGeneratingRandom ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""}`}
               title="Generar número aleatorio"
             >
-              <FaDice className={`${isGeneratingRandom ? 'animate-spin' : ''} text-2xl`} />
+              <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-2xl`} />
               <span className="text-xs font-semibold mt-1">Azar</span>
             </button>
             <button
@@ -624,12 +637,14 @@ const TicketBuy = () => {
 
         <div className="flex justify-center items-center flex-col space-y-2 pt-4 px-8">
           <button
+            type="button"
             onClick={enviarDatosNormal}
             className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
           >
             Normal
           </button>
           <button
+            type="button"
             onClick={enviarDatosSerie}
             className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
           >
@@ -637,14 +652,6 @@ const TicketBuy = () => {
           </button>
         </div>
 
-        <div className="flex justify-center items-center flex-col pt-2 px-8">
-          <button
-            onClick={() => router.push("/viewTickects")}
-            className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
-          >
-            Revisar Boletos
-          </button>
-        </div>
       </div>
       <button
         onClick={goToMenu}
@@ -654,7 +661,7 @@ const TicketBuy = () => {
       </button>
 
       {showPreview && (
-        <TicketPreviewModal
+        <TicketPreviewModalOnline
           tickets={tickets}
           onClose={() => setShowPreview(false)}
           onConfirm={confirmVenta}
@@ -665,4 +672,4 @@ const TicketBuy = () => {
   );
 };
 
-export default TicketBuy;
+export default TicketBuyOnline;
