@@ -15,7 +15,7 @@ export default function MenuOnline(){
     }
 
     const handleWinnerSraffleOnline = () => {
-        router.push("");
+        router.push("/winnerSraffleOnline");
     }
 
     const goToWelcomeBoletosOnline = () => {

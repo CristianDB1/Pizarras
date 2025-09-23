@@ -29,7 +29,7 @@ export default function TypeDrawOnline() {
                     if (selectedPrize) {
                         // Redirigir al usuario a la ruta ticketBuyOnlineEspecial con la fecha seleccionada
                         // Aquí se asume que quieres pasar la fecha seleccionada como un parámetro de consulta
-                        router.push(`/ticketBuyOnlineEspecial`);
+                        router.push(`/ticketBuyEspecialOnline`);
                     } else {
                         // Manejar el caso en que el usuario cancela la selección (si es necesario)
                         console.log('Selección de fecha cancelada');
