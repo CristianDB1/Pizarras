@@ -1,4 +1,4 @@
-"use client"
+'use client'
 import { useEffect,useState } from "react";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { generarPDFTotalVenta } from "../pdf/pdfTotalVenta";
