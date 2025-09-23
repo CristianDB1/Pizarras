@@ -1,5 +1,5 @@
 'use client'
-import MenuOnline from "@/components/custom/boletosOnline/MenuOnline";
+import MenuOnline from "@/components/custom/menuOnline/MenuOnline";
 
 export default function MenuOnlinepage(){
     return(

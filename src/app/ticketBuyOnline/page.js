@@ -1,4 +1,4 @@
-import TicketBuyOnline from "@/components/custom/boletosOnline/TicketBuyOnline";
+import TicketBuyOnline from "@/components/custom/ticketBuyOnline/TicketBuyOnline";
 
 export default function TicketBuyOnlinePage() {
   return (

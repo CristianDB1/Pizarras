@@ -25,7 +25,8 @@ export default function TotalVentasModal(){
       "/welcomeOnline",
       "/typeDrawOnline",
       "/ticketBuyOnline",
-      "/menuOnline"
+      "/menuOnline",
+      "/ticketBuyEspecialOnline"
     ];
 
     const ocultar = rutasOcultas.some(ruta => pathname.startsWith(ruta));

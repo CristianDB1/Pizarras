@@ -1,5 +1,5 @@
 'use client'
-import TypeDrawOnline from "@/components/custom/boletosOnline/TypeDrawOnline";
+import TypeDrawOnline from "@/components/custom/typeDrawOnline/TypeDrawOnline";
 
 export default function TypeDrawPage() {
     return(

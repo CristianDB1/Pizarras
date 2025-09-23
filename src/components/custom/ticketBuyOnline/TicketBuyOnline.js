@@ -1,4 +1,3 @@
-// TicketBuyOnline.js
 "use client"
 import { PiNumberSquareOneFill } from "react-icons/pi";
 import { PiNumberSquareTwoFill } from "react-icons/pi";
@@ -15,9 +14,6 @@ import { FaHome, FaDice, FaForward } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { TbSquarePlus } from "react-icons/tb";
 import TicketPreviewModalOnline from "./TicketPreviewModalOnline";
-import VailidationEstatus from "@/hook/validationEstatus";
-import updateInfo from "../validation/updateInfo";
-import { useTotalVenta } from "@/context/TotalVentasContext";
 
 const TicketBuyOnline = () => {
   const [prizes, setPrizes] = useState(null);
@@ -39,7 +35,6 @@ const TicketBuyOnline = () => {
   const [selectedSorteo, setSelectedSorteo] = useState(null);
   const [avanceIndex, setAvanceIndex] = useState(0); 
   const [originalSorteo, setOriginalSorteo] = useState(null);
-  const { addVenta } = useTotalVenta();
   const [tipoCompra, setTipoCompra] = useState("normal");
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
@@ -248,14 +243,14 @@ const TicketBuyOnline = () => {
     setShowPreview(true);
   };
 
-  const confirmVenta = async ({ telefono, metodoPago }) => {
+  const confirmVenta = async ({ telefono, metodoPago, bancoSeleccionado }) => {
     setIsLoading(true);
 
     try {
       let boletosPayload = [];
 
       if (tipoCompra === "serie") {
-        //Compra en serie
+        // Compra en serie
         const numTickets = 10;
         const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
           let ticket = Number(ticketNumber) + 100 * i;
@@ -268,7 +263,7 @@ const TicketBuyOnline = () => {
         boletosPayload = ticketNumbers.map((tn) => ({
           idSorteo: selectedSorteo?.Idsorteo,
           ticketNumber: tn,
-          prizebox: prizebox / 10, //precio unitario en serie
+          prizebox: prizebox / 10, // precio unitario en serie
           name,
           tipoSorteo: selectedSorteo?.Tipo_sorteo,
           fecha: selectedSorteo?.Fecha,
@@ -276,7 +271,7 @@ const TicketBuyOnline = () => {
           segundoPremio: selectedSorteo?.Segundopremio,
         }));
       } else {
-        //Compra normal
+        // Compra normal
         boletosPayload = tickets.map((t) => ({
           idSorteo: selectedSorteo?.Idsorteo,
           ticketNumber: t.numero,
@@ -301,11 +296,10 @@ const TicketBuyOnline = () => {
 
       const data = await res.json();
 
-      //Para formatear la fecha (sin la hora)
+      // Formatear la fecha (sin hora)
       const fechaFormateada = selectedSorteo?.Fecha
-        ? new Date(selectedSorteo.Fecha).toISOString().split("T")[0] 
+        ? new Date(selectedSorteo.Fecha).toISOString().split("T")[0]
         : "";
-
 
       if (res.ok && data.success) {
         const mensaje = encodeURIComponent(
@@ -314,7 +308,11 @@ const TicketBuyOnline = () => {
                 `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
                   boletosPayload[boletosPayload.length - 1].ticketNumber
                 }\n\u{1F4E6} Cantidad: ${boletosPayload.length} boletos\n\u{1F4B0} Total: $${prizebox}\n\u{1F464} Nombre: ${name}` +
-                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`
+                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}` +
+                (metodoPago === "Banco" && bancoSeleccionado
+                  ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
+                  : "") +
+                `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
             : `\u{1F39F}\uFE0F *Compra de boletos online* \u{1F39F}\uFE0F\n\n` +
                 boletosPayload
                   .map(
@@ -322,9 +320,12 @@ const TicketBuyOnline = () => {
                       `➡️ Boleto: ${b.ticketNumber}\n\u{1F4B0} Precio: $${b.prizebox}\n\u{1F464} Nombre: ${b.name}`
                   )
                   .join("\n\n") +
-                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`
+                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}` +
+                (metodoPago === "Banco" && bancoSeleccionado
+                  ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
+                  : "") +
+                `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
         );
-
 
         if (!whatsappNumber) {
           Swal.fire("⚠️ No se ha configurado el número de WhatsApp");
@@ -339,10 +340,10 @@ const TicketBuyOnline = () => {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
-          //En móvil abre la app de WhatsApp
+          // En telefono abre la app de WhatsApp
           window.location.href = `whatsapp://send?phone=${whatsappNumber}&text=${mensaje}`;
         } else {
-          //En PC abre WhatsApp Web
+          // En PC abre WhatsApp Web
           window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
         }
 
@@ -369,6 +370,7 @@ const TicketBuyOnline = () => {
     setPrizebox("");
     setName("");
   };
+
 
   const enviarDatosSerie = async (e) => {
     e.preventDefault();
@@ -412,9 +414,7 @@ const TicketBuyOnline = () => {
   }
 
   const goToMenu = () => {
-    updateInfo(idVendedor).then(() => {
       router.push("/typeDrawOnline");
-    });
   };
 
   const addTicketToList = () => {

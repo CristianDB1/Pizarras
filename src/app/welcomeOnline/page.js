@@ -1,5 +1,5 @@
 'use client'
-import WelcomeBoletosOnline from "@/components/custom/boletosOnline/WelcomeBoletosOnline";
+import WelcomeBoletosOnline from "@/components/custom/welcomeOnline/WelcomeBoletosOnline";
 
 export default function BoletosOnlinePage() {
   return (
