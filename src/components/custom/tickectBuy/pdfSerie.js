@@ -17,9 +17,17 @@ const generatePDFSerie = async (data, fecha) => {
     var leyenda1Text = tempDoc.splitTextToSize(`${data[0].leyenda1}`, 70);
     const leyenda1Height = leyenda1Text.length * 4; // Subido a 4mm por línea para fuente más grande
 
-    // Calculamos altura total estimada + margen inferior
+    /*// Calculamos altura total estimada + margen inferior
     const lastTextPosition = 130; // Ajustado para más espacio
     const totalHeight = lastTextPosition + leyenda1Height + 10;
+    const finalHeight = Math.min(totalHeight, 297);*/
+
+    // Calcular altura dinámica según cantidad de boletos
+    const boletosHeight = data.length * 5; // cada boleto ocupa ~5mm
+    const datosExtraHeight = 40; // espacio para sorteo, comprador, venta
+    const totalHeight = 80 + boletosHeight + leyenda1Height + datosExtraHeight;
+
+    // Si es mayor al tamaño de página, limitamos a A4
     const finalHeight = Math.min(totalHeight, 297);
 
     // Crear un nuevo documento PDF con la altura calculada
@@ -58,47 +66,51 @@ const generatePDFSerie = async (data, fecha) => {
 
     let leyenda2Y = leyenda2StartY + (leyenda2Lines.length * 5);
 
+    let posY = 55;
     // Título y folio en líneas separadas
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(13); // Antes 12
-    doc.text(`Factura de boleto`, 5, 55);
+    doc.setFontSize(13);
+    doc.text(`Factura de boleto`, 5, posY);
 
-    doc.setTextColor(255, 0, 0);
-    doc.setFontSize(13); // Antes 12
-    doc.text(`N${data[0].Idsorteo}`, 5, 65); // Folio en línea aparte
-
-    // Datos principales
-    doc.setTextColor(0, 0, 0);
+    // Costo
+    posY += 10;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11); // Antes 10
-    doc.text(`Costo: $ ${totalCosto}`, 5, 75);
-    doc.text(`Serie de boletos:`, 5, 85);
+    doc.setFontSize(11);
+    doc.text(`Costo: $ ${totalCosto}`, 5, posY);
 
-    // Serie de boletos: salto de línea cada 6 boletos
-    let boletosArr = data.map(item => item.Boleto?.toString().padStart(3, '0'));
-    let boletosLines = [];
-    for (let i = 0; i < boletosArr.length; i += 6) {
-        boletosLines.push(boletosArr.slice(i, i + 6).join('-'));
-    }
-    let serieY = 95;
-    boletosLines.forEach((linea, idx) => {
-        doc.text(linea, 5, serieY + (idx * 7)); // Antes 6, subido para más espacio con fuente más grande
+    // Encabezado
+    posY += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(`Serie de boletos:`, 5, posY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8); // Más pequeño para que quepa mejor
+
+    data.forEach((boleto, index) => {
+        const numero = boleto.Boleto?.toString().padStart(3, "0");
+        const ns = `N${boleto.Idsorteo}`;
+        posY += 5; // espacio entre renglones
+        doc.text(`${numero} - ${ns}`, 5, posY);
     });
 
-    let nextY = serieY + (boletosLines.length * 7); // Antes 6
+    // Datos principales
+    posY += 10;
+    doc.setFontSize(10);
+    doc.text(`Sorteo: ${fechaSorteoFormateada}`, 5, posY);
 
-    // Agregar más espacio entre la serie y el sorteo
-    nextY += 5; // Aumenta el espacio, puedes ajustar el valor si quieres más o menos
+    posY += 6;
+    doc.text(`Comprador: ${data[0].comprador}`, 5, posY);
 
-    doc.text(`Sorteo: ${fechaSorteoFormateada}`, 5, nextY);
-    doc.text(`Comprador: ${data[0].comprador}`, 5, nextY + 11);
-    doc.text(`Venta: ${data[0].Fecha_venta}`, 5, nextY + 22); // Antes 20
+    posY += 6;
+    doc.text(`Venta: ${data[0].Fecha_venta}`, 5, posY);
 
     // Leyenda1 al final
+    posY += 10;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11); // Antes 10
+    doc.setFontSize(9);
     var text = doc.splitTextToSize(`${data[0].leyenda1}`, 70);
-    doc.text(text, 5, nextY + 30); // Antes 30
+    doc.text(text, 5, posY);
 
     // Resto del código sin cambios
     doc.autoPrint();
