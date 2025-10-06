@@ -275,8 +275,8 @@ const TicketBuy = () => {
 
         if(result.error){
           Swal.fire(result.error);
-        }else if(result[0][0]){
-          const ticketSold = result[0][0];
+        }else if (Array.isArray(result) && result.length > 0) {
+          const ticketSold = result[0];
           ticketData.push(ticketSold);
 
           //Agregamos al contexto
