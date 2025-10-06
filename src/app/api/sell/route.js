@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
+import QRCode from "qrcode";
 
 //normal
 export async function POST(req, res) {
@@ -15,27 +16,34 @@ export async function POST(req, res) {
     ticketNumber,
     tipoSorteo,
   } = datos;
+  
   // Usar solo la fecha (YYYY-MM-DD) para el campo Fecha
   const fechaModificada = fecha.split("T")[0];
+
+   // Generar el QR en base al número de serie del boleto
+  const qrData = `${ticketNumber}-${fechaModificada}`;
+  const qrCodeBase64 = await QRCode.toDataURL(qrData);
+
   let sql = `
         INSERT INTO boletos
-        ( Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
-        VALUES( ?, ?, ?, ?, ?, ?, ?, ?,CURRENT_TIMESTAMP)
+        (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta, qr_code)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
     `;
+
   let sqlTopes = `SELECT * FROM topes WHERE Numero = ? AND Fecha_sorteo = ?`;
   let sqlUpdate = `UPDATE topes SET  Cantidad = Cantidad + ${prizebox} WHERE Numero = ${ticketNumber}`;
   let sqlValidation = `SELECT b.Idsorteo AS idsorteo, b.Fecha AS Fecha_sorteo , b.Boleto AS boleto, s.Tipo_sorteo AS tipo FROM boletos b
          JOIN sorteo s ON b.tipo_sorteo
          WHERE s.Tipo_sorteo = 'especial' AND b.Fecha = ? AND b.Boleto = ?`;
   let sqlSelect = `
-  SELECT b.*, c.leyenda1, s.leyenda2
-  FROM boletos b
-  JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-  CROSS JOIN configuracion c
-  WHERE b.Boleto = ?
-  ORDER BY b.Idsorteo DESC
-  LIMIT 1;
-`;
+    SELECT b.*, c.leyenda1, s.leyenda2
+    FROM boletos b
+    JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
+    CROSS JOIN configuracion c
+    WHERE b.Boleto = ?
+    ORDER BY b.Idsorteo DESC
+    LIMIT 1;
+  `;
 
   let sqlSelectEspecial = `
   SELECT b.*, c.leyenda1, s.leyenda2
@@ -47,7 +55,7 @@ export async function POST(req, res) {
   LIMIT 1;
 `;
   let values = [
-    fechaModificada, // YYYY-MM-DD limpio, sin hora ni zona
+    fechaModificada,
     primerPremio,
     segundoPremio,
     ticketNumber,
@@ -55,6 +63,7 @@ export async function POST(req, res) {
     name,
     idVendedor,
     idSorteo,
+    qrCodeBase64, 
   ];
 
   try {
@@ -91,16 +100,16 @@ export async function POST(req, res) {
       }
     }
     if (tipoSorteoNormalized === "normal" || tipoSorteoNormalized === "domingo") {
-      let result = await pool.query(sql, values);
-      let resultUpdate = await pool.query(sqlUpdate);
-      let resultSelect = await pool.query(sqlSelect, [ticketNumber]);
+      // Insertar boleto con QR
+      await pool.query(sql, values);
+      await pool.query(sqlUpdate);
+      const [resultSelect] = await pool.query(sqlSelect, [ticketNumber]);
       return NextResponse.json(resultSelect);
     }
     if (tipoSorteoNormalized === "especial") {
-      let result = await pool.query(sql, values);
-      let resultSelectUpdate = await pool.query(sqlSelectEspecial, [
-        ticketNumber,
-      ]);
+      // Insertar boleto especial con QR
+      await pool.query(sql, values);
+      const [resultSelectUpdate] = await pool.query(sqlSelectEspecial, [ticketNumber]);
       return NextResponse.json(resultSelectUpdate);
     }
     // Si no es normal, domingo ni especial
@@ -128,18 +137,22 @@ export async function PUT(req, res) {
   const fechaModificada = fecha.split("T")[0];
   let sql = `
         INSERT INTO boletos
-        ( Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
-        VALUES( ?, ?, ?, ?, ?, ?, ?, ?,CURRENT_TIMESTAMP)
+        (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta, qr_code)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
     `;
+
+  const qrData = `${ticketNumber}-${fechaModificada}`;
+  const qrCodeBase64 = await QRCode.toDataURL(qrData); 
+
   // Obtener los últimos 10 elementos insertados
-   let sqlSelect = `
+  let sqlSelect = `
     SELECT b.*, c.leyenda1, s.leyenda2
     FROM boletos b
     JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
     CROSS JOIN configuracion c
     WHERE comprador = ?
     ORDER BY b.Idsorteo DESC
-    LIMIT 10
+    LIMIT 10;
   `;
   let values = [
     fechaModificada,
@@ -150,14 +163,15 @@ export async function PUT(req, res) {
     name,
     idVendedor,
     idSorteo,
+    qrCodeBase64,
   ];
 
   try {
-    let result = await pool.query(sql, values);
-    let resultSelect = await pool.query(sqlSelect, [name]);
+    const [result] = await pool.query(sql, values);
+    const [resultSelect] = await pool.query(sqlSelect, [name]);
     return NextResponse.json(resultSelect);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

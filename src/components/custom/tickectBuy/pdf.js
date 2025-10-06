@@ -115,8 +115,16 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
 
       // Salto de línea extra para separar de la leyenda
       yPosition += 36; // Antes 30, ahora 36 para más espacio
-    });
 
+      if (data.qr_code) {
+        try {
+          // Dibujar QR (ajustar tamaño/posición según diseño)
+          doc.addImage(data.qr_code, "PNG", 55, yPosition + 5, 20, 20);
+        } catch (err) {
+          console.warn("Error al agregar QR:", err);
+        }
+      }
+    });
     // PASO 4: Manejar leyenda final (leyenda1) con mejor control
     doc.setFont("helvetica", "bold");
     doc.setFontSize(leyenda1FontSize);
