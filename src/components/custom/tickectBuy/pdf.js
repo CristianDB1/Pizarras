@@ -116,13 +116,13 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
       
       if (data.qr_code) {
         const qrImage = data.qr_code;
-        const qrX = 25; // posición horizontal centrada
-        const qrY = yPosition + 28; // un poco debajo del número de boleto
-        const qrSize = 25; // tamaño del QR en mm
+        const qrX = 20;      // centrado
+        const qrY = yPosition + 30; // justo debajo del número
+        const qrSize = 25;   
         doc.addImage(qrImage, "PNG", qrX, qrY, qrSize, qrSize);
-        yPosition += qrSize + 20; // espacio adicional después del QR
+        yPosition = qrY + qrSize + 10; // actualiza la posición para lo siguiente
       } else {
-        yPosition += 36; // Salto de línea extra para separar de la leyenda
+        yPosition += 36;
       }
     });
     // PASO 4: Manejar leyenda final (leyenda1) con mejor control
