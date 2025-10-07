@@ -120,7 +120,7 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
         const qrY = yPosition + 28; // un poco debajo del número de boleto
         const qrSize = 25; // tamaño del QR en mm
         doc.addImage(qrImage, "PNG", qrX, qrY, qrSize, qrSize);
-        yPosition += qrSize + 10; // espacio adicional después del QR
+        yPosition += qrSize + 20; // espacio adicional después del QR
       } else {
         yPosition += 36; // Salto de línea extra para separar de la leyenda
       }
