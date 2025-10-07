@@ -16,27 +16,36 @@ export async function POST(req, res) {
     ticketNumber,
     tipoSorteo,
   } = datos;
-  
-  // Usar solo la fecha (YYYY-MM-DD) para el campo Fecha
+
+  // Asegurar formato de fecha (YYYY-MM-DD)
   const fechaModificada = fecha.split("T")[0];
 
-   // Generar el QR en base al número de serie del boleto
-  const numeroSerie = `N${idSorteo}`;
-  const qrData = `${numeroSerie}-${ticketNumber}-${fechaModificada}`;
-  const qrCodeBase64 = await QRCode.toDataURL(qrData);
+  // Consulta base de inserción
+  const sqlInsert = `
+    INSERT INTO boletos
+    (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `;
 
-  let sql = `
-        INSERT INTO boletos
-        (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta, qr_code)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-    `;
-
-  let sqlTopes = `SELECT * FROM topes WHERE Numero = ? AND Fecha_sorteo = ?`;
-  let sqlUpdate = `UPDATE topes SET  Cantidad = Cantidad + ${prizebox} WHERE Numero = ${ticketNumber}`;
-  let sqlValidation = `SELECT b.Idsorteo AS idsorteo, b.Fecha AS Fecha_sorteo , b.Boleto AS boleto, s.Tipo_sorteo AS tipo FROM boletos b
-         JOIN sorteo s ON b.tipo_sorteo
-         WHERE s.Tipo_sorteo = 'especial' AND b.Fecha = ? AND b.Boleto = ?`;
-  let sqlSelect = `
+  // Otras consultas utilizadas
+  const sqlTopes = `SELECT * FROM topes WHERE Numero = ? AND Fecha_sorteo = ?`;
+  const sqlUpdateTope = `UPDATE topes SET Cantidad = Cantidad + ${prizebox} WHERE Numero = ${ticketNumber}`;
+  const sqlValidation = `
+    SELECT b.Idsorteo AS idsorteo, b.Fecha AS Fecha_sorteo, b.Boleto AS boleto, s.Tipo_sorteo AS tipo
+    FROM boletos b
+    JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
+    WHERE s.Tipo_sorteo = 'especial' AND b.Fecha = ? AND b.Boleto = ?
+  `;
+  const sqlSelect = `
+    SELECT b.*, c.leyenda1, s.leyenda2
+    FROM boletos b
+    JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
+    CROSS JOIN configuracion c
+    WHERE b.Boleto = ?
+    ORDER BY b.Idsorteo DESC
+    LIMIT 1;
+  `;
+  const sqlSelectEspecial = `
     SELECT b.*, c.leyenda1, s.leyenda2
     FROM boletos b
     JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
@@ -46,16 +55,7 @@ export async function POST(req, res) {
     LIMIT 1;
   `;
 
-  let sqlSelectEspecial = `
-  SELECT b.*, c.leyenda1, s.leyenda2
-  FROM boletos b
-  JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-  CROSS JOIN configuracion c
-  WHERE b.Boleto = ?
-  ORDER BY b.Idsorteo DESC
-  LIMIT 1;
-`;
-  let values = [
+  const insertValues = [
     fechaModificada,
     primerPremio,
     segundoPremio,
@@ -64,60 +64,71 @@ export async function POST(req, res) {
     name,
     idVendedor,
     idSorteo,
-    qrCodeBase64, 
   ];
 
   try {
-    // Verificar el tope antes de realizar la venta
-    let [resultTopes] = await pool.query(sqlTopes, [
-      ticketNumber,
-      fechaModificada,
-    ]);
+    // 1️⃣ Verificar el tope
+    const [resultTopes] = await pool.query(sqlTopes, [ticketNumber, fechaModificada]);
     if (resultTopes.length > 0) {
-      let tope = resultTopes[0].Tope;
-      let cantidadActual = resultTopes[0].Cantidad;
+      const tope = resultTopes[0].Tope;
+      const cantidadActual = resultTopes[0].Cantidad;
       if (cantidadActual + prizebox > tope) {
         return NextResponse.json({
           error: "La cantidad de boletos vendidos supera el tope permitido",
         });
       }
     }
-    // El tipoSorteo puede venir como 'domingo', 'normal', etc. pero también como id numérico. Normalizamos:
+
+    // 2️⃣ Normalizar tipo de sorteo
     let tipoSorteoNormalized = tipoSorteo;
-    // Si es un número, buscamos el tipo real en la tabla sorteo
     if (!isNaN(tipoSorteo)) {
       const [rows] = await pool.query('SELECT Tipo_sorteo FROM sorteo WHERE Idsorteo = ?', [tipoSorteo]);
-      if (rows.length > 0) {
-        tipoSorteoNormalized = rows[0].Tipo_sorteo;
-      }
+      if (rows.length > 0) tipoSorteoNormalized = rows[0].Tipo_sorteo;
     }
-    if (tipoSorteoNormalized == "especial") {
-      let [resultValidation] = await pool.query(sqlValidation, [
-        fechaModificada,
-        ticketNumber,
-      ]);
+
+    // 3️⃣ Validar sorteo especial (no duplicar boletos)
+    if (tipoSorteoNormalized === "especial") {
+      const [resultValidation] = await pool.query(sqlValidation, [fechaModificada, ticketNumber]);
       if (resultValidation.length > 0) {
         return NextResponse.json({ error: "El boleto ya fue vendido" });
       }
     }
-    if (tipoSorteoNormalized === "normal" || tipoSorteoNormalized === "domingo") {
-      // Insertar boleto con QR
-      await pool.query(sql, values);
-      await pool.query(sqlUpdate);
-      const [resultSelect] = await pool.query(sqlSelect, [ticketNumber]);
-      return NextResponse.json(resultSelect);
-    }
+
+    // 4️⃣ Insertar boleto y obtener su ID real
+    const [insertResult] = await pool.query(sqlInsert, insertValues);
+    const insertedId = insertResult.insertId; // Este es el identificador real del boleto
+
+    // 5️⃣ Generar QR con el ID del boleto (N + id autoincremental)
+    const numeroSerie = `N${insertedId}`;
+    const qrData = `${numeroSerie}`;
+    const qrCodeBase64 = await QRCode.toDataURL(qrData);
+
+    // 6️⃣ Actualizar el registro con el QR
+    await pool.query(
+      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
+      [qrCodeBase64, numeroSerie, insertedId]
+    );
+
+    // 7️⃣ Actualizar topes
+    await pool.query(sqlUpdateTope);
+
+    // 8️⃣ Obtener información del boleto recién insertado
+    let resultSelect;
     if (tipoSorteoNormalized === "especial") {
-      // Insertar boleto especial con QR
-      await pool.query(sql, values);
-      const [resultSelectUpdate] = await pool.query(sqlSelectEspecial, [ticketNumber]);
-      return NextResponse.json(resultSelectUpdate);
+      [resultSelect] = await pool.query(sqlSelectEspecial, [ticketNumber]);
+    } else {
+      [resultSelect] = await pool.query(sqlSelect, [ticketNumber]);
     }
-    // Si no es normal, domingo ni especial
-    return NextResponse.json({ error: "Tipo de sorteo no soportado" }, { status: 400 });
+
+    // 9️⃣ Devolver respuesta final
+    return NextResponse.json(resultSelect);
+    
   } catch (error) {
-    console.error("ERROR EN INSERTAR BOLETO:", error, { datos, values });
-    return NextResponse.json({ error: error.message, detalle: error, datos, values }, { status: 500 });
+    console.error("ERROR EN INSERTAR BOLETO:", error, { datos, insertValues });
+    return NextResponse.json(
+      { error: error.message, detalle: error, datos, insertValues },
+      { status: 500 }
+    );
   }
 }
 //serie
