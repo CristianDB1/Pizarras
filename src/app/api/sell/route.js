@@ -21,7 +21,8 @@ export async function POST(req, res) {
   const fechaModificada = fecha.split("T")[0];
 
    // Generar el QR en base al número de serie del boleto
-  const qrData = `${ticketNumber}-${fechaModificada}`;
+  const serie = `N${idSorteo}`; // prefijo N + número de serie
+  const qrData = `${serie}-${fechaModificada}`;
   const qrCodeBase64 = await QRCode.toDataURL(qrData);
 
   let sql = `
@@ -141,7 +142,8 @@ export async function PUT(req, res) {
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
     `;
 
-  const qrData = `${ticketNumber}-${fechaModificada}`;
+  const serie = `N${idSorteo}`; // prefijo N + número de serie
+  const qrData = `${serie}-${fechaModificada}`;
   const qrCodeBase64 = await QRCode.toDataURL(qrData); 
 
   // Obtener los últimos 10 elementos insertados
