@@ -116,7 +116,7 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
       
       if (data.qr_code) {
         const qrImage = data.qr_code;
-        const qrX = 20;      // centrado
+        const qrX = 25;      // centrado
         const qrY = yPosition + 30; // justo debajo del número
         const qrSize = 25;   
         doc.addImage(qrImage, "PNG", qrX, qrY, qrSize, qrSize);

@@ -12,6 +12,7 @@
     "dotenv": "^16.4.5",
     "file-saver": "^2.0.5",
     "flowbite-datepicker": "^1.2.6",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "moment": "^2.30.1",
