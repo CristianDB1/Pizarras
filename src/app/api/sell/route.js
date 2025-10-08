@@ -90,18 +90,33 @@ export async function POST(req, res) {
     const numeroSerie = `N${insertedId}`;
     const qrCodeBase64 = await QRCode.toDataURL(numeroSerie);
 
-    // Actualizar la fila con el QR (y cualquier otro campo si quieres)
+    // Actualizar el registro con el QR y numeroSerie
     await pool.query(
-      `UPDATE boletos SET qr_code = ? WHERE Idsorteo = ?`,
-      [qrCodeBase64, insertedId]
+      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
+      [qrCodeBase64, numeroSerie, insertedId]
     );
+
+    // Esperamos a que el UPDATE se complete antes de continuar
+    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms es más que suficiente
 
     // Actualizar tope
     await pool.query(sqlUpdateTope);
 
-    // Recuperar y retornar el boleto insertado (mismo formato que usabas)
-    const resultSelect = await pool.query(sqlSelect, [ticketNumber]);
+    // Recuperar y retornar el boleto insertado correctamente
+    const [resultSelect] = await pool.query(
+      `
+      SELECT b.*, c.leyenda1, s.leyenda2
+      FROM boletos b
+      JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
+      CROSS JOIN configuracion c
+      WHERE b.Idsorteo = ?
+      LIMIT 1;
+      `,
+      [insertedId]
+    );
+
     return NextResponse.json(resultSelect);
+
 
   } catch (error) {
     console.error("ERROR EN INSERTAR BOLETO:", error, { datos, insertValues });
@@ -120,18 +135,20 @@ export async function PUT(req, res) {
     primerPremio,
     prizebox,
     segundoPremio,
-    ticketNumber,
-    topePermitido,
+    ticketNumber
   } = datos;
 
+  // Usar solo la fecha (YYYY-MM-DD)
   const fechaModificada = fecha.split("T")[0];
 
-  let sqlInsert = `
+  // Inserción base (sin QR todavía)
+  const sqlInsert = `
     INSERT INTO boletos
     (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `;
 
+  // Seleccionar boletos del comprador
   const sqlSelect = `
     SELECT b.*, c.leyenda1, s.leyenda2
     FROM boletos b
@@ -142,7 +159,7 @@ export async function PUT(req, res) {
     LIMIT 10;
   `;
 
-  let values = [
+  const values = [
     fechaModificada,
     primerPremio,
     segundoPremio,
@@ -150,23 +167,31 @@ export async function PUT(req, res) {
     prizebox,
     name,
     idVendedor,
-    idSorteo,
+    idSorteo
   ];
 
   try {
-    // Insertar un boleto de la serie
+    // Insertar el boleto
     const [insertResult] = await pool.query(sqlInsert, values);
     const insertedId = insertResult.insertId;
 
-    // Generar QR usando el Idsorteo recién creado
+    // Generar el número de serie y QR
     const numeroSerie = `N${insertedId}`;
     const qrCodeBase64 = await QRCode.toDataURL(numeroSerie);
 
-    // Actualizar la fila con el qr
-    await pool.query(`UPDATE boletos SET qr_code = ? WHERE Idsorteo = ?`, [qrCodeBase64, insertedId]);
+    // Actualizar el registro con el QR y número de serie
+    await pool.query(
+      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
+      [qrCodeBase64, numeroSerie, insertedId]
+    );
 
-    // Recuperar últimos 10 (tu comportamiento actual)
+    //  Esperamos un pequeño tiempo para garantizar la escritura
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Consultar los últimos boletos del comprador (ya con QR)
     const [resultSelect] = await pool.query(sqlSelect, [name]);
+
+    // Retornar los boletos actualizados
     return NextResponse.json(resultSelect);
 
   } catch (error) {
@@ -174,4 +199,5 @@ export async function PUT(req, res) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
