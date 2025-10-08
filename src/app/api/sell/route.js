@@ -50,17 +50,15 @@ export async function POST(req) {
     LIMIT 1
   `;
 
-  // normalizar prizebox y ticketNumber a numbers
   const prizeboxNum = Number(prizebox) || 0;
   const ticketNum = ticketNumber;
 
   let connection;
   try {
-    // Obtener conexión y comenzar transacción
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // 1) Verificar tope
+    // 1️⃣ Verificar tope
     const [topesRows] = await safeQuery(connection, sqlTopes, [ticketNum, fechaModificada]);
     if (topesRows.length > 0) {
       const tope = Number(topesRows[0].Tope) || 0;
@@ -72,14 +70,14 @@ export async function POST(req) {
       }
     }
 
-    // 2) Normalizar tipoSorteo (puede venir id o string)
+    // 2️⃣ Normalizar tipo de sorteo
     let tipoSorteoNormalized = tipoSorteo;
     if (!isNaN(tipoSorteo)) {
-      const [rows] = await safeQuery(connection, 'SELECT Tipo_sorteo FROM sorteo WHERE Idsorteo = ?', [tipoSorteo]);
+      const [rows] = await safeQuery(connection, "SELECT Tipo_sorteo FROM sorteo WHERE Idsorteo = ?", [tipoSorteo]);
       if (rows && rows.length > 0) tipoSorteoNormalized = rows[0].Tipo_sorteo;
     }
 
-    // 3) Si especial, validar duplicado
+    // 3️⃣ Validar duplicado (solo especial)
     if (tipoSorteoNormalized === "especial") {
       const [valid] = await safeQuery(connection, sqlValidationEspecial, [fechaModificada, ticketNum]);
       if (valid && valid.length > 0) {
@@ -89,7 +87,7 @@ export async function POST(req) {
       }
     }
 
-    // 4) Insertar el boleto base (sin qr)
+    // 4️⃣ Insertar boleto sin QR
     const [insertResult] = await safeQuery(connection, sqlInsertBase, [
       fechaModificada,
       primerPremio,
@@ -108,47 +106,47 @@ export async function POST(req) {
       throw new Error("No se obtuvo insertId al crear el boleto");
     }
 
-    // 5) Generar numero de serie y QR (usamos el Idsorteo autoincremental)
+    // 🧩 5️⃣ Generar QR basado en el ID real del boleto
     const numeroSerie = `N${insertedId}`;
-    const qrPayload = `${numeroSerie}`; // si quieres, puedes agregar más info: `${numeroSerie}|${ticketNum}` etc.
+    const qrPayload = numeroSerie; // puedes añadir más info si lo necesitas
     const qrCodeBase64 = await QRCode.toDataURL(qrPayload);
 
-    // 6) Actualizar boleto con qr y numero de serie
-    const [updateQrResult] = await safeQuery(connection,
-      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
-      [qrCodeBase64, numeroSerie, insertedId]
-    );
+    // 🧩 6️⃣ Actualizar el boleto con QR — FORZAMOS sincronía
+    await safeQuery(connection, `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`, [
+      qrCodeBase64,
+      numeroSerie,
+      insertedId,
+    ]);
 
-    if (!updateQrResult || updateQrResult.affectedRows === 0) {
-      await connection.rollback();
-      connection.release();
-      throw new Error("Fallo al actualizar qr del boleto");
-    }
+    // 🧩 7️⃣ Esperar 200 ms para garantizar persistencia del UPDATE antes del SELECT
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
-    // 7) Actualizar tope (si existe fila)
+    // 8️⃣ Actualizar tope
     await safeQuery(connection, sqlUpdateTope, [prizeboxNum, ticketNum, fechaModificada]);
 
-    // 8) Commit
+    // 9️⃣ Commit
     await connection.commit();
 
-    // 9) Traer el registro insertado ya actualizado (por Idsorteo)
+    // 🧩 10️⃣ Traer el boleto completo (ya con QR y leyendas)
     const [resultSelect] = await pool.query(sqlSelectById, [insertedId]);
 
-    // liberar conexion si no liberaste
+    if (!resultSelect || resultSelect.length === 0) {
+      throw new Error("No se pudo recuperar el boleto recién insertado");
+    }
+
     connection.release?.();
 
-    // Devolver exactamente lo que espera el frontend (pool.query retorna [rows,fields])
-    return NextResponse.json([resultSelect, []]);
+    // 🧩 11️⃣ Respuesta en formato que el frontend espera
+    return NextResponse.json([[resultSelect[0]], []]);
 
   } catch (error) {
-    console.error("ERROR EN INSERTAR BOLETO (POST):", error, { datos });
-    try { if (connection) { await connection.rollback(); connection.release(); } } catch (e) { /* ignore */ }
+    console.error("❌ ERROR EN INSERTAR BOLETO (POST):", error, { datos });
+    try { if (connection) { await connection.rollback(); connection.release(); } } catch {}
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-
-// serie (usa el mismo flujo: insert -> get insertId -> generar QR -> update -> seleccionar)
+// serie 
 export async function PUT(req) {
   const datos = await req.json();
   const {
