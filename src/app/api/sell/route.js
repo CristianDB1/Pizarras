@@ -19,7 +19,7 @@ export async function POST(req) {
     prizebox,
     segundoPremio,
     ticketNumber,
-    tipoSorteo, // puede venir como string 'normal' o como id numerico
+    tipoSorteo,
   } = datos;
 
   const fechaModificada = (fecha && fecha.split ? fecha.split("T")[0] : fecha);
@@ -35,12 +35,14 @@ export async function POST(req) {
     LIMIT 1
   `;
 
+  // INSERT - CORREGIDO: asegurar que Idsorteo sea autoincrement
   const sqlInsertBase = `
     INSERT INTO boletos
     (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `;
 
+  // SELECT - CORREGIDO: usar Idsorteo correctamente
   const sqlSelectById = `
     SELECT b.*, c.leyenda1, s.leyenda2
     FROM boletos b
@@ -96,7 +98,7 @@ export async function POST(req) {
       prizeboxNum,
       name,
       idVendedor,
-      idSorteo,
+      idSorteo, // este va a tipo_sorteo
     ]);
 
     const insertedId = insertResult?.insertId;
@@ -106,46 +108,60 @@ export async function POST(req) {
       throw new Error("No se obtuvo insertId al crear el boleto");
     }
 
-    // 🧩 5️⃣ Generar QR basado en el ID real del boleto
+    console.log("📝 Boleto insertado con Idsorteo:", insertedId); // DEBUG
+
+    // 🧩 5️⃣ Generar QR basado en el Idsorteo autoincrement
     const numeroSerie = `N${insertedId}`;
-    const qrPayload = numeroSerie; // puedes añadir más info si lo necesitas
+    const qrPayload = numeroSerie;
     const qrCodeBase64 = await QRCode.toDataURL(qrPayload);
 
-    // 🧩 6️⃣ Actualizar el boleto con QR — FORZAMOS sincronía
-    await safeQuery(connection, `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`, [
-      qrCodeBase64,
-      numeroSerie,
-      insertedId,
-    ]);
+    console.log("🎯 Generando QR para:", numeroSerie); // DEBUG
 
-    // 🧩 7️⃣ Esperar 200 ms para garantizar persistencia del UPDATE antes del SELECT
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // 🧩 6️⃣ Actualizar el boleto con QR - CORREGIDO
+    // Usar WHERE Idsorteo = insertedId (el ID autoincrement de boletos)
+    const [updateResult] = await safeQuery(connection, 
+      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`, 
+      [qrCodeBase64, numeroSerie, insertedId]
+    );
 
-    // 8️⃣ Actualizar tope
+    console.log("✅ Update result:", updateResult.affectedRows, "filas afectadas"); // DEBUG
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error("No se pudo actualizar el QR en la base de datos");
+    }
+
+    // 7️⃣ Actualizar tope
     await safeQuery(connection, sqlUpdateTope, [prizeboxNum, ticketNum, fechaModificada]);
 
-    // 9️⃣ Commit
+    // 8️⃣ Commit
     await connection.commit();
 
-    // 🧩 10️⃣ Traer el boleto completo (ya con QR y leyendas)
-    const [resultSelect] = await pool.query(sqlSelectById, [insertedId]);
+    // 🧩 9️⃣ Traer el boleto completo (ya con QR y leyendas)
+    const [resultSelect] = await safeQuery(connection, sqlSelectById, [insertedId]);
 
     if (!resultSelect || resultSelect.length === 0) {
       throw new Error("No se pudo recuperar el boleto recién insertado");
     }
 
-    connection.release?.();
+    console.log("📋 Boleto recuperado:", resultSelect[0].Idsorteo, "QR:", resultSelect[0].qr_code ? "SI" : "NO"); // DEBUG
 
-    // 🧩 11️⃣ Respuesta en formato que el frontend espera
+    connection.release();
+
     return NextResponse.json([[resultSelect[0]], []]);
 
   } catch (error) {
     console.error("❌ ERROR EN INSERTAR BOLETO (POST):", error, { datos });
-    try { if (connection) { await connection.rollback(); connection.release(); } } catch {}
+    try { 
+      if (connection) { 
+        await connection.rollback(); 
+        connection.release(); 
+      } 
+    } catch (e) {
+      console.error("Error en rollback:", e);
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
 // serie 
 export async function PUT(req) {
   const datos = await req.json();
@@ -206,12 +222,12 @@ export async function PUT(req) {
       throw new Error("No se obtuvo insertId al crear el boleto de serie");
     }
 
-    // Generar QR con Id
+    // Generar QR con Idsorteo
     const numeroSerie = `N${insertedId}`;
     const qrPayload = `${numeroSerie}`;
     const qrCodeBase64 = await QRCode.toDataURL(qrPayload);
 
-    // Actualizar qr
+    // Actualizar qr - CORREGIDO
     const [updateQrResult] = await safeQuery(connection,
       `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
       [qrCodeBase64, numeroSerie, insertedId]
@@ -224,15 +240,20 @@ export async function PUT(req) {
     }
 
     await connection.commit();
-    connection.release?.();
+    connection.release();
 
-    // Retornar los últimos 10 del comprador (igual que antes)
+    // Retornar los últimos 10 del comprador
     const [resultSelect] = await pool.query(sqlSelectByBuyer, [name]);
     return NextResponse.json(resultSelect);
 
   } catch (error) {
     console.error("ERROR EN INSERTAR BOLETO (PUT serie):", error, { datos });
-    try { if (connection) { await connection.rollback(); connection.release(); } } catch (e) { /* ignore */ }
+    try { 
+      if (connection) { 
+        await connection.rollback(); 
+        connection.release(); 
+      } 
+    } catch (e) { /* ignore */ }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
