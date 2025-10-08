@@ -265,67 +265,125 @@ const WinnerTicket = () => {
   // Confirmar antes de marcar como pagado
   const confirmarPago = (id) => {
     const boleto = premiados.find(b => b.Id_ganador === id);
-    let capturedImage = null;
     setCurrentBoletoId(id);
 
     Swal.fire({
       title: `Capturar identificación para boleto #${boleto.Boleto}`,
       html: `
+        <div style="text-align: center; margin-bottom: 15px;">
+          <p>Seleccione cómo desea capturar la identificación:</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button id="openCameraButton" class="swal2-confirm swal2-styled" style="background-color: #28a745;">
+            📷 Usar cámara (trasera)
+          </button>
+          <button id="selectFileButton" class="swal2-confirm swal2-styled" style="background-color: #007bff;">
+            🖼️ Seleccionar de galería
+          </button>
+        </div>
         <div id="cameraContainer" style="display: none; margin-top: 15px; text-align: center;">
           <video id="cameraPreview" autoplay playsinline style="width: 100%; max-height: 250px; border-radius: 8px;"></video>
-          <button id="takePhotoButton" class="swal2-confirm swal2-styled" style="background-color: #28a745; margin-top: 10px;">Tomar foto</button>
-          <button id="closeCameraButton" class="swal2-cancel swal2-styled" style="background-color: #dc3545; margin-top: 5px;">Cerrar cámara</button>
-        </div>
-        <div id="selectContainer" style="margin-top: 15px;">
-          <button id="captureButton" class="swal2-confirm swal2-styled">Usar cámara o seleccionar foto</button>
+          <div style="margin-top: 10px;">
+            <button id="takePhotoButton" class="swal2-confirm swal2-styled" style="background-color: #28a745; margin-right: 5px;">
+              📸 Tomar foto
+            </button>
+            <button id="closeCameraButton" class="swal2-cancel swal2-styled" style="background-color: #dc3545;">
+              ❌ Cerrar cámara
+            </button>
+          </div>
         </div>
         <div id="previewContainer" style="margin-top: 15px; text-align: center; display: none;">
           <img id="previewImage" style="max-width: 100%; max-height: 200px; border-radius: 8px;" />
-          <p style="margin-top: 10px; font-size: 12px;">Identificación capturada</p>
+          <p style="margin-top: 10px; font-size: 12px;">Identificación capturada - Lista para confirmar pago</p>
         </div>
-        <input type="hidden" id="imageSelected" value="false">
+        <input type="file" id="fileInput" accept="image/*" style="display: none;" />
       `,
       showCancelButton: true,
       confirmButtonText: "Confirmar pago",
       cancelButtonText: "Cancelar",
       didOpen: async () => {
-        const captureButton = document.getElementById("captureButton");
+        const openCameraButton = document.getElementById("openCameraButton");
+        const selectFileButton = document.getElementById("selectFileButton");
         const cameraContainer = document.getElementById("cameraContainer");
         const cameraPreview = document.getElementById("cameraPreview");
         const takePhotoButton = document.getElementById("takePhotoButton");
         const closeCameraButton = document.getElementById("closeCameraButton");
-        const hiddenInput = document.getElementById("imageSelected");
+        const fileInput = document.getElementById("fileInput");
+        const previewContainer = document.getElementById("previewContainer");
+        const previewImage = document.getElementById("previewImage");
 
         let stream = null;
+        let capturedImage = null;
 
-        // Abrir cámara
-        captureButton.addEventListener("click", async () => {
+        // 🔥 OPCIÓN 1: ABRIR CÁMARA TRASERA
+        openCameraButton.addEventListener("click", async () => {
           try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            // Obtener todas las cámaras disponibles
+            const cameras = await navigator.mediaDevices.getUserMedia({ 
+              video: { facingMode: { exact: "environment" } } // Forzar cámara trasera
+            }).catch(async () => {
+              // Si falla cámara trasera, intentar con cualquier cámara
+              return await navigator.mediaDevices.getUserMedia({ video: true });
+            });
+
+            stream = cameras;
             cameraPreview.srcObject = stream;
             cameraContainer.style.display = "block";
-            document.getElementById("selectContainer").style.display = "none";
+            
+            // Ocultar botones de opción
+            openCameraButton.style.display = "none";
+            selectFileButton.style.display = "none";
+            
           } catch (error) {
             console.error("No se pudo acceder a la cámara:", error);
-            Swal.showValidationMessage("No se pudo acceder a la cámara");
+            Swal.showValidationMessage("No se pudo acceder a la cámara. Use la opción de galería.");
           }
         });
 
-        // Tomar la foto
+        // 🔥 OPCIÓN 2: SELECCIONAR DE GALERÍA
+        selectFileButton.addEventListener("click", () => {
+          fileInput.click();
+        });
+
+        // Manejar selección de archivo
+        fileInput.addEventListener("change", async (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            try {
+              // Comprimir imagen seleccionada
+              const imagenComprimida = await comprimirImagen(file);
+              capturedImage = imagenComprimida;
+              
+              // Mostrar preview
+              previewImage.src = imagenComprimida;
+              previewContainer.style.display = "block";
+              
+              // Ocultar botones de opción
+              openCameraButton.style.display = "none";
+              selectFileButton.style.display = "none";
+              
+            } catch (error) {
+              console.error("Error al procesar imagen:", error);
+              Swal.showValidationMessage("Error al procesar la imagen");
+            }
+          }
+        });
+
+        // 📸 TOMAR FOTO CON CÁMARA
         takePhotoButton.addEventListener("click", async () => {
           const canvas = document.createElement("canvas");
           canvas.width = cameraPreview.videoWidth;
           canvas.height = cameraPreview.videoHeight;
           canvas.getContext("2d").drawImage(cameraPreview, 0, 0);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-
-          capturedImage = dataUrl;
-          hiddenInput.value = "true";
-
-          const previewContainer = document.getElementById("previewContainer");
-          const previewImage = document.getElementById("previewImage");
+          
+          // Comprimir foto tomada
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+          const file = new File([blob], 'foto-identificacion.jpg', { type: 'image/jpeg' });
+          const imagenComprimida = await comprimirImagen(file);
+          
+          capturedImage = imagenComprimida;
+          previewImage.src = imagenComprimida;
           previewContainer.style.display = "block";
-          previewImage.src = dataUrl;
 
           // Detener cámara
           if (stream) {
@@ -334,27 +392,34 @@ const WinnerTicket = () => {
           }
         });
 
-        // Cerrar cámara
+        // ❌ CERRAR CÁMARA
         closeCameraButton.addEventListener("click", () => {
           if (stream) {
             stream.getTracks().forEach(track => track.stop());
             stream = null;
           }
           cameraContainer.style.display = "none";
-          document.getElementById("selectContainer").style.display = "block";
+          
+          // Mostrar botones de opción nuevamente
+          openCameraButton.style.display = "block";
+          selectFileButton.style.display = "block";
         });
       },
       preConfirm: () => {
-        if (!capturedImage) {
-          Swal.showValidationMessage("Debe capturar la identificación del cliente");
+        const previewContainer = document.getElementById("previewContainer");
+        if (!previewContainer || previewContainer.style.display === "none") {
+          Swal.showValidationMessage("Debe capturar o seleccionar la identificación primero");
           return false;
         }
         return true;
       }
     }).then((result) => {
-      if (result.isConfirmed && capturedImage) {
-        setSelectedImage(capturedImage);
-        marcarComoPagado(id, capturedImage);
+      if (result.isConfirmed) {
+        // Obtener la imagen del preview
+        const previewImage = document.getElementById("previewImage");
+        if (previewImage && previewImage.src) {
+          marcarComoPagado(id, previewImage.src);
+        }
       } else {
         setSelectedImage(null);
         setPreviewImage(null);
