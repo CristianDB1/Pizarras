@@ -5,14 +5,13 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
   try {
     console.log("📄 Iniciando generación de PDF con datos:", tickets);
 
-    // ✅ VERIFICACIÓN CRÍTICA DE DATOS
+    // Verificacion critica de datos
     if (!tickets || tickets.length === 0) {
       throw new Error("No hay datos de boletos para generar el PDF");
     }
 
     const firstTicket = tickets[0];
 
-    // ✅ VERIFICAR DATOS CRÍTICOS
     if (!firstTicket || !firstTicket.comprador) {
       console.error("❌ Datos faltantes en boleto:", firstTicket);
       throw new Error("Datos incompletos en el boleto - falta comprador");
@@ -162,13 +161,15 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
     // Imprimir automáticamente
     doc.autoPrint();
 
-    // Generar blob y URL - IGUAL QUE ANTES
+    // Generar blob y URL
     var blob = doc.output("blob");
     const fileName = `Factura_Boletos_${firstTicket.comprador || "cliente"}.pdf`;
     const file = new File([blob], fileName, { type: "application/pdf" });
     var url = URL.createObjectURL(blob);
 
-    // ✅ VUELVE AL FLUJO ORIGINAL QUE SÍ FUNCIONABA
+    // Esperar un poco y cerrar el loading
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     const result = await Swal.fire({
       title: "Operación exitosa",
       icon: "success",
@@ -179,30 +180,18 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
     });
 
     if (result.isConfirmed) {
-      if (navigator.share) {
-        navigator
-          .share({
+      if (navigator.share && navigator.canShare) {
+        try {
+          await navigator.share({
             title: "Factura de boletos",
-            text: "Hola, aquí tienes tu boleto, Suerte!.",
+            text: "Hola, aquí tienes tu boleto, ¡Suerte! 🍀",
             files: [file],
-          })
-          .then(() => {
-            console.log("Compartido exitosamente");
-          })
-          .catch((error) => {
-            console.error("Error al compartir:", error);
-            window.open(url);
           });
-      } else {
-        Swal.fire({
-          title: "Información",
-          text: "Se abrirá el PDF para su visualización e impresión",
-          icon: "info",
-          timer: 2000,
-          timerProgressBar: true,
-        }).then(() => {
+        } catch (error) {
           window.open(url);
-        });
+        }
+      } else {
+        window.open(url);
       }
     }
 
