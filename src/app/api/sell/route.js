@@ -25,18 +25,17 @@ export async function POST(req) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `;
 
-  const sqlSelect = `
+  const sqlSelectById = `
     SELECT b.*, c.leyenda1, s.leyenda2
     FROM boletos b
     JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
     CROSS JOIN configuracion c
-    WHERE b.Boleto = ?
-    ORDER BY b.Idsorteo DESC
+    WHERE b.Idsorteo = ?
     LIMIT 1;
   `;
 
   try {
-    // 🧾 1. Insertar boleto
+    // 1️⃣ Insertar boleto
     const [insertResult] = await pool.execute(sqlInsert, [
       fechaModificada,
       primerPremio,
@@ -48,40 +47,32 @@ export async function POST(req) {
       idSorteo,
     ]);
 
-    // Aquí garantizamos que el insertId se obtiene correctamente
     const insertedId = insertResult.insertId;
 
-    if (!insertedId) {
-      console.error("❌ No se obtuvo insertId. Resultado:", insertResult);
-      throw new Error("No se pudo obtener el ID del boleto insertado");
-    }
+    if (!insertedId) throw new Error("No se pudo obtener el ID del boleto insertado");
 
-    // Generar el número de serie
+    // 2️⃣ Generar el número de serie basado en el ID real del boleto
     const numeroSerie = `N${insertedId}`;
     const qrCodeBase64 = await QRCode.toDataURL(numeroSerie);
 
-    // Actualizar el boleto recién insertado con su QR
+    // 3️⃣ Actualizar el boleto con el QR
     const [updateResult] = await pool.execute(
       `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
       [qrCodeBase64, numeroSerie, insertedId]
     );
 
-    if (updateResult.affectedRows === 0) {
-      console.error("❌ El UPDATE no afectó ningún registro. Id:", insertedId);
+    if (updateResult.affectedRows === 0)
       throw new Error("No se pudo actualizar el QR en el boleto");
-    }
 
-    // Traer la información completa del boleto
-    const [resultSelect] = await pool.query(sqlSelect, [ticketNumber]);
+    // 4️⃣ Seleccionar el boleto recién insertado por su Idsorteo
+    const [resultSelect] = await pool.query(sqlSelectById, [insertedId]);
 
-    if (!resultSelect || resultSelect.length === 0) {
-      console.error("❌ No se encontró el boleto recién insertado en SELECT");
-      throw new Error("No se pudo obtener la información del boleto");
-    }
+    if (!resultSelect || resultSelect.length === 0)
+      throw new Error("No se pudo obtener la información del boleto recién insertado");
 
-    console.log("✅ Boleto insertado y QR guardado correctamente:", numeroSerie);
+    console.log("✅ Boleto completo listo para el PDF:", resultSelect[0]);
 
-    // Responder con el boleto completo
+    // 5️⃣ Retornar el boleto correcto al frontend
     return NextResponse.json(resultSelect);
 
   } catch (error) {
