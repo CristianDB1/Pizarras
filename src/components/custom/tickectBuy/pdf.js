@@ -3,9 +3,24 @@ import Swal from "sweetalert2";
 
 const generatePDF = async (tickets, fecha, esCopia = false) => {
   try {
+    console.log("📄 Iniciando generación de PDF con datos:", tickets);
+
+    // ✅ VERIFICACIÓN CRÍTICA DE DATOS
+    if (!tickets || tickets.length === 0) {
+      throw new Error("No hay datos de boletos para generar el PDF");
+    }
+
+    const firstTicket = tickets[0];
+
+    // ✅ VERIFICAR DATOS CRÍTICOS
+    if (!firstTicket || !firstTicket.comprador) {
+      console.error("❌ Datos faltantes en boleto:", firstTicket);
+      throw new Error("Datos incompletos en el boleto - falta comprador");
+    }
+
     // PASO 1: Pre-calcular altura de leyendas para determinar tamaño de PDF
-    let leyenda2 = tickets[0].leyenda2 || "";
-    let leyenda1 = tickets[0].leyenda1 || "";
+    let leyenda2 = firstTicket.leyenda2 || "";
+    let leyenda1 = firstTicket.leyenda1 || "";
 
     const leyenda2FontSize = leyenda2.length > 300 ? 7 : leyenda2.length > 200 ? 8 : leyenda2.length > 100 ? 9 : 10;
     const leyenda1FontSize = leyenda1.length > 300 ? 7 : leyenda1.length > 200 ? 8 : leyenda1.length > 100 ? 9 : 10;
@@ -23,9 +38,8 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
     const baseHeight = 85;
     const ticketHeight = 36;
     const ticketsHeight = tickets.length * ticketHeight;
-    const leyenda1Extra = leyenda1Height + 10; // +10 margen extra
+    const leyenda1Extra = leyenda1Height + 10;
     const leyenda2Extra = Math.max(0, leyenda2Height - 15);
-    // Elimina el tope máximo, solo deja un mínimo
     const totalHeight = baseHeight + ticketsHeight + leyenda1Extra + leyenda2Extra + 30;
     const finalDocHeight = Math.max(totalHeight, 120);
 
@@ -59,29 +73,29 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
 
     // Resto del encabezado
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(16); // Subido de 14 a 16
-    //Aqui verificamos si la factura es una copia o no
-    if(esCopia){
-      doc.text(`Factura de boletos (Copia)`, 5, nextY);  
-    }else{
+    doc.setFontSize(16);
+    
+    // Aqui verificamos si la factura es una copia o no
+    if (esCopia) {
+      doc.text(`Factura de boletos (Copia)`, 5, nextY);
+    } else {
       doc.text(`Factura de boletos`, 5, nextY);
     }
-    nextY += 12; // Subido de 10 a 12
+    nextY += 12;
 
     // Mostrar detalles del comprador con ajustes
-    const firstTicket = tickets[0];
     doc.setFont("helvetica", "normal");
 
     // Ajustar tamaño para textos largos
     const compradorText = firstTicket.comprador || "";
-    const compradorSize = compradorText.length > 20 ? 11 : 12; // Subido de 9/10 a 11/12
+    const compradorSize = compradorText.length > 20 ? 11 : 12;
     doc.setFontSize(compradorSize);
     doc.text(`Comprador: ${compradorText}`, 5, nextY);
-    nextY += 12; // Subido de 10 a 12
+    nextY += 12;
 
-    doc.setFontSize(12); // Subido de 10 a 12
+    doc.setFontSize(12);
     doc.text(`Sorteo: ${fecha || ""}`, 5, nextY);
-    nextY += 12; // Subido de 10 a 12
+    nextY += 12;
 
     // Formatear fecha
     let fechaVenta = firstTicket.Fecha_venta || "";
@@ -90,7 +104,7 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
       fechaVenta = date.toLocaleDateString();
     }
     doc.text(`Venta: ${fechaVenta}`, 5, nextY);
-    nextY += 12; // Subido de 10 a 12
+    nextY += 12;
 
     // Posición inicial para boletos
     let yPosition = nextY;
@@ -113,18 +127,18 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
       doc.setFontSize(boletoSize);
       doc.text(`Número de boleto: ${boletoFormatted}`, 5, yPosition + 24);
 
-      
       if (data.qr_code) {
         const qrImage = data.qr_code;
-        const qrX = 25;      // centrado
-        const qrY = yPosition + 30; // justo debajo del número
-        const qrSize = 25;   
+        const qrX = 25;
+        const qrY = yPosition + 30;
+        const qrSize = 25;
         doc.addImage(qrImage, "PNG", qrX, qrY, qrSize, qrSize);
-        yPosition = qrY + qrSize + 10; // actualiza la posición para lo siguiente
+        yPosition = qrY + qrSize + 10;
       } else {
         yPosition += 36;
       }
     });
+
     // PASO 4: Manejar leyenda final (leyenda1) con mejor control
     doc.setFont("helvetica", "bold");
     doc.setFontSize(leyenda1FontSize);
@@ -148,13 +162,13 @@ const generatePDF = async (tickets, fecha, esCopia = false) => {
     // Imprimir automáticamente
     doc.autoPrint();
 
-    // Resto del código igual...
+    // Generar blob y URL - IGUAL QUE ANTES
     var blob = doc.output("blob");
     const fileName = `Factura_Boletos_${firstTicket.comprador || "cliente"}.pdf`;
     const file = new File([blob], fileName, { type: "application/pdf" });
     var url = URL.createObjectURL(blob);
 
-    // Mostrar opciones
+    // ✅ VUELVE AL FLUJO ORIGINAL QUE SÍ FUNCIONABA
     const result = await Swal.fire({
       title: "Operación exitosa",
       icon: "success",

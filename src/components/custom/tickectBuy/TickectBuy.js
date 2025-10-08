@@ -247,60 +247,87 @@ const TicketBuy = () => {
     VailidationEstatus();
     setIsLoading(true);
     const ticketData = [];
-    for (const ticket of tickets) {
-      const data = {
-        //Como cambie el nombre de algunos items para poder guiarme mejor aqui hubo un pequeño cambio
-        prizebox: ticket.precio, //antes llamaba a ticket.price
-        name: ticket.comprador, //antes llamaba a ticket.name
-        ticketNumber: ticket.numero, //antes llamaba a ticket.number
-        idVendedor,
-        tipoSorteo: selectedSorteo.Tipo_sorteo,
-        idSorteo: selectedSorteo.Idsorteo,
-        topePermitido: foundTope - ticket.precio, //antes tambien llamaba a ticket.price
-        fecha: selectedSorteo.Fecha,
-        primerPremio: selectedSorteo.Primerpremio,
-        segundoPremio: selectedSorteo.Segundopremio,
-      };
-      const options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      };
+    const errores = []; // ✅ Capturar errores en array
+    
+    try {
+      for (const ticket of tickets) {
+        const data = {
+          prizebox: ticket.precio,
+          name: ticket.comprador,
+          ticketNumber: ticket.numero,
+          idVendedor,
+          tipoSorteo: selectedSorteo.Tipo_sorteo,
+          idSorteo: selectedSorteo.Idsorteo,
+          topePermitido: foundTope - ticket.precio,
+          fecha: selectedSorteo.Fecha,
+          primerPremio: selectedSorteo.Primerpremio,
+          segundoPremio: selectedSorteo.Segundopremio,
+        };
+        
+        const options = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        };
 
-      try{
-        const res = await fetch("/api/sell", options);
-        const result = await res.json();
+        try {
+          const res = await fetch("/api/sell", options);
+          const result = await res.json();
 
-        if(result.error){
-          Swal.fire(result.error);
-        }else if (Array.isArray(result) && result.length > 0) {
-          const ticketSold = result[0];
-          ticketData.push(ticketSold);
+          if (result.error) {
+            // ✅ NO mostrar Swal aquí, solo capturar error
+            errores.push(`Boleto ${ticket.numero}: ${result.error}`);
+            console.error("Error en boleto:", result.error);
+          } else if (result[0] && result[0][0]) {
+            const ticketSold = result[0][0];
+            ticketData.push(ticketSold);
 
-          //Agregamos al contexto
-           addVenta({
-            tipo: "boleto",
-            numero: ticketSold.Numero || ticket.numero,
-            cantidad: 1,
-            precio: Number(ticketSold.Precio || ticket.precio) || 0,
-            subtotal: (Number(ticketSold.Precio || ticket.precio) || 0) * 1,
-            comprador: ticketSold.Nombre || ticket.comprador,
-          });
+            addVenta({
+              tipo: "boleto",
+              numero: ticketSold.Boleto || ticket.numero,
+              cantidad: 1,
+              precio: Number(ticketSold.Costo || ticket.precio) || 0,
+              subtotal: (Number(ticketSold.Costo || ticket.precio) || 0) * 1,
+              comprador: ticketSold.comprador || ticket.comprador,
+            });
+          }
+        } catch (err) {
+          console.error("Error confirmVenta:", err);
+          errores.push(`Boleto ${ticket.numero}: Error de conexión`);
         }
-      }catch(err){
-        console.error("Error confirmVenta:", err);
       }
+
+      // ✅ VERIFICAR SI HUBO ERRORES CRÍTICOS
+      if (ticketData.length === 0 && errores.length > 0) {
+        // Solo mostrar error si NO se pudo guardar ningún boleto
+        await Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudieron guardar los boletos. Intente nuevamente.',
+          confirmButtonText: 'Aceptar'
+        });
+        return;
+      }
+
+      // ✅ LIMPIAR ESTADOS PRIMERO
+      setTickets([]);
+      setTicketNumber("");
+      setPrizebox("");
+      setName("");
+      setShowPreview(false);
+
+      // ✅ LUEGO GENERAR PDF
+      await generatePDF(ticketData, selectedSorteo.Fecha);
+
+    } catch (error) {
+      console.error("Error general en confirmVenta:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-    setTickets([]);
-    setTicketNumber("");
-    setPrizebox("");
-    setName("");
-    generatePDF(ticketData, selectedSorteo.fecha);
-    setShowPreview(false);
   };
+
   const enviarDatosSerie = async () => {
     if (!prizebox || !name) {
       ValidateBox();

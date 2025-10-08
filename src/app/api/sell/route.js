@@ -12,7 +12,7 @@ export async function POST(req) {
   const datos = await req.json();
   const {
     fecha,
-    idSorteo, // este es el tipo_sorteo (idsorteo de la tabla sorteo)
+    idSorteo,
     idVendedor,
     name,
     primerPremio,
@@ -24,47 +24,24 @@ export async function POST(req) {
 
   const fechaModificada = (fecha && fecha.split ? fecha.split("T")[0] : fecha);
 
-  // Queries
-  const sqlTopes = `SELECT * FROM topes WHERE Numero = ? AND Fecha_sorteo = ?`;
-  const sqlUpdateTope = `UPDATE topes SET Cantidad = Cantidad + ? WHERE Numero = ? AND Fecha_sorteo = ?`;
-  const sqlValidationEspecial = `
-    SELECT b.Idsorteo AS idsorteo
-    FROM boletos b
-    JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-    WHERE s.Tipo_sorteo = 'especial' AND b.Fecha = ? AND b.Boleto = ?
-    LIMIT 1
-  `;
-
-  // INSERT - CORREGIDO: asegurar que Idsorteo sea autoincrement
-  const sqlInsertBase = `
-    INSERT INTO boletos
-    (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `;
-
-  // SELECT - CORREGIDO: usar Idsorteo correctamente
-  const sqlSelectById = `
-    SELECT b.*, c.leyenda1, s.leyenda2
-    FROM boletos b
-    JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-    CROSS JOIN configuracion c
-    WHERE b.Idsorteo = ?
-    LIMIT 1
-  `;
-
-  const prizeboxNum = Number(prizebox) || 0;
-  const ticketNum = ticketNumber;
-
   let connection;
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
+    console.log("🔍 DATOS RECIBIDOS:", datos);
+
     // 1️⃣ Verificar tope
-    const [topesRows] = await safeQuery(connection, sqlTopes, [ticketNum, fechaModificada]);
+    const [topesRows] = await connection.query(
+      `SELECT * FROM topes WHERE Numero = ? AND Fecha_sorteo = ?`, 
+      [ticketNumber, fechaModificada]
+    );
+    
     if (topesRows.length > 0) {
       const tope = Number(topesRows[0].Tope) || 0;
       const cantidadActual = Number(topesRows[0].Cantidad) || 0;
+      const prizeboxNum = Number(prizebox) || 0;
+      
       if (cantidadActual + prizeboxNum > tope) {
         await connection.rollback();
         connection.release();
@@ -72,96 +49,112 @@ export async function POST(req) {
       }
     }
 
-    // 2️⃣ Normalizar tipo de sorteo
-    let tipoSorteoNormalized = tipoSorteo;
-    if (!isNaN(tipoSorteo)) {
-      const [rows] = await safeQuery(connection, "SELECT Tipo_sorteo FROM sorteo WHERE Idsorteo = ?", [tipoSorteo]);
-      if (rows && rows.length > 0) tipoSorteoNormalized = rows[0].Tipo_sorteo;
-    }
-
-    // 3️⃣ Validar duplicado (solo especial)
-    if (tipoSorteoNormalized === "especial") {
-      const [valid] = await safeQuery(connection, sqlValidationEspecial, [fechaModificada, ticketNum]);
-      if (valid && valid.length > 0) {
-        await connection.rollback();
-        connection.release();
-        return NextResponse.json({ error: "El boleto ya fue vendido" }, { status: 400 });
-      }
-    }
-
-    // 4️⃣ Insertar boleto sin QR
-    const [insertResult] = await safeQuery(connection, sqlInsertBase, [
+    // 2️⃣ Insertar boleto
+    const sqlInsert = `
+      INSERT INTO boletos 
+      (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `;
+    
+    const [insertResult] = await connection.query(sqlInsert, [
       fechaModificada,
       primerPremio,
       segundoPremio,
-      ticketNum,
-      prizeboxNum,
+      ticketNumber,
+      Number(prizebox) || 0,
       name,
       idVendedor,
-      idSorteo, // este va a tipo_sorteo
+      idSorteo,
     ]);
 
     const insertedId = insertResult?.insertId;
+    console.log("📝 INSERT RESULT:", insertResult);
+    console.log("🆔 ID INSERTADO:", insertedId);
+
     if (!insertedId) {
       await connection.rollback();
       connection.release();
       throw new Error("No se obtuvo insertId al crear el boleto");
     }
 
-    console.log("📝 Boleto insertado con Idsorteo:", insertedId); // DEBUG
+    // 3️⃣ Generar QR (usando el Idsorteo como identificador)
+    const qrData = `N${insertedId}`;
+    console.log("🎯 GENERANDO QR PARA:", qrData);
+    
+    const qrCodeBase64 = await QRCode.toDataURL(qrData);
+    console.log("✅ QR GENERADO");
 
-    // 🧩 5️⃣ Generar QR basado en el Idsorteo autoincrement
-    const numeroSerie = `N${insertedId}`;
-    const qrPayload = numeroSerie;
-    const qrCodeBase64 = await QRCode.toDataURL(qrPayload);
+    // 4️⃣ Actualizar SOLO con qr_code (columna que SÍ existe)
+    const updateSql = `UPDATE boletos SET qr_code = ? WHERE Idsorteo = ?`;
+    console.log("🔧 EJECUTANDO UPDATE QR...");
+    
+    const [updateResult] = await connection.query(updateSql, [
+      qrCodeBase64,
+      insertedId
+    ]);
 
-    console.log("🎯 Generando QR para:", numeroSerie); // DEBUG
-
-    // 🧩 6️⃣ Actualizar el boleto con QR - CORREGIDO
-    // Usar WHERE Idsorteo = insertedId (el ID autoincrement de boletos)
-    const [updateResult] = await safeQuery(connection, 
-      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`, 
-      [qrCodeBase64, numeroSerie, insertedId]
-    );
-
-    console.log("✅ Update result:", updateResult.affectedRows, "filas afectadas"); // DEBUG
+    console.log("📊 UPDATE RESULT - Filas afectadas:", updateResult.affectedRows);
 
     if (updateResult.affectedRows === 0) {
       throw new Error("No se pudo actualizar el QR en la base de datos");
     }
 
-    // 7️⃣ Actualizar tope
-    await safeQuery(connection, sqlUpdateTope, [prizeboxNum, ticketNum, fechaModificada]);
-
-    // 8️⃣ Commit
-    await connection.commit();
-
-    // 🧩 9️⃣ Traer el boleto completo (ya con QR y leyendas)
-    const [resultSelect] = await safeQuery(connection, sqlSelectById, [insertedId]);
-
-    if (!resultSelect || resultSelect.length === 0) {
-      throw new Error("No se pudo recuperar el boleto recién insertado");
+    // 5️⃣ Actualizar tope
+    if (topesRows.length > 0) {
+      await connection.query(
+        `UPDATE topes SET Cantidad = Cantidad + ? WHERE Numero = ? AND Fecha_sorteo = ?`,
+        [Number(prizebox) || 0, ticketNumber, fechaModificada]
+      );
     }
 
-    console.log("📋 Boleto recuperado:", resultSelect[0].Idsorteo, "QR:", resultSelect[0].qr_code ? "SI" : "NO"); // DEBUG
+    // 6️⃣ Commit
+    await connection.commit();
+    console.log("💾 COMMIT EXITOSO");
+
+    // 7️⃣ Verificar el estado final del registro
+    const [finalCheck] = await connection.query(
+      `SELECT Idsorteo, qr_code FROM boletos WHERE Idsorteo = ?`,
+      [insertedId]
+    );
+    
+    console.log("🔍 ESTADO FINAL DEL BOLETO:", {
+      id: finalCheck[0]?.Idsorteo,
+      qr: finalCheck[0]?.qr_code ? "QR PRESENTE ✅" : "QR AUSENTE ❌"
+    });
+
+    // 8️⃣ Traer datos completos para respuesta
+    const [boletoCompleto] = await connection.query(`
+      SELECT 
+        b.*, 
+        COALESCE(c.leyenda1, '') as leyenda1, 
+        COALESCE(s.leyenda2, '') as leyenda2
+      FROM boletos b
+      CROSS JOIN configuracion c
+      LEFT JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
+      WHERE b.Idsorteo = ?
+      LIMIT 1
+    `, [insertedId]);
+
+    console.log("📦 BOLETO PARA RESPONSE - QR:", boletoCompleto[0]?.qr_code ? "PRESENTE" : "AUSENTE");
 
     connection.release();
 
-    return NextResponse.json([[resultSelect[0]], []]);
+    return NextResponse.json([[boletoCompleto[0]], []]);
 
   } catch (error) {
-    console.error("❌ ERROR EN INSERTAR BOLETO (POST):", error, { datos });
+    console.error("❌ ERROR CRÍTICO:", error);
     try { 
       if (connection) { 
         await connection.rollback(); 
         connection.release(); 
       } 
     } catch (e) {
-      console.error("Error en rollback:", e);
+      console.error("Error en cleanup:", e);
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 // serie 
 export async function PUT(req) {
   const datos = await req.json();
@@ -179,22 +172,6 @@ export async function PUT(req) {
 
   const fechaModificada = (fecha && fecha.split ? fecha.split("T")[0] : fecha);
 
-  const sqlInsertBase = `
-    INSERT INTO boletos
-    (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `;
-
-  const sqlSelectByBuyer = `
-    SELECT b.*, c.leyenda1, s.leyenda2
-    FROM boletos b
-    JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-    CROSS JOIN configuracion c
-    WHERE comprador = ?
-    ORDER BY b.Idsorteo DESC
-    LIMIT 10
-  `;
-
   let connection;
   try {
     connection = await pool.getConnection();
@@ -204,7 +181,11 @@ export async function PUT(req) {
     const ticketNum = ticketNumber;
 
     // Insert
-    const [insertResult] = await safeQuery(connection, sqlInsertBase, [
+    const [insertResult] = await connection.query(`
+      INSERT INTO boletos
+      (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `, [
       fechaModificada,
       primerPremio,
       segundoPremio,
@@ -222,15 +203,14 @@ export async function PUT(req) {
       throw new Error("No se obtuvo insertId al crear el boleto de serie");
     }
 
-    // Generar QR con Idsorteo
-    const numeroSerie = `N${insertedId}`;
-    const qrPayload = `${numeroSerie}`;
-    const qrCodeBase64 = await QRCode.toDataURL(qrPayload);
+    // Generar QR
+    const qrData = `N${insertedId}`;
+    const qrCodeBase64 = await QRCode.toDataURL(qrData);
 
-    // Actualizar qr - CORREGIDO
-    const [updateQrResult] = await safeQuery(connection,
-      `UPDATE boletos SET qr_code = ?, numero_serie = ? WHERE Idsorteo = ?`,
-      [qrCodeBase64, numeroSerie, insertedId]
+    // Actualizar SOLO qr_code
+    const [updateQrResult] = await connection.query(
+      `UPDATE boletos SET qr_code = ? WHERE Idsorteo = ?`,
+      [qrCodeBase64, insertedId]
     );
 
     if (!updateQrResult || updateQrResult.affectedRows === 0) {
@@ -243,7 +223,19 @@ export async function PUT(req) {
     connection.release();
 
     // Retornar los últimos 10 del comprador
-    const [resultSelect] = await pool.query(sqlSelectByBuyer, [name]);
+    const [resultSelect] = await pool.query(`
+      SELECT 
+        b.*, 
+        COALESCE(c.leyenda1, '') as leyenda1, 
+        COALESCE(s.leyenda2, '') as leyenda2
+      FROM boletos b
+      CROSS JOIN configuracion c
+      LEFT JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
+      WHERE comprador = ?
+      ORDER BY b.Idsorteo DESC
+      LIMIT 10
+    `, [name]);
+
     return NextResponse.json(resultSelect);
 
   } catch (error) {
