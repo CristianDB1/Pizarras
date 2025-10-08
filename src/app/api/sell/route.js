@@ -29,7 +29,7 @@ export async function POST(req) {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    console.log("🔍 DATOS RECIBIDOS:", datos);
+    //console.log("DATOS RECIBIDOS:", datos);
 
     // 1️⃣ Verificar tope
     const [topesRows] = await connection.query(
@@ -49,7 +49,7 @@ export async function POST(req) {
       }
     }
 
-    // 2️⃣ Insertar boleto
+    // Insertar boleto
     const sqlInsert = `
       INSERT INTO boletos 
       (Fecha, Primerpremio, Segundopremio, Boleto, Costo, comprador, Idvendedor, tipo_sorteo, Fecha_venta) 
@@ -68,8 +68,8 @@ export async function POST(req) {
     ]);
 
     const insertedId = insertResult?.insertId;
-    console.log("📝 INSERT RESULT:", insertResult);
-    console.log("🆔 ID INSERTADO:", insertedId);
+    //console.log("INSERT RESULT:", insertResult);
+    //console.log("ID INSERTADO:", insertedId);
 
     if (!insertedId) {
       await connection.rollback();
@@ -79,27 +79,27 @@ export async function POST(req) {
 
     // 3️⃣ Generar QR (usando el Idsorteo como identificador)
     const qrData = `N${insertedId}`;
-    console.log("🎯 GENERANDO QR PARA:", qrData);
+    //console.log("GENERANDO QR PARA:", qrData);
     
     const qrCodeBase64 = await QRCode.toDataURL(qrData);
-    console.log("✅ QR GENERADO");
+    //console.log("QR GENERADO");
 
     // 4️⃣ Actualizar SOLO con qr_code (columna que SÍ existe)
     const updateSql = `UPDATE boletos SET qr_code = ? WHERE Idsorteo = ?`;
-    console.log("🔧 EJECUTANDO UPDATE QR...");
+    //console.log("🔧 EJECUTANDO UPDATE QR...");
     
     const [updateResult] = await connection.query(updateSql, [
       qrCodeBase64,
       insertedId
     ]);
 
-    console.log("📊 UPDATE RESULT - Filas afectadas:", updateResult.affectedRows);
+    //console.log("UPDATE RESULT - Filas afectadas:", updateResult.affectedRows);
 
     if (updateResult.affectedRows === 0) {
       throw new Error("No se pudo actualizar el QR en la base de datos");
     }
 
-    // 5️⃣ Actualizar tope
+    // Actualizar tope
     if (topesRows.length > 0) {
       await connection.query(
         `UPDATE topes SET Cantidad = Cantidad + ? WHERE Numero = ? AND Fecha_sorteo = ?`,
@@ -107,20 +107,19 @@ export async function POST(req) {
       );
     }
 
-    // 6️⃣ Commit
     await connection.commit();
-    console.log("💾 COMMIT EXITOSO");
+    //console.log("COMMIT EXITOSO");
 
-    // 7️⃣ Verificar el estado final del registro
+    //Verificar el estado final del registro
     const [finalCheck] = await connection.query(
       `SELECT Idsorteo, qr_code FROM boletos WHERE Idsorteo = ?`,
       [insertedId]
     );
     
-    console.log("🔍 ESTADO FINAL DEL BOLETO:", {
+    /*console.log("🔍 ESTADO FINAL DEL BOLETO:", {
       id: finalCheck[0]?.Idsorteo,
       qr: finalCheck[0]?.qr_code ? "QR PRESENTE ✅" : "QR AUSENTE ❌"
-    });
+    });*/
 
     // 8️⃣ Traer datos completos para respuesta
     const [boletoCompleto] = await connection.query(`
@@ -135,7 +134,7 @@ export async function POST(req) {
       LIMIT 1
     `, [insertedId]);
 
-    console.log("📦 BOLETO PARA RESPONSE - QR:", boletoCompleto[0]?.qr_code ? "PRESENTE" : "AUSENTE");
+    //console.log(" BOLETO PARA RESPONSE - QR:", boletoCompleto[0]?.qr_code ? "PRESENTE" : "AUSENTE");
 
     connection.release();
 
