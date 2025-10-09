@@ -7,7 +7,24 @@ const formatDate = (dateString) => {
 };
 
 const generatePDFSerie = async (data, fecha) => {
+
+    // Verificar que hay datos validos
+    if (!data || data.length === 0 || !data[0]) {
+        console.error("❌ Datos inválidos para PDF serie:", data);
+        await Swal.fire({
+        title: "Error",
+        text: "No hay datos válidos para generar el PDF de la serie",
+        icon: "error",
+        });
+        return;
+    }
+
     const fechaSorteoFormateada = formatDate(fecha);
+
+    // VERIFICAR LEYENDAS
+    const firstTicket = data[0];
+    const leyenda1 = firstTicket.leyenda1 || "";
+    const leyenda2 = firstTicket.leyenda2 || "";
 
     // Mostrar ventana de carga
     Swal.showLoading();
@@ -16,11 +33,6 @@ const generatePDFSerie = async (data, fecha) => {
     const tempDoc = new jsPDF();
     var leyenda1Text = tempDoc.splitTextToSize(`${data[0].leyenda1}`, 70);
     const leyenda1Height = leyenda1Text.length * 4; // Subido a 4mm por línea para fuente más grande
-
-    /*// Calculamos altura total estimada + margen inferior
-    const lastTextPosition = 130; // Ajustado para más espacio
-    const totalHeight = lastTextPosition + leyenda1Height + 10;
-    const finalHeight = Math.min(totalHeight, 297);*/
 
     // Calcular altura dinámica según cantidad de boletos
     const boletosHeight = data.length * 5; // cada boleto ocupa ~5mm
