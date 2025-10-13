@@ -42,7 +42,7 @@ export async function PUT(request) {
       });
     }
 
-    // Verificar si el ID_ganadoir ya esta pagado
+    // Verificar si el ID_ganador ya esta pagado
     const [boletoExistente] = await pool.query(
       'SELECT * FROM Ganadores WHERE Id_ganador = ? AND Estatus = "pagado"',
       [id]
@@ -57,12 +57,12 @@ export async function PUT(request) {
     }
 
     // Consulta para actualizar el estado del boleto a pagado
-    const resultado = await pool.query(
+    const [resultado] = await pool.query(
       'UPDATE Ganadores SET Estatus = ?, Ine = ?, Fecha_pago = ?, Vendedor= ? WHERE Id_ganador = ?',
       ["pagado", ine, fecha_pago, user.Nombre, id]
     );
 
-    if (resultado[0].affectedRows === 0) {
+    if (resultado.affectedRows === 0) {
       return NextResponse.json({
         error: "No se encontró el boleto premiado con el ID proporcionado",
         success: false
@@ -77,18 +77,15 @@ export async function PUT(request) {
       [id]
     );
 
-    // Devolver respuesta exitosa con los datos del boleto actualizado
-  
+    // ✅ CORREGIDO: Retornar solo datos serializables
     return NextResponse.json({
-      value: resultado,
       message: "Boleto premiado actualizado correctamente",
       success: true,
-      boleto: boletoActualizado[0], // Incluir los datos del boleto actualizado
-      folio: boletoActualizado[0]?.Folio // Incluir el folio específicamente
+      boleto: boletoActualizado[0],
+      folio: boletoActualizado[0]?.Folio
     });
   } catch (error) {
     console.error("Error al actualizar boleto premiado:", error);
-    // Siempre devolver una respuesta en caso de error
     return NextResponse.json({
       error: "Error al actualizar boleto premiado: " + error.message,
       success: false

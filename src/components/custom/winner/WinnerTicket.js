@@ -145,7 +145,6 @@ const WinnerTicket = () => {
             const localUserData = localStorage.getItem("userData");
             if (localUserData) {
               currentUserData = JSON.parse(localUserData);
-              // Actualizar el estado con los datos obtenidos
               setUserData(currentUserData);
             } else {
               Swal.fire("Error", "No se encontró información del usuario", "error");
@@ -175,15 +174,28 @@ const WinnerTicket = () => {
         body: JSON.stringify({ 
           id, 
           ine: ineImage, 
-          user: currentUserData // Usar currentUserData en lugar de userData
+          user: currentUserData
         }),
       });
 
-      const data = await response.json();
+      // ✅ VERIFICAR SI LA RESPUESTA ES VÁLIDA ANTES DE HACER .json()
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      // ✅ VERIFICAR QUE LA RESPUESTA NO ESTÉ VACÍA
+      const responseText = await response.text();
+      if (!responseText) {
+        throw new Error("Respuesta vacía del servidor");
+      }
+
+      // ✅ PARSEAR EL JSON
+      const data = JSON.parse(responseText);
       console.log("Respuesta del servidor:", data);
+      
       if (data.success) {
         // Actualizar el estado local para reflejar el cambio
-       const boletoActualizado = data.boleto;
+        const boletoActualizado = data.boleto;
         setPremiados(prev => 
           prev.map(boleto => 
             boleto.Id_ganador === id ? boletoActualizado : boleto
@@ -204,7 +216,6 @@ const WinnerTicket = () => {
           cancelButtonText: "Cerrar",
         }).then((result) => {
           if (result.isConfirmed) {
-            // Función para imprimir comprobante
             imprimirComprobante(id, folio, boletoActualizado);
           }
         });
@@ -228,7 +239,16 @@ const WinnerTicket = () => {
       }
     } catch (error) {
       console.error("Error al marcar como pagado:", error);
-      Swal.fire("Error", "Ocurrió un error al procesar el pago", "error");
+      
+      // ✅ MENSAJE DE ERROR MÁS ESPECÍFICO
+      let errorMessage = "Ocurrió un error al procesar el pago";
+      if (error.message.includes("HTTP")) {
+        errorMessage = `Error del servidor: ${error.message}`;
+      } else if (error.message.includes("vacía")) {
+        errorMessage = "El servidor no respondió correctamente";
+      }
+      
+      Swal.fire("Error", errorMessage, "error");
     } finally {
       setIsLoading(false);
     }
