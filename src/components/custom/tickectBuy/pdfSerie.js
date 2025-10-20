@@ -7,14 +7,13 @@ const formatDate = (dateString) => {
 };
 
 const generatePDFSerie = async (data, fecha) => {
-
     // Verificar que hay datos validos
     if (!data || data.length === 0 || !data[0]) {
         console.error("❌ Datos inválidos para PDF serie:", data);
         await Swal.fire({
-        title: "Error",
-        text: "No hay datos válidos para generar el PDF de la serie",
-        icon: "error",
+            title: "Error",
+            text: "No hay datos válidos para generar el PDF de la serie",
+            icon: "error",
         });
         return;
     }
@@ -32,14 +31,12 @@ const generatePDFSerie = async (data, fecha) => {
     // Primero calculamos el espacio que ocupará la leyenda1 al final
     const tempDoc = new jsPDF();
     var leyenda1Text = tempDoc.splitTextToSize(`${data[0].leyenda1}`, 70);
-    const leyenda1Height = leyenda1Text.length * 4; // Subido a 4mm por línea para fuente más grande
+    const leyenda1Height = leyenda1Text.length * 4;
 
     // Calcular altura dinámica según cantidad de boletos
-    const boletosHeight = data.length * 5; // cada boleto ocupa ~5mm
-    const datosExtraHeight = 40; // espacio para sorteo, comprador, venta
+    const boletosHeight = data.length * 6; // Aumentado a 6mm por boleto (más espacio)
+    const datosExtraHeight = 40;
     const totalHeight = 80 + boletosHeight + leyenda1Height + datosExtraHeight;
-
-    // Si es mayor al tamaño de página, limitamos a A4
     const finalHeight = Math.min(totalHeight, 297);
 
     // Crear un nuevo documento PDF con la altura calculada
@@ -49,7 +46,7 @@ const generatePDFSerie = async (data, fecha) => {
         format: [80, finalHeight]
     });
 
-    doc.setFontSize(10); // Subido de 8 a 10
+    doc.setFontSize(10);
 
     // URL de la imagen
     const imageURL = '/noSencillo.jpg';
@@ -58,22 +55,19 @@ const generatePDFSerie = async (data, fecha) => {
     // Agregar la imagen al PDF
     doc.addImage(imageURL, 'JPEG', 10, 10, 60, 30);
 
-    // Leyenda2 (con salto de línea robusto)
+    // Leyenda2
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 0, 0);
     doc.setFontSize(11);
 
-    // Limpia espacios dobles y caracteres invisibles
     let leyenda2Clean = String(data[0].leyenda2 || "")
         .replace(/\s+/g, ' ')
         .replace(/\u00A0/g, ' ')
         .trim();
 
-    // Si la línea es muy larga, inserta un espacio cada 30 caracteres para forzar corte
     leyenda2Clean = leyenda2Clean.replace(/(.{30})/g, '$1 ');
-
-    const leyenda2Lines = doc.splitTextToSize(leyenda2Clean, 60); // Usa 60mm de ancho real
-    let leyenda2StartY = 44; // <-- Más separado de la imagen (antes 42)
+    const leyenda2Lines = doc.splitTextToSize(leyenda2Clean, 60);
+    let leyenda2StartY = 44;
     doc.text(leyenda2Lines, 5, leyenda2StartY);
 
     let leyenda2Y = leyenda2StartY + (leyenda2Lines.length * 5);
@@ -96,19 +90,39 @@ const generatePDFSerie = async (data, fecha) => {
     doc.setFontSize(10);
     doc.text(`Serie de boletos:`, 5, posY);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8); // Más pequeño para que quepa mejor
-
+    // Ahora ya podemos identificar el numero del boleto y el numero de serie de manera mas entendible
     data.forEach((boleto, index) => {
         const numero = boleto.Boleto?.toString().padStart(3, "0");
         const ns = `N${boleto.Idsorteo}`;
-        posY += 5; // espacio entre renglones
-        doc.text(`${numero} - ${ns}`, 5, posY);
+        posY += 6; 
+        
+        // Escribir "Numero: " en negro
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0); // Negro
+        doc.text(`Número: ${numero} - `, 5, posY);
+        
+        // Calcular posición para "N/S:" 
+        const numeroTextWidth = doc.getTextWidth(`Número: ${numero} - `);
+        
+        // Escribir "N/S:" en rojo
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 0, 0); // Rojo
+        doc.text('N/S:', 5 + numeroTextWidth, posY);
+        
+        // Calcular posición para el número de serie
+        const nsTextWidth = doc.getTextWidth('N/S:');
+        
+        // Escribir el número de serie en negro
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0); // Negro
+        doc.text(` ${ns}`, 5 + numeroTextWidth + nsTextWidth, posY);
     });
 
     // Datos principales
     posY += 10;
     doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0); // Asegurar negro
     doc.text(`Sorteo: ${fechaSorteoFormateada}`, 5, posY);
 
     posY += 6;
