@@ -35,6 +35,15 @@ export default function TotalVentasModal(){
     if(ocultar) return null;
 
     if (!user || pathname === "/") return null;
+
+    //Con esta funcion vamos a cerrar el modal de total venta
+    const handleImprimir = async () => {
+      setOpen(false);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      generarPDFTotalVenta(total, ventas);
+    };
     
     return (
     <div>
@@ -81,7 +90,7 @@ export default function TotalVentasModal(){
             </div>
             <div className="flex justify-between mt-3">
                 <button 
-                    onClick={()=> generarPDFTotalVenta(total,ventas)}
+                    onClick={handleImprimir}
                     className="px-3 py-1 bg-green-500 text-white rounded">
                     Imprimir
                 </button>
