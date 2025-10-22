@@ -559,50 +559,79 @@ const CompraOnline = ({ sorteoId }) => {
           <h2 className="text-xl font-semibold mb-4">Seleccionar Boleto</h2>
           
           {/* Número de boleto */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Número del Boleto (3 dígitos)
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={ticketNumber}
-                onChange={handleTicketNumberChange}
-                onBlur={handleBlur}
-                maxLength={3}
-                className="flex-1 p-4 border border-gray-300 rounded-lg text-center text-2xl font-bold focus:border-blue-500 focus:outline-none"
-                placeholder="000"
-              />
-              <div className="flex gap-2">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Número del Boleto (3 dígitos)
+              </label>
+              
+              {/* Input principal - Mejorado para móviles */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={ticketNumber}
+                    onChange={handleTicketNumberChange}
+                    onBlur={handleBlur}
+                    maxLength={3}
+                    className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg text-center text-xl sm:text-2xl font-bold focus:border-blue-500 focus:outline-none"
+                    placeholder="000"
+                  />
+                </div>
+                
+                {/* En pantallas grandes: botones al lado */}
+                <div className="hidden sm:flex gap-2">
+                  <button
+                    onClick={getRandomNumber}
+                    disabled={isGeneratingRandom}
+                    className={`bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition duration-200 flex flex-col items-center justify-center ${
+                      isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    title="Generar número aleatorio"
+                  >
+                    <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-xl`} />
+                    <span className="text-xs mt-1">Azar</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleSelectSorteoAvance}
+                    className="bg-gray-600 text-white p-3 rounded-lg hover:bg-gray-700 transition duration-200 flex flex-col items-center justify-center"
+                    title="Sorteo en avance"
+                  >
+                    <FaForward className="text-xl" />
+                    <span className="text-xs mt-1">Avance</span>
+                  </button>
+                </div>
+              </div>
+              
+              {/* En pantallas pequeñas: botones debajo */}
+              <div className="sm:hidden grid grid-cols-2 gap-3">
                 <button
                   onClick={getRandomNumber}
                   disabled={isGeneratingRandom}
-                  className={`bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition duration-200 flex flex-col items-center justify-center ${
+                  className={`bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center justify-center gap-2 ${
                     isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
                   }`}
-                  title="Generar número aleatorio"
                 >
-                  <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-xl`} />
-                  <span className="text-xs mt-1">Azar</span>
+                  <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""}`} />
+                  <span className="text-sm font-semibold">Azar</span>
                 </button>
+                
                 <button
                   onClick={handleSelectSorteoAvance}
-                  className="bg-gray-600 text-white p-4 rounded-lg hover:bg-gray-700 transition duration-200 flex flex-col items-center justify-center"
-                  title="Sorteo en avance"
+                  className="bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center justify-center gap-2"
                 >
-                  <FaForward className="text-xl" />
-                  <span className="text-xs mt-1">Avance</span>
+                  <FaForward />
+                  <span className="text-sm font-semibold">Avance</span>
                 </button>
               </div>
+              
+              {/* Información de tope */}
+              {foundTope !== null && (
+                <div className="mt-2 text-sm text-blue-600 font-medium">
+                  Tope permitido: ${foundTope - cantidad}
+                </div>
+              )}
             </div>
-            
-            {/* Información de tope */}
-            {foundTope !== null && (
-              <div className="mt-2 text-sm text-blue-600 font-medium">
-                Tope permitido: ${foundTope - cantidad}
-              </div>
-            )}
-          </div>
 
           {/* Precio */}
           <div className="mb-4">
