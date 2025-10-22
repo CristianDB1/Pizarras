@@ -150,12 +150,17 @@ const searchByDate = async () => {
   }
 };
 
-  // Formatear fecha
+  // Formatear fecha CORREGIDA para zona horaria
   const formatDate = (dateString) => {
     if (!dateString) return "";
     try {
+      // Crear fecha en UTC para evitar problemas de zona horaria
       const date = new Date(dateString);
-      return date.toLocaleDateString('es-MX', {
+      
+      // Ajustar para compensar la zona horaria
+      const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+      
+      return adjustedDate.toLocaleDateString('es-MX', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

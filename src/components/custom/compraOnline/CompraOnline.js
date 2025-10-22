@@ -650,7 +650,7 @@ const CompraOnline = ({ sorteoId }) => {
               }}
               maxLength={4}
               className="w-full p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-              placeholder="Ej: 50"
+              placeholder="Ej: 10"
             />
             {prizeboxError && (
               <div className="mt-1 text-sm text-red-600">{prizeboxError}</div>
