@@ -275,12 +275,6 @@ const searchByDate = async () => {
                 <p className="text-5xl font-bold text-red-600">{winner.segundolugar}</p>
               </div>
             </div>
-            
-            <div className="text-center">
-              <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 mx-auto transition duration-200">
-                <FaPrint /> Imprimir Resultados
-              </button>
-            </div>
           </div>
         </div>
       ) : (
