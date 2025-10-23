@@ -22,12 +22,10 @@ export default function TotalVentasModal(){
   }, [open]);
 
     const rutasOcultas = [
-      "/welcomeOnline",
-      "/typeDrawOnline",
-      "/ticketBuyOnline",
-      "/menuOnline",
-      "/ticketBuyEspecialOnline",
-      "/winnerSraffleOnline"
+      "/OnlineHome",
+      "/CompraOnline",
+      "/CompraOnlineEspecial",
+      "/ResultadosOnline"
     ];
 
     const ocultar = rutasOcultas.some(ruta => pathname.startsWith(ruta));
