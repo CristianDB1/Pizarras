@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => {
+const EspecialPreviewModalOnline = ({ onClose, onConfirm }) => {
   const [telefono, setTelefono] = useState("");
   const [metodoPago, setMetodoPago] = useState("");
   const [bancos, setBancos] = useState([]);
@@ -29,63 +29,46 @@ const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-        <h2 className="text-xl font-bold mb-4">Boletos Acumulados</h2>
-
-        <ul className="mb-4">
-          {tickets.map((ticket, index) => (
-            <li key={index} className="mb-2 flex justify-between items-center">
-              <div>
-                <div>Boleto: {ticket.numero}</div>
-                <div>Precio: {ticket.precio}</div>
-                <div>Nombre: {ticket.comprador}</div>
-              </div>
-              <button
-                onClick={() => onDelete(index)}
-                className="bg-red-500 text-white px-2 py-1 rounded"
-              >
-                Eliminar
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-96 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold mb-4 text-purple-800">Confirmar Compra Especial</h2>
 
         {/* Teléfono */}
         <div className="mb-4">
-          <label className="block font-semibold mb-1">Número de Teléfono</label>
+          <label className="block font-semibold mb-2 text-gray-700">Número de Teléfono</label>
           <input
             type="text"
             value={telefono}
             onChange={(e) => setTelefono(e.target.value)}
-            className="w-full border rounded px-2 py-1"
+            className="w-full border border-gray-300 rounded px-3 py-2 focus:border-purple-500 focus:outline-none"
             placeholder="Ej: 3001234567"
           />
         </div>
 
         {/* Método de pago */}
         <div className="mb-4">
-          <label className="block font-semibold mb-1">Método de Pago</label>
+          <label className="block font-semibold mb-2 text-gray-700">Método de Pago</label>
           <select
             value={metodoPago}
             onChange={(e) => {
               setMetodoPago(e.target.value);
               if (e.target.value !== "Banco") {
-                setBancoSeleccionado(null); // limpiar si cambia a efectivo
+                setBancoSeleccionado(null);
               }
             }}
-            className="w-full border rounded px-2 py-1"
+            className="w-full border border-gray-300 rounded px-3 py-2 focus:border-purple-500 focus:outline-none"
           >
             <option value="">-- Selecciona --</option>
             <option value="Efectivo">Efectivo</option>
-            <option value="Banco">Transferencia</option>
+            <option value="Banco">Transferencia Bancaria</option>
+            <option value="Otro">Otro</option>
           </select>
         </div>
 
-        {/* Si elige banco, mostramos el listado */}
+        {/* Selección de banco */}
         {metodoPago === "Banco" && (
           <div className="mb-4">
-            <label className="block font-semibold mb-1">Selecciona un Banco</label>
+            <label className="block font-semibold mb-2 text-gray-700">Selecciona un Banco</label>
             <select
               value={bancoSeleccionado ? bancoSeleccionado.IdBanco : ""}
               onChange={(e) => {
@@ -94,7 +77,7 @@ const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => 
                 );
                 setBancoSeleccionado(banco || null);
               }}
-              className="w-full border rounded px-2 py-1"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:border-purple-500 focus:outline-none"
             >
               <option value="">-- Selecciona un banco --</option>
               {bancos.map((b) => (
@@ -106,19 +89,28 @@ const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => 
           </div>
         )}
 
-        {/* Botones */}
-        <div className="flex justify-end space-x-4">
+        {/* Información del banco seleccionado */}
+        {bancoSeleccionado && (
+          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <h4 className="font-semibold text-purple-800 mb-2">Información del Banco:</h4>
+            <p className="text-sm text-purple-700"><strong>Banco:</strong> {bancoSeleccionado.Banco}</p>
+            <p className="text-sm text-purple-700"><strong>Cuenta:</strong> {bancoSeleccionado.Cuenta}</p>
+          </div>
+        )}
+
+        {/* Botones de acción */}
+        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="bg-gray-500 text-white px-4 py-2 rounded"
+            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition duration-200"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
-            className="bg-red-700 text-white px-4 py-2 rounded"
+            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition duration-200 font-semibold"
           >
-            Confirmar
+            Confirmar Compra
           </button>
         </div>
       </div>
@@ -126,4 +118,4 @@ const TicketPreviewModalOnline = ({ tickets, onClose, onConfirm, onDelete }) => 
   );
 };
 
-export default TicketPreviewModalOnline;
+export default EspecialPreviewModalOnline;

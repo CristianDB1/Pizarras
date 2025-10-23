@@ -1,21 +1,14 @@
 'use client'
-import { PiNumberSquareOneFill } from "react-icons/pi";
-import { PiNumberSquareTwoFill } from "react-icons/pi";
-import { BsCalendarDateFill } from "react-icons/bs";
-import { useEffect, useState } from "react";
-import {
-  ErrorPrizes,
-  loading,
-  ErrorTope,
-  ValidateBox,
-} from "../alerts/menu/Alerts";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FaHome, FaDice, FaForward } from "react-icons/fa";
-import Swal from "sweetalert2";
 import { TbSquarePlus } from "react-icons/tb";
+import Swal from "sweetalert2";
+import { ErrorPrizes, ErrorTope, loading, ValidateBox } from "../alerts/menu/Alerts";
 import TicketPreviewModalOnline from "./TicketPreviewModalOnline";
 
-const TicketBuyOnline = () => {
+const CompraOnline = ({ sorteoId }) => {
+  // Estados principales (iguales al código original)
   const [prizes, setPrizes] = useState(null);
   const [topePermitido, setTopePermitido] = useState(0);
   const [ticketNumber, setTicketNumber] = useState("");
@@ -38,7 +31,7 @@ const TicketBuyOnline = () => {
   const [tipoCompra, setTipoCompra] = useState("normal");
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
-
+  // Cargar datos iniciales (igual al código original)
   useEffect(() => {
     Promise.all([
       fetch("/api/ticketBuy")
@@ -52,19 +45,34 @@ const TicketBuyOnline = () => {
     ]).catch((error) => console.error("Error:", error));
   }, []);
 
-  // Obtener sorteos activos para avance
-  useEffect(() => {
-    fetch("/api/nextLotteries")
-      .then((res) => res.json())
-      .then((data) => {
-        setSorteos(data.result || []);
-        setSelectedSorteo((data.result && data.result[0]) || null);
-        setOriginalSorteo((data.result && data.result[0]) || null);
-      });
-  }, []);
+  // Cargar sorteo seleccionado desde localStorage
+    useEffect(() => {
+        const cargarSorteoSeleccionado = () => {
+            try {
+            const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
+            if (sorteoGuardado) {
+                const sorteo = JSON.parse(sorteoGuardado);
+                setSelectedSorteo(sorteo);
+                setOriginalSorteo(sorteo);
+                
+                // También cargar la lista de sorteos para el avance
+                fetch("/api/nextLotteries")
+                .then((res) => res.json())
+                .then((data) => {
+                    setSorteos(data.result || []);
+                });
+            }
+            } catch (error) {
+            console.error("Error cargando sorteo seleccionado:", error);
+            }
+        };
+
+        cargarSorteoSeleccionado();
+    }, []);
 
   const currentHour = new Date().getHours();
 
+  // Loading state (igual al código original)
   if (!prizes) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -78,18 +86,18 @@ const TicketBuyOnline = () => {
     );
   }
 
+  // FUNCIONES PRINCIPALES (iguales al código original)
+
   const handleTicketNumberChange = async (e) => {
     let value = e.target.value;
     if (!/^[0-9]*$/.test(value)) {
       value = value.slice(0, -1);
     }
     setTicketNumber(value);
-
-    //Asegurar de que el valor tenga una longitud de 3 caracteres
     value = value.padStart(3, "0");
   };
 
-  //Usar selectedSorteo para la fecha y formattedFecha
+  // Usar selectedSorteo para la fecha y formattedFecha
   const fecha = selectedSorteo
     ? new Date(
         new Date(selectedSorteo.Fecha).getTime() +
@@ -99,7 +107,7 @@ const TicketBuyOnline = () => {
   const [day, month, year] = fecha.split("/").map((num) => num.padStart(2, "0"));
   const formattedFecha = `${day}/${month}/${year}`;
 
-  //Función para obtener un número aleatorio disponible
+  // Función para obtener un número aleatorio disponible (igual al código original)
   const getRandomNumber = async () => {
     try {
       setIsGeneratingRandom(true);
@@ -115,22 +123,15 @@ const TicketBuyOnline = () => {
       const data = await response.json();
 
       if (data.success) {
-        //Formatear el número para que tenga 3 dígitos con ceros a la izquierda
         const numeroFormateado = data.numero.toString().padStart(3, "0");
         setTicketNumber(numeroFormateado);
-
-        //Establecer valores predeterminados
         setPrizebox("10");
         setName("Trébol de la Suerte");
-
-        //Limpiar errores de validación del precio
         setPrizeboxError(null);
 
-        //Simular evento de blur para cargar la información del tope
         const event = { target: { value: numeroFormateado } };
         handleBlur(event);
 
-        //Mostrar mensaje de éxito
         Swal.fire({
           icon: "success",
           title: "Número aleatorio generado",
@@ -183,7 +184,7 @@ const TicketBuyOnline = () => {
         );
 
         if (matchingTope) {
-          setFoundTope(matchingTope.Tope); // Guarda el tope encontrado en el estado
+          setFoundTope(matchingTope.Tope);
           setCantidad(matchingTope.Cantidad);
           setNumberTop(matchingTope.Numero);
           setTopes((prevTopes) => ({
@@ -191,7 +192,7 @@ const TicketBuyOnline = () => {
             [matchingTope.Numero]: matchingTope.Cantidad,
           }));
         } else {
-          setFoundTope(null); // Si no se encuentra un tope, establece el estado a null
+          setFoundTope(null);
         }
       } else {
         setFoundTope(null);
@@ -225,20 +226,17 @@ const TicketBuyOnline = () => {
 
   const enviarDatosNormal = async (e) => {
     e.preventDefault();
-    if (tickets.length === 0 && (!prizebox || !name)) {
-      ValidateBox();
-      return;
+    
+    if (tickets.length === 0) {
+      if (!prizebox || !name || !ticketNumber) {
+        ValidateBox();
+        return;
+      }
+      // Si carrito vacío pero hay campos, agregar primero
+      if (!addTicketToList()) {
+        return;
+      }
     }
-
-    if (!Validate()) {
-      return;
-    }
-
-    if (!addTicketToList()) {
-      return;
-    }
-
-    //Definimos tipoCompra como "normal"
     setTipoCompra("normal");
     setShowPreview(true);
   };
@@ -250,7 +248,7 @@ const TicketBuyOnline = () => {
       let boletosPayload = [];
 
       if (tipoCompra === "serie") {
-        // Compra en serie
+        // Compra en serie (igual al código original)
         const numTickets = 10;
         const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
           let ticket = Number(ticketNumber) + 100 * i;
@@ -263,7 +261,7 @@ const TicketBuyOnline = () => {
         boletosPayload = ticketNumbers.map((tn) => ({
           idSorteo: selectedSorteo?.Idsorteo,
           ticketNumber: tn,
-          prizebox: prizebox / 10, // precio unitario en serie
+          prizebox: prizebox / 10,
           name,
           tipoSorteo: selectedSorteo?.Tipo_sorteo,
           fecha: selectedSorteo?.Fecha,
@@ -271,7 +269,7 @@ const TicketBuyOnline = () => {
           segundoPremio: selectedSorteo?.Segundopremio,
         }));
       } else {
-        // Compra normal
+        // Compra normal (igual al código original)
         boletosPayload = tickets.map((t) => ({
           idSorteo: selectedSorteo?.Idsorteo,
           ticketNumber: t.numero,
@@ -296,7 +294,6 @@ const TicketBuyOnline = () => {
 
       const data = await res.json();
 
-      // Formatear la fecha (sin hora)
       const fechaFormateada = selectedSorteo?.Fecha
         ? new Date(selectedSorteo.Fecha).toISOString().split("T")[0]
         : "";
@@ -340,10 +337,8 @@ const TicketBuyOnline = () => {
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
-          // En telefono abre la app de WhatsApp
           window.location.href = `whatsapp://send?phone=${whatsappNumber}&text=${mensaje}`;
         } else {
-          // En PC abre WhatsApp Web
           window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
         }
 
@@ -362,7 +357,6 @@ const TicketBuyOnline = () => {
       Swal.fire("Error de conexión con el servidor");
     }
 
-    // Reset
     setIsLoading(false);
     setTickets([]);
     setShowPreview(false);
@@ -370,7 +364,6 @@ const TicketBuyOnline = () => {
     setPrizebox("");
     setName("");
   };
-
 
   const enviarDatosSerie = async (e) => {
     e.preventDefault();
@@ -383,8 +376,7 @@ const TicketBuyOnline = () => {
       Swal.fire({
         icon: "error",
         title: "Monto inválido",
-        text:
-          "Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100 (100, 200, ...900)",
+        text: "Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100 (100, 200, ...900)",
       });
       return;
     }
@@ -393,7 +385,6 @@ const TicketBuyOnline = () => {
       return;
     }
 
-    //Definimos tipoCompra como "serie"
     setTipoCompra("serie");
     setShowPreview(true);
   };
@@ -401,7 +392,6 @@ const TicketBuyOnline = () => {
   const handlePrizeboxChange = (e) => {
     let value = e.target.value;
     setPrizebox(value);
-    // Verifica si el valor es un múltiplo de 10
     if (value % 10 !== 0) {
       setPrizeboxError("El precio debe ser un múltiplo de 10");
     } else {
@@ -414,7 +404,7 @@ const TicketBuyOnline = () => {
   }
 
   const goToMenu = () => {
-      router.push("/typeDrawOnline");
+    router.push("/OnlineHome");
   };
 
   const addTicketToList = () => {
@@ -422,12 +412,10 @@ const TicketBuyOnline = () => {
       return false;
     }
 
-    //Filtrar boletos con el mismo número de tope
     const boletosConMismoTope = tickets.filter((ticket) => {
       return parseInt(ticket.numero) === numberTop;
     });
 
-    //Calcular la cantidad acumulada de boletos en la lista
     const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
       return acc + parseInt(ticket.precio);
     }, 0);
@@ -448,7 +436,6 @@ const TicketBuyOnline = () => {
       return false;
     }
 
-    //Agregar el boleto actual a la lista de boletos acumulados
     if (ticketNumber && prizebox && name) {
       const precio = parseInt(prizebox);
       const nuevoTicket = {
@@ -459,27 +446,26 @@ const TicketBuyOnline = () => {
         comprador: name,
       };
 
-      //Actualizo la lista local
       setTickets((prevTickets) => [...prevTickets, nuevoTicket]);
-
-      //Limpiar los inputs
       setTicketNumber("");
       setPrizebox("");
       return true;
     }
   };
+
   const handlePlusTicket = () => {
     if (addTicketToList()) {
       //console.log(tickets);
     }
   };
+
   const handleDeleteTicket = (index) => {
     setTickets((prevTickets) => prevTickets.filter((_, i) => i !== index));
   };
 
   const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
-  //Cambia el sorteo activo según el índice
+  // Función de avance (igual al código original)
   const handleSelectSorteoAvance = async () => {
     if (!sorteos.length) return;
     const inputOptions = sorteos.reduce((opts, s, idx) => {
@@ -533,133 +519,236 @@ const TicketBuyOnline = () => {
   };
 
   return (
-    <div className="relative min-h-screen">
-      <div className="max-w-sm mx-auto w-full bg-[rgb(38,38,38)]">
-        <div className="text-2xl text-white flex justify-center items-center pb-4 pt-6 ">
-          Boletos Online
+    <div className="min-h-screen bg-gray-100 p-4">
+      {/* Header moderno */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold text-gray-800">Compra de Boletos Online</h1>
+          <button
+            onClick={goToMenu}
+            className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition duration-200"
+          >
+            <FaHome size={24} />
+          </button>
         </div>
-        <div className="w-full flex justify-center items-center flex-col space-y-1  relative">
-          <label className="text-white text-xl flex justify-center items-center realative pr-8 ">
-            <BsCalendarDateFill className="inline-block h-6 w-6 mr-1 text-red-600 " />{" "}
-            Sorteo:{fecha}
-          </label>
-          <label className="text-white text-xl flex justify-center items-center relative">
-            <PiNumberSquareOneFill className="text-red-600 inline-block h-6 w-6 mr-1" />
-            Premio:{selectedSorteo?.Primerpremio}
-          </label>
-          <label className="text-white text-xl flex justify-center items-center  realative">
-            <PiNumberSquareTwoFill className="inline-block h-6 w-6 mr-1 text-red-600" />{" "}
-            Premio:{selectedSorteo?.Segundopremio}
-          </label>
-        </div>
-
-        {foundTope !== null ? (
-          <div className="text-xl text-red-500 text-center pt-6">
-            Tope permitido: {foundTope - cantidad}
+        
+        {/* Información del sorteo */}
+        {selectedSorteo && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="font-semibold text-blue-700">SORTEO</div>
+              <div className="text-lg">{fecha}</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="font-semibold text-green-700">1er PREMIO</div>
+              <div className="text-lg">${selectedSorteo.Primerpremio}</div>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <div className="font-semibold text-orange-700">2do PREMIO</div>
+              <div className="text-lg">${selectedSorteo.Segundopremio}</div>
+            </div>
           </div>
-        ) : (
-          <div className="text-xl text-red-500 text-center pt-6"></div>
         )}
+      </div>
 
-        <div className="flex mx-8 flex-col space-y-3 pt-6">
-          {/* Fila de Boleto */}
-          <div className="flex flex-row gap-12 relative">
-            <div className="text-white flex justify-center items-center text-2xl w-[80px]">
-              Boleto
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Panel de selección - IZQUIERDA */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">Seleccionar Boleto</h2>
+          
+          {/* Número de boleto */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Número del Boleto (3 dígitos)
+              </label>
+              
+              {/* Input principal - Mejorado para móviles */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={ticketNumber}
+                    onChange={handleTicketNumberChange}
+                    onBlur={handleBlur}
+                    maxLength={3}
+                    className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg text-center text-xl sm:text-2xl font-bold focus:border-blue-500 focus:outline-none"
+                    placeholder="000"
+                  />
+                </div>
+                
+                {/* En pantallas grandes: botones al lado */}
+                <div className="hidden sm:flex gap-2">
+                  <button
+                    onClick={getRandomNumber}
+                    disabled={isGeneratingRandom}
+                    className={`bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition duration-200 flex flex-col items-center justify-center ${
+                      isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    title="Generar número aleatorio"
+                  >
+                    <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-xl`} />
+                    <span className="text-xs mt-1">Azar</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleSelectSorteoAvance}
+                    className="bg-gray-600 text-white p-3 rounded-lg hover:bg-gray-700 transition duration-200 flex flex-col items-center justify-center"
+                    title="Sorteo en avance"
+                  >
+                    <FaForward className="text-xl" />
+                    <span className="text-xs mt-1">Avance</span>
+                  </button>
+                </div>
+              </div>
+              
+              {/* En pantallas pequeñas: botones debajo */}
+              <div className="sm:hidden grid grid-cols-2 gap-3">
+                <button
+                  onClick={getRandomNumber}
+                  disabled={isGeneratingRandom}
+                  className={`bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center justify-center gap-2 ${
+                    isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""}`} />
+                  <span className="text-sm font-semibold">Azar</span>
+                </button>
+                
+                <button
+                  onClick={handleSelectSorteoAvance}
+                  className="bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center justify-center gap-2"
+                >
+                  <FaForward />
+                  <span className="text-sm font-semibold">Avance</span>
+                </button>
+              </div>
+              
+              {/* Información de tope */}
+              {foundTope !== null && (
+                <div className="mt-2 text-sm text-blue-600 font-medium">
+                  Tope permitido: ${foundTope - cantidad}
+                </div>
+              )}
             </div>
-            <input
-              className="bg-neutral-300 border rounded w-[150px] outline-none h-[40px] pl-10"
-              value={ticketNumber}
-              onChange={handleTicketNumberChange}
-              onBlur={handleBlur}
-              maxLength={3}
-            />
-            <button
-              onClick={handlePlusTicket}
-              className="absolute right-0 bg-green-700 text-white flex justify-center items-center rounded-lg h-[40px] w-[40px] text-4xl"
-            >
-              <TbSquarePlus />
-            </button>
-          </div>
 
-          {/* Fila de Precio */}
-          <div className="flex flex-row gap-12 relative">
-            <div className="text-white flex justify-center items-center text-2xl w-[80px]">
-              Precio
-            </div>
+          {/* Precio */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Precio ($)
+            </label>
             <input
-              className="bg-neutral-300 border rounded w-[150px] outline-none h-[40px] pl-10"
+              type="number"
               value={prizebox}
-              onChange={(event) => {
-                const value = event.target.value;
+              onChange={(e) => {
+                const value = e.target.value;
                 if (!/^[0-9]*$/.test(value)) {
-                  event.target.value = value.slice(0, -1);
+                  e.target.value = value.slice(0, -1);
                 }
-                handlePrizeboxChange(event);
+                handlePrizeboxChange(e);
               }}
               maxLength={4}
+              className="w-full p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+              placeholder="Ej: 10"
             />
+            {prizeboxError && (
+              <div className="mt-1 text-sm text-red-600">{prizeboxError}</div>
+            )}
           </div>
 
-          {/* Fila de Nombre */}
-          <div className="flex flex-row gap-12 relative">
-            <div className="text-white flex justify-center items-center text-2xl w-[80px]">
-              Nombre
-            </div>
+          {/* Nombre */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nombre del jugador
+            </label>
             <input
+              type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="bg-neutral-300 border rounded w-[150px] outline-none h-[40px] pl-3"
+              className="w-full p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+              placeholder="Ingresa tu nombre completo"
             />
           </div>
 
-          {/* Fila de botones Azar y Avance */}
-          <div className="flex flex-row gap-4 justify-center items-center pt-2">
+          {/* Botones de acción */}
+          <div className="flex gap-3">
             <button
-              onClick={getRandomNumber}
-              disabled={isGeneratingRandom}
-              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""}`}
-              title="Generar número aleatorio"
+              onClick={handlePlusTicket}
+              className="flex-1 bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition duration-200 font-semibold flex items-center justify-center gap-2"
             >
-              <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-2xl`} />
-              <span className="text-xs font-semibold mt-1">Azar</span>
+              <TbSquarePlus className="text-xl" />
+              Agregar al Carrito
+            </button>
+          </div>
+
+          {/* Botones Normal/Serie */}
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button
+              onClick={enviarDatosNormal}
+              className="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold"
+            >
+              Comprar Normal
             </button>
             <button
-              onClick={handleSelectSorteoAvance}
-              className="bg-gray-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl"
-              title="Sorteo en avance"
+              onClick={enviarDatosSerie}
+              className="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition duration-200 font-semibold"
             >
-              <FaForward className="text-2xl" />
-              <span className="text-xs font-semibold mt-1">Avance</span>
+              Comprar Serie
             </button>
           </div>
         </div>
 
-        <div className="flex justify-center items-center flex-col space-y-2 pt-4 px-8">
-          <button
-            type="button"
-            onClick={enviarDatosNormal}
-            className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
-          >
-            Normal
-          </button>
-          <button
-            type="button"
-            onClick={enviarDatosSerie}
-            className="w-full rounded-lg bg-red-700 text-white h-[60px] text-xl"
-          >
-            Serie
-          </button>
+        {/* Carrito - DERECHA */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">Tu Carrito</h2>
+          
+          {tickets.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-4xl mb-2">🛒</div>
+              <p>Tu carrito está vacío</p>
+              <p className="text-sm">Agrega boletos para continuar</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
+                {tickets.map((ticket, index) => (
+                  <div key={index} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition duration-200">
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-bold text-lg">#{ticket.numero}</span>
+                          <span className="text-gray-600 ml-2">- ${ticket.precio}</span>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteTicket(index)}
+                          className="text-red-500 hover:text-red-700 transition duration-200"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">{ticket.comprador}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-semibold text-lg">Total:</span>
+                  <span className="font-bold text-xl text-green-600">
+                    ${tickets.reduce((total, ticket) => total + ticket.precio, 0)}
+                  </span>
+                </div>
+                
+                <div className="text-sm text-gray-500 text-center">
+                  {tickets.length} boleto(s) en el carrito
+                </div>
+              </div>
+            </>
+          )}
         </div>
-
       </div>
-      <button
-        onClick={goToMenu}
-        className="fixed bottom-4 right-4 bg-red-700 text-white flex justify-center items-center rounded-full w-[60px] h-[60px] text-3xl"
-      >
-        <FaHome />
-      </button>
 
+      {/* Modal de preview */}
       {showPreview && (
         <TicketPreviewModalOnline
           tickets={tickets}
@@ -672,4 +761,4 @@ const TicketBuyOnline = () => {
   );
 };
 
-export default TicketBuyOnline;
+export default CompraOnline;
