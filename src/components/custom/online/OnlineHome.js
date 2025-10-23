@@ -124,7 +124,7 @@ const OnlineHome = () => {
                   className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   {sorteo.Tipo_sorteo === "especial" && (
-                    <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 inline-block">
+                    <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 inline-block text-center w-full">
                       ESPECIAL
                     </div>
                   )}

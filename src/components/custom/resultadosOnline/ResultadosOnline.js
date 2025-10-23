@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from "react";
-import { FaSearch, FaCalendarAlt, FaPrint } from "react-icons/fa";
+import { FaSearch, FaCalendarAlt} from "react-icons/fa";
 import Swal from "sweetalert2";
 
 const ResultadosOnline = () => {
