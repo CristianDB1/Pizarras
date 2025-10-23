@@ -226,19 +226,17 @@ const CompraOnline = ({ sorteoId }) => {
 
   const enviarDatosNormal = async (e) => {
     e.preventDefault();
-    if (tickets.length === 0 && (!prizebox || !name)) {
-      ValidateBox();
-      return;
+    
+    if (tickets.length === 0) {
+      if (!prizebox || !name || !ticketNumber) {
+        ValidateBox();
+        return;
+      }
+      // Si carrito vacío pero hay campos, agregar primero
+      if (!addTicketToList()) {
+        return;
+      }
     }
-
-    if (!Validate()) {
-      return;
-    }
-
-    if (!addTicketToList()) {
-      return;
-    }
-
     setTipoCompra("normal");
     setShowPreview(true);
   };
