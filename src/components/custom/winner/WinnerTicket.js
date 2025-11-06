@@ -23,7 +23,7 @@ const WinnerTicket = () => {
   const fetchPremiados = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/winner");
+      const response = await fetch("/api/winner", { cache: 'no-store' });
       
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);

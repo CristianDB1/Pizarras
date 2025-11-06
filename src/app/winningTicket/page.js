@@ -1,6 +1,3 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 import WinnerTicket from "@/components/custom/winner/WinnerTicket"
 import RouteProtectedWinner from "@/middleware/RouteProtectedWinner"
 
