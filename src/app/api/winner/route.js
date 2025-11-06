@@ -4,9 +4,13 @@ import pool from "@/db/MysqlConection";
 // GET: Obtener todos los boletos premiados
 export async function GET() {
   try {
+    console.log("🔍 EJECUTANDO CONSULTA...");
     // Consulta para obtener todos los boletos premiados
     const [premiados] = await pool.query('select Id_ganador,Premio,Folio,Boleto,Costo,Cliente,Premio,Fecha_pago,Fecha_sorteo,Vendedor,Estatus from Ganadores;');
 
+    console.log("📊 REGISTROS ENCONTRADOS:", premiados.length);
+    console.log("ÚLTIMO REGISTRO:", premiados[0]);
+    
     // Devolver la respuesta con los datos
     return NextResponse.json({
       premiados,
