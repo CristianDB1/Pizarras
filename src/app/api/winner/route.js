@@ -8,9 +8,6 @@ export async function GET() {
     // Consulta para obtener todos los boletos premiados
     const [premiados] = await pool.query('select Id_ganador,Premio,Folio,Boleto,Costo,Cliente,Premio,Fecha_pago,Fecha_sorteo,Vendedor,Estatus from Ganadores;');
 
-    console.log("📊 REGISTROS ENCONTRADOS:", premiados.length);
-    console.log("ÚLTIMO REGISTRO:", premiados[0]);
-    
     // Devolver la respuesta con los datos
     return NextResponse.json({
       premiados,
@@ -18,7 +15,8 @@ export async function GET() {
     },{
       headers: {
         'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
-        'CDN-Cache-Control': 'no-cache'
+        'CDN-Cache-Control': 'no-cache',
+        'Vercel-CDN-Cache-Control': 'no-cache'
       }
     });
   } catch (error) {
