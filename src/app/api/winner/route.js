@@ -11,6 +11,11 @@ export async function GET() {
     return NextResponse.json({
       premiados,
       success: true
+    },{
+      headers: {
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+        'CDN-Cache-Control': 'no-cache'
+      }
     });
   } catch (error) {
     console.error("Error al obtener boletos premiados:", error);
