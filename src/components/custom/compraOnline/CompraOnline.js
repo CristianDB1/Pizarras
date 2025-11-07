@@ -384,25 +384,23 @@ const CompraOnline = ({ sorteoId }) => {
         seriesAgrupadas[boleto.seriePadre].push(boleto);
       });
 
-      // Agregar series al payload
+      // Agregar series al payload - CADA BOLETO INDIVIDUALMENTE
       Object.values(seriesAgrupadas).forEach(serie => {
-        if (serie.length > 0) {
-          const primerBoleto = serie[0];
-          const ultimoBoleto = serie[serie.length - 1];
-          
+        serie.forEach((boleto, index) => {
           boletosPayload.push({
             idSorteo: selectedSorteo?.Idsorteo,
-            ticketNumber: `${primerBoleto.numero}-${ultimoBoleto.numero}`, // Rango de serie
-            prizebox: primerBoleto.precio * serie.length, // Total de la serie
-            name: primerBoleto.comprador,
+            ticketNumber: boleto.numero, // Boleto individual
+            prizebox: boleto.precio, // Precio unitario
+            name: boleto.comprador,
             tipoSorteo: "serie",
             fecha: selectedSorteo?.Fecha,
             primerPremio: selectedSorteo?.Primerpremio,
             segundoPremio: selectedSorteo?.Segundopremio,
-            cantidadBoletos: serie.length,
-            esSerie: true
+            cantidadBoletos: 1,
+            esSerie: true,
+            serieIndex: index // Para identificar orden en la serie
           });
-        }
+        });
       });
 
       // Agregar boletos normales al payload
@@ -447,7 +445,8 @@ const CompraOnline = ({ sorteoId }) => {
           Object.values(seriesAgrupadas).forEach(serie => {
             const primerBoleto = serie[0];
             const ultimoBoleto = serie[serie.length - 1];
-            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${primerBoleto.precio * serie.length}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
+            const totalSerie = serie.reduce((sum, b) => sum + b.precio, 0);
+            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${totalSerie}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
           });
         } else if (boletosNormales.length > 0 && boletosSeries.length === 0) {
           // Solo normales
@@ -463,7 +462,8 @@ const CompraOnline = ({ sorteoId }) => {
           Object.values(seriesAgrupadas).forEach(serie => {
             const primerBoleto = serie[0];
             const ultimoBoleto = serie[serie.length - 1];
-            mensaje += `🎯 SERIE: ${primerBoleto.numero}-${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${primerBoleto.precio * serie.length}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
+            const totalSerie = serie.reduce((sum, b) => sum + b.precio, 0);
+            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${totalSerie}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
           });
           
           // Agregar normales
