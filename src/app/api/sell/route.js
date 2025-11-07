@@ -31,10 +31,14 @@ export async function POST(req) {
 
     //console.log("DATOS RECIBIDOS:", datos);
 
-    // 1️⃣ Verificar tope
+    //1 Verificar tope - CON FORMATO CORREGIDO
+    const numeroBoleto = parseInt(ticketNumber); // Convertir a número
+    const [ano, mes, dia] = fechaModificada.split('-');
+    const fechaTope = `${dia}/${mes}/${ano}`; // Formato DD/MM/YYYY
+
     const [topesRows] = await connection.query(
       `SELECT * FROM topes WHERE Numero = ? AND Fecha_sorteo = ?`, 
-      [ticketNumber, fechaModificada]
+      [numeroBoleto, fechaTope] // Usar formato corregido
     );
     
     if (topesRows.length > 0) {
@@ -71,6 +75,14 @@ export async function POST(req) {
     //console.log("INSERT RESULT:", insertResult);
     //console.log("ID INSERTADO:", insertedId);
 
+    // Actualizar tope - CON FORMATO CORREGIDO
+    if (topesRows.length > 0) {
+      await connection.query(
+        `UPDATE topes SET Cantidad = Cantidad + ? WHERE Numero = ? AND Fecha_sorteo = ?`,
+        [Number(prizebox) || 0, numeroBoleto, fechaTope] // Usar formato corregido
+      );
+    }
+    
     if (!insertedId) {
       await connection.rollback();
       connection.release();

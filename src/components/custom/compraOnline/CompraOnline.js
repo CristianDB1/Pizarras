@@ -8,8 +8,7 @@ import { ErrorPrizes, ErrorTope, loading, ValidateBox } from "../alerts/menu/Ale
 import TicketPreviewModalOnline from "./TicketPreviewModalOnline";
 
 const CompraOnline = ({ sorteoId }) => {
-  // Estados principales (iguales al código original)
-  const [prizes, setPrizes] = useState(null);
+  // Estados principales
   const [topePermitido, setTopePermitido] = useState(0);
   const [ticketNumber, setTicketNumber] = useState("");
   const [foundTope, setFoundTope] = useState(null);
@@ -31,49 +30,36 @@ const CompraOnline = ({ sorteoId }) => {
   const [tipoCompra, setTipoCompra] = useState("normal");
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
-  // Cargar datos iniciales (igual al código original)
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/ticketBuy")
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then((data) => setPrizes(data.result[0])),
-    ]).catch((error) => console.error("Error:", error));
-  }, []);
-
   // Cargar sorteo seleccionado desde localStorage
-    useEffect(() => {
-        const cargarSorteoSeleccionado = () => {
-            try {
-            const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
-            if (sorteoGuardado) {
-                const sorteo = JSON.parse(sorteoGuardado);
-                setSelectedSorteo(sorteo);
-                setOriginalSorteo(sorteo);
-                
-                // También cargar la lista de sorteos para el avance
-                fetch("/api/nextLotteries")
-                .then((res) => res.json())
-                .then((data) => {
-                    setSorteos(data.result || []);
-                });
-            }
-            } catch (error) {
-            console.error("Error cargando sorteo seleccionado:", error);
-            }
-        };
+  useEffect(() => {
+    const cargarSorteoSeleccionado = () => {
+      try {
+        const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
+        if (sorteoGuardado) {
+          const sorteo = JSON.parse(sorteoGuardado);
+          setSelectedSorteo(sorteo);
+          setOriginalSorteo(sorteo);
+          
+          // También cargar la lista de sorteos para el avance
+          fetch("/api/nextLotteries")
+            .then((res) => res.json())
+            .then((data) => {
+              setSorteos(data.result || []);
+            });
+        }
+      } catch (error) {
+        console.error("Error cargando sorteo seleccionado:", error);
+      }
+    };
 
-        cargarSorteoSeleccionado();
-    }, []);
+    cargarSorteoSeleccionado();
+  }, []);
 
   const currentHour = new Date().getHours();
 
-  // Loading state (igual al código original)
-  if (!prizes) {
+  // Loading state
+  // Loading state - CORREGIDO
+  if (!selectedSorteo) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="relative w-32 h-32">
@@ -86,7 +72,7 @@ const CompraOnline = ({ sorteoId }) => {
     );
   }
 
-  // FUNCIONES PRINCIPALES (iguales al código original)
+  // FUNCIONES PRINCIPALES
 
   const handleTicketNumberChange = async (e) => {
     let value = e.target.value;
@@ -107,7 +93,7 @@ const CompraOnline = ({ sorteoId }) => {
   const [day, month, year] = fecha.split("/").map((num) => num.padStart(2, "0"));
   const formattedFecha = `${day}/${month}/${year}`;
 
-  // Función para obtener un número aleatorio disponible (igual al código original)
+  // Función para obtener un número aleatorio disponible
   const getRandomNumber = async () => {
     try {
       setIsGeneratingRandom(true);
@@ -224,63 +210,214 @@ const CompraOnline = ({ sorteoId }) => {
     return true;
   };
 
+  // FUNCIÓN MODIFICADA: Agregar al carrito con tipo
+  const addTicketToList = (tipo = "normal", seriePadre = null) => {
+    if (!Validate()) {
+      return false;
+    }
+
+    // Filtrar boletos con el mismo número de tope
+    const boletosConMismoTope = tickets.filter((ticket) => {
+      return parseInt(ticket.numero) === numberTop;
+    });
+
+    // Calcular la cantidad acumulada de boletos en la lista
+    const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
+      return acc + parseInt(ticket.precio);
+    }, 0);
+    const nuevaCantidad = totalAcumulado + cantidad + parseInt(prizebox);
+
+    if (foundTope > 0) {
+      if (nuevaCantidad > foundTope) {
+        Swal.fire(
+          `La cantidad permitida es ${(totalAcumulado + cantidad - foundTope) * -1
+          }. Te estás pasando en ${nuevaCantidad - foundTope} pesos.`
+        );
+        setPrizebox("");
+        return false;
+      }
+    } else if (foundTope === 0) {
+      ErrorTope();
+      setTicketNumber("");
+      return false;
+    }
+
+    // Agregar el boleto actual a la lista de boletos acumulados
+    if (ticketNumber && prizebox && name) {
+      const precio = tipo === "serie" ? parseInt(prizebox) / 10 : parseInt(prizebox);
+      const nuevoTicket = {
+        id: Date.now() + Math.random(),
+        numero: ticketNumber,
+        precio: precio,
+        cantidad: 1,
+        subtotal: precio,
+        comprador: name,
+        tipo: tipo, // "normal" o "serie"
+        seriePadre: seriePadre // Para agrupar series
+      };
+
+      setTickets((prevTickets) => [...prevTickets, nuevoTicket]);
+      
+      if (tipo === "normal") {
+        setTicketNumber("");
+        setPrizebox("");
+        setName("");
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // FUNCIÓN MODIFICADA: Comprar Normal - Agrega automáticamente al carrito
   const enviarDatosNormal = async (e) => {
     e.preventDefault();
     
-    if (tickets.length === 0) {
-      if (!prizebox || !name || !ticketNumber) {
-        ValidateBox();
-        return;
-      }
-      // Si carrito vacío pero hay campos, agregar primero
-      if (!addTicketToList()) {
-        return;
-      }
+    if (!ticketNumber || !prizebox || !name) {
+      ValidateBox();
+      return;
     }
-    setTipoCompra("normal");
+
+    if (!Validate()) {
+      return;
+    }
+
+    // Agregar al carrito como NORMAL
+    if (addTicketToList("normal")) {
+      Swal.fire({
+        icon: "success",
+        title: "¡Agregado!",
+        text: "Boleto normal agregado al carrito",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    }
+  };
+
+  // FUNCIÓN MODIFICADA: Comprar Serie - Agrega automáticamente al carrito
+  const enviarDatosSerie = async (e) => {
+    e.preventDefault();
+    if (!prizebox || !name || !ticketNumber) {
+      ValidateBox();
+      return;
+    }
+
+    if (parseInt(prizebox) < 100 || parseInt(prizebox) % 100 !== 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Monto inválido",
+        text: "Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100",
+      });
+      return;
+    }
+
+    if (!Validate()) {
+      return;
+    }
+
+    // AGREGAR SERIE COMPLETA AL CARRITO
+    const numTickets = 10;
+    const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
+      let ticket = Number(ticketNumber) + 100 * i;
+      if (ticket >= 1000) ticket = ticket - 1000;
+      return ticket.toString().padStart(3, "0");
+    });
+
+    // Agregar cada boleto de la serie al carrito
+    ticketNumbers.forEach((tn, index) => {
+      const nuevoTicket = {
+        id: Date.now() + index,
+        numero: tn,
+        precio: prizebox / 10, // Precio unitario
+        cantidad: 1,
+        subtotal: prizebox / 10,
+        comprador: name,
+        tipo: "serie",
+        seriePadre: ticketNumber // Número base de la serie
+      };
+      setTickets(prev => [...prev, nuevoTicket]);
+    });
+
+    // Limpiar campos
+    setTicketNumber("");
+    setPrizebox("");
+    setName("");
+    
+    Swal.fire({
+      icon: "success",
+      title: "Serie agregada",
+      text: `10 boletos de serie agregados al carrito`,
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  };
+
+  // NUEVA FUNCIÓN: Proceder al pago
+  const procederAlPago = () => {
+    if (tickets.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Carrito vacío",
+        text: "Agrega boletos al carrito primero",
+      });
+      return;
+    }
     setShowPreview(true);
   };
 
+  // FUNCIÓN MODIFICADA: Confirmar venta - Diferenciar tipos
   const confirmVenta = async ({ telefono, metodoPago, bancoSeleccionado }) => {
     setIsLoading(true);
 
     try {
+      // SEPARAR boletos normales y series
+      const boletosNormales = tickets.filter(t => t.tipo === "normal");
+      const boletosSeries = tickets.filter(t => t.tipo === "serie");
+      
       let boletosPayload = [];
 
-      if (tipoCompra === "serie") {
-        // Compra en serie (igual al código original)
-        const numTickets = 10;
-        const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
-          let ticket = Number(ticketNumber) + 100 * i;
-          if (ticket >= 1000) {
-            ticket = ticket - 1000;
-          }
-          return ticket.toString().padStart(3, "0");
-        });
+      // Procesar SERIES (agrupar por seriePadre)
+      const seriesAgrupadas = {};
+      boletosSeries.forEach(boleto => {
+        if (!seriesAgrupadas[boleto.seriePadre]) {
+          seriesAgrupadas[boleto.seriePadre] = [];
+        }
+        seriesAgrupadas[boleto.seriePadre].push(boleto);
+      });
 
-        boletosPayload = ticketNumbers.map((tn) => ({
-          idSorteo: selectedSorteo?.Idsorteo,
-          ticketNumber: tn,
-          prizebox: prizebox / 10,
-          name,
-          tipoSorteo: selectedSorteo?.Tipo_sorteo,
-          fecha: selectedSorteo?.Fecha,
-          primerPremio: selectedSorteo?.Primerpremio,
-          segundoPremio: selectedSorteo?.Segundopremio,
-        }));
-      } else {
-        // Compra normal (igual al código original)
-        boletosPayload = tickets.map((t) => ({
+      // Agregar series al payload - CADA BOLETO INDIVIDUALMENTE
+      Object.values(seriesAgrupadas).forEach(serie => {
+        serie.forEach((boleto, index) => {
+          boletosPayload.push({
+            idSorteo: selectedSorteo?.Idsorteo,
+            ticketNumber: boleto.numero, // Boleto individual
+            prizebox: boleto.precio, // Precio unitario
+            name: boleto.comprador,
+            tipoSorteo: "serie",
+            fecha: selectedSorteo?.Fecha,
+            primerPremio: selectedSorteo?.Primerpremio,
+            segundoPremio: selectedSorteo?.Segundopremio,
+            cantidadBoletos: 1,
+            esSerie: true,
+            serieIndex: index // Para identificar orden en la serie
+          });
+        });
+      });
+
+      // Agregar boletos normales al payload
+      boletosNormales.forEach(t => {
+        boletosPayload.push({
           idSorteo: selectedSorteo?.Idsorteo,
           ticketNumber: t.numero,
           prizebox: t.precio,
           name: t.comprador,
-          tipoSorteo: selectedSorteo?.Tipo_sorteo,
+          tipoSorteo: "normal",
           fecha: selectedSorteo?.Fecha,
           primerPremio: selectedSorteo?.Primerpremio,
           segundoPremio: selectedSorteo?.Segundopremio,
-        }));
-      }
+          cantidadBoletos: 1,
+          esSerie: false
+        });
+      });
 
       const res = await fetch("/api/boletosOnline", {
         method: "POST",
@@ -299,47 +436,64 @@ const CompraOnline = ({ sorteoId }) => {
         : "";
 
       if (res.ok && data.success) {
-        const mensaje = encodeURIComponent(
-          tipoCompra === "serie"
-            ? `\u{1F39F}\uFE0F *Compra de Serie Online* \u{1F39F}\uFE0F\n\n` +
-                `➡️ Serie: ${boletosPayload[0].ticketNumber} - ${
-                  boletosPayload[boletosPayload.length - 1].ticketNumber
-                }\n\u{1F4E6} Cantidad: ${boletosPayload.length} boletos\n\u{1F4B0} Total: $${prizebox}\n\u{1F464} Nombre: ${name}` +
-                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}` +
-                (metodoPago === "Banco" && bancoSeleccionado
-                  ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
-                  : "") +
-                `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
-            : `\u{1F39F}\uFE0F *Compra de Boletos Online* \u{1F39F}\uFE0F\n\n` +
-                boletosPayload
-                  .map(
-                    (b) =>
-                      `➡️ Boleto: ${b.ticketNumber}\n\u{1F4B0} Precio: $${b.prizebox}\n\u{1F464} Nombre: ${b.name}`
-                  )
-                  .join("\n\n") +
-                `\n\n\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}` +
-                (metodoPago === "Banco" && bancoSeleccionado
-                  ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
-                  : "") +
-                `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
-        );
+        // Construir mensaje WhatsApp diferenciado
+        let mensaje = "";
+
+        if (boletosSeries.length > 0 && boletosNormales.length === 0) {
+          // Solo series
+          mensaje = `\u{1F39F}\uFE0F *Compra de Serie Online* \u{1F39F}\uFE0F\n\n`;
+          Object.values(seriesAgrupadas).forEach(serie => {
+            const primerBoleto = serie[0];
+            const ultimoBoleto = serie[serie.length - 1];
+            const totalSerie = serie.reduce((sum, b) => sum + b.precio, 0);
+            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${totalSerie}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
+          });
+        } else if (boletosNormales.length > 0 && boletosSeries.length === 0) {
+          // Solo normales
+          mensaje = `\u{1F39F}\uFE0F *Compra de Boletos Online* \u{1F39F}\uFE0F\n\n`;
+          boletosNormales.forEach(b => {
+            mensaje += `➡️ Boleto: ${b.numero}\n\u{1F4B0} Precio: $${b.precio}\n\u{1F464} Nombre: ${b.comprador}\n\n`;
+          });
+        } else {
+          // Mixto
+          mensaje = `\u{1F39F}\uFE0F *Compra Mixta Online* \u{1F39F}\uFE0F\n\n`;
+          
+          // Agregar series
+          Object.values(seriesAgrupadas).forEach(serie => {
+            const primerBoleto = serie[0];
+            const ultimoBoleto = serie[serie.length - 1];
+            const totalSerie = serie.reduce((sum, b) => sum + b.precio, 0);
+            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${totalSerie}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
+          });
+          
+          // Agregar normales
+          boletosNormales.forEach(b => {
+            mensaje += `➡️ Boleto: ${b.numero}\n\u{1F4B0} Precio: $${b.precio}\n\u{1F464} Nombre: ${b.comprador}\n\n`;
+          });
+        }
+
+        // Información común
+        mensaje += `\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`;
+        
+        if (metodoPago === "Banco" && bancoSeleccionado) {
+          mensaje += `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`;
+        }
+        
+        mensaje += `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`;
+
+        const mensajeCodificado = encodeURIComponent(mensaje);
 
         if (!whatsappNumber) {
           Swal.fire("⚠️ No se ha configurado el número de WhatsApp");
           return;
         }
 
-        if (!mensaje) {
-          Swal.fire("⚠️ No se pudo generar el mensaje");
-          return;
-        }
-
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
-          window.location.href = `whatsapp://send?phone=${whatsappNumber}&text=${mensaje}`;
+          window.location.href = `whatsapp://send?phone=${whatsappNumber}&text=${mensajeCodificado}`;
         } else {
-          window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
+          window.open(`https://wa.me/${whatsappNumber}?text=${mensajeCodificado}`, "_blank");
         }
 
         Swal.fire({
@@ -365,30 +519,6 @@ const CompraOnline = ({ sorteoId }) => {
     setName("");
   };
 
-  const enviarDatosSerie = async (e) => {
-    e.preventDefault();
-    if (!prizebox || !name) {
-      ValidateBox();
-      return;
-    }
-
-    if (parseInt(prizebox) < 100 || parseInt(prizebox) % 100 !== 0) {
-      Swal.fire({
-        icon: "error",
-        title: "Monto inválido",
-        text: "Para series, el monto debe ser mínimo 100 pesos y múltiplo de 100 (100, 200, ...900)",
-      });
-      return;
-    }
-
-    if (!Validate()) {
-      return;
-    }
-
-    setTipoCompra("serie");
-    setShowPreview(true);
-  };
-
   const handlePrizeboxChange = (e) => {
     let value = e.target.value;
     setPrizebox(value);
@@ -407,65 +537,13 @@ const CompraOnline = ({ sorteoId }) => {
     router.push("/OnlineHome");
   };
 
-  const addTicketToList = () => {
-    if (!Validate()) {
-      return false;
-    }
-
-    const boletosConMismoTope = tickets.filter((ticket) => {
-      return parseInt(ticket.numero) === numberTop;
-    });
-
-    const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
-      return acc + parseInt(ticket.precio);
-    }, 0);
-    const nuevaCantidad = totalAcumulado + cantidad + parseInt(prizebox);
-
-    if (foundTope > 0) {
-      if (nuevaCantidad > foundTope) {
-        Swal.fire(
-          `La cantidad permitida es ${(totalAcumulado + cantidad - foundTope) * -1
-          }. Te estás pasando en ${nuevaCantidad - foundTope} pesos.`
-        );
-        setPrizebox("");
-        return false;
-      }
-    } else if (foundTope === 0) {
-      ErrorTope();
-      setTicketNumber("");
-      return false;
-    }
-
-    if (ticketNumber && prizebox && name) {
-      const precio = parseInt(prizebox);
-      const nuevoTicket = {
-        numero: ticketNumber,
-        precio: precio,
-        cantidad: 1,
-        subtotal: precio,
-        comprador: name,
-      };
-
-      setTickets((prevTickets) => [...prevTickets, nuevoTicket]);
-      setTicketNumber("");
-      setPrizebox("");
-      return true;
-    }
-  };
-
-  const handlePlusTicket = () => {
-    if (addTicketToList()) {
-      //console.log(tickets);
-    }
-  };
-
   const handleDeleteTicket = (index) => {
     setTickets((prevTickets) => prevTickets.filter((_, i) => i !== index));
   };
 
   const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
-  // Función de avance (igual al código original)
+  // Función de avance
   const handleSelectSorteoAvance = async () => {
     if (!sorteos.length) return;
     const inputOptions = sorteos.reduce((opts, s, idx) => {
@@ -557,79 +635,79 @@ const CompraOnline = ({ sorteoId }) => {
           <h2 className="text-xl font-semibold mb-4">Seleccionar Boleto</h2>
           
           {/* Número de boleto */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Número del Boleto (3 dígitos)
-              </label>
-              
-              {/* Input principal - Mejorado para móviles */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-3">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={ticketNumber}
-                    onChange={handleTicketNumberChange}
-                    onBlur={handleBlur}
-                    maxLength={3}
-                    className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg text-center text-xl sm:text-2xl font-bold focus:border-blue-500 focus:outline-none"
-                    placeholder="000"
-                  />
-                </div>
-                
-                {/* En pantallas grandes: botones al lado */}
-                <div className="hidden sm:flex gap-2">
-                  <button
-                    onClick={getRandomNumber}
-                    disabled={isGeneratingRandom}
-                    className={`bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition duration-200 flex flex-col items-center justify-center ${
-                      isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    title="Generar número aleatorio"
-                  >
-                    <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-xl`} />
-                    <span className="text-xs mt-1">Azar</span>
-                  </button>
-                  
-                  <button
-                    onClick={handleSelectSorteoAvance}
-                    className="bg-gray-600 text-white p-3 rounded-lg hover:bg-gray-700 transition duration-200 flex flex-col items-center justify-center"
-                    title="Sorteo en avance"
-                  >
-                    <FaForward className="text-xl" />
-                    <span className="text-xs mt-1">Avance</span>
-                  </button>
-                </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Número del Boleto (3 dígitos)
+            </label>
+            
+            {/* Input principal - Mejorado para móviles */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={ticketNumber}
+                  onChange={handleTicketNumberChange}
+                  onBlur={handleBlur}
+                  maxLength={3}
+                  className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg text-center text-xl sm:text-2xl font-bold focus:border-blue-500 focus:outline-none"
+                  placeholder="000"
+                />
               </div>
               
-              {/* En pantallas pequeñas: botones debajo */}
-              <div className="sm:hidden grid grid-cols-2 gap-3">
+              {/* En pantallas grandes: botones al lado */}
+              <div className="hidden sm:flex gap-2">
                 <button
                   onClick={getRandomNumber}
                   disabled={isGeneratingRandom}
-                  className={`bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center justify-center gap-2 ${
+                  className={`bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition duration-200 flex flex-col items-center justify-center ${
                     isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
                   }`}
+                  title="Generar número aleatorio"
                 >
-                  <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""}`} />
-                  <span className="text-sm font-semibold">Azar</span>
+                  <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""} text-xl`} />
+                  <span className="text-xs mt-1">Azar</span>
                 </button>
                 
                 <button
                   onClick={handleSelectSorteoAvance}
-                  className="bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center justify-center gap-2"
+                  className="bg-gray-600 text-white p-3 rounded-lg hover:bg-gray-700 transition duration-200 flex flex-col items-center justify-center"
+                  title="Sorteo en avance"
                 >
-                  <FaForward />
-                  <span className="text-sm font-semibold">Avance</span>
+                  <FaForward className="text-xl" />
+                  <span className="text-xs mt-1">Avance</span>
                 </button>
               </div>
-              
-              {/* Información de tope */}
-              {foundTope !== null && (
-                <div className="mt-2 text-sm text-blue-600 font-medium">
-                  Tope permitido: ${foundTope - cantidad}
-                </div>
-              )}
             </div>
+            
+            {/* En pantallas pequeñas: botones debajo */}
+            <div className="sm:hidden grid grid-cols-2 gap-3">
+              <button
+                onClick={getRandomNumber}
+                disabled={isGeneratingRandom}
+                className={`bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center justify-center gap-2 ${
+                  isGeneratingRandom ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <FaDice className={`${isGeneratingRandom ? "animate-spin" : ""}`} />
+                <span className="text-sm font-semibold">Azar</span>
+              </button>
+              
+              <button
+                onClick={handleSelectSorteoAvance}
+                className="bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center justify-center gap-2"
+              >
+                <FaForward />
+                <span className="text-sm font-semibold">Avance</span>
+              </button>
+            </div>
+            
+            {/* Información de tope */}
+            {foundTope !== null && (
+              <div className="mt-2 text-sm text-blue-600 font-medium">
+                Tope permitido: ${foundTope - cantidad}
+              </div>
+            )}
+          </div>
 
           {/* Precio */}
           <div className="mb-4">
@@ -648,7 +726,7 @@ const CompraOnline = ({ sorteoId }) => {
               }}
               maxLength={4}
               className="w-full p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-              placeholder="Ej: 10"
+              placeholder="Ej: 50"
             />
             {prizeboxError && (
               <div className="mt-1 text-sm text-red-600">{prizeboxError}</div>
@@ -669,31 +747,33 @@ const CompraOnline = ({ sorteoId }) => {
             />
           </div>
 
-          {/* Botones de acción */}
-          <div className="flex gap-3">
-            <button
-              onClick={handlePlusTicket}
-              className="flex-1 bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition duration-200 font-semibold flex items-center justify-center gap-2"
-            >
-              <TbSquarePlus className="text-xl" />
-              Agregar al Carrito
-            </button>
-          </div>
+          {/* Botones de Compra - NUEVO FLUJO */}
+          <div className="space-y-3">
+            {/* Botones de Compra */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                onClick={enviarDatosNormal}
+                className="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold"
+              >
+                Comprar Normal
+              </button>
+              <button
+                onClick={enviarDatosSerie}
+                className="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition duration-200 font-semibold"
+              >
+                Comprar Serie
+              </button>
+            </div>
 
-          {/* Botones Normal/Serie */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <button
-              onClick={enviarDatosNormal}
-              className="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold"
-            >
-              Comprar Normal
-            </button>
-            <button
-              onClick={enviarDatosSerie}
-              className="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition duration-200 font-semibold"
-            >
-              Comprar Serie
-            </button>
+            {/* Botón de Pago */}
+            {tickets.length > 0 && (
+              <button
+                onClick={procederAlPago}
+                className="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition duration-200 font-semibold text-lg"
+              >
+                🛒 PAGAR ({tickets.length} boleto{tickets.length > 1 ? 's' : ''})
+              </button>
+            )}
           </div>
         </div>
 
@@ -705,18 +785,21 @@ const CompraOnline = ({ sorteoId }) => {
             <div className="text-center py-8 text-gray-500">
               <div className="text-4xl mb-2">🛒</div>
               <p>Tu carrito está vacío</p>
-              <p className="text-sm">Agrega boletos para continuar</p>
+              <p className="text-sm">Selecciona "Comprar Normal" o "Comprar Serie"</p>
             </div>
           ) : (
             <>
               <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
                 {tickets.map((ticket, index) => (
-                  <div key={index} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition duration-200">
+                  <div key={ticket.id} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition duration-200">
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <div>
                           <span className="font-bold text-lg">#{ticket.numero}</span>
                           <span className="text-gray-600 ml-2">- ${ticket.precio}</span>
+                          {ticket.tipo === "serie" && (
+                            <span className="ml-2 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded">Serie</span>
+                          )}
                         </div>
                         <button
                           onClick={() => handleDeleteTicket(index)}
