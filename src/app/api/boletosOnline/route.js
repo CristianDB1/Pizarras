@@ -6,8 +6,6 @@ export async function POST(req) {
     const data = await req.json();
     const { boletos, telefono, metodo_pago } = data;
 
-    //console.log("📦 Datos recibidos:", { boletos, telefono, metodo_pago });
-
     if (!Array.isArray(boletos) || boletos.length === 0) {
       return NextResponse.json(
         { error: "No se enviaron boletos válidos" },
@@ -19,7 +17,7 @@ export async function POST(req) {
     await connection.beginTransaction();
 
     try {
-      // 1. INSERTAR en boletos_online
+      // 1. INSERTAR en boletos_online (SIN CAMBIOS)
       const sqlInsert = `
         INSERT INTO boletos_online
         (id_sorteo, numero_boleto, costo, comprador, telefono, metodo_pago, tipo_sorteo, fecha_sorteo, estatus, fecha_compra)
@@ -39,54 +37,53 @@ export async function POST(req) {
         new Date().toISOString().slice(0, 19).replace("T", " ")
       ]);
 
-      //console.log("🔍 Valores a insertar:", values);
-
       const [result] = await connection.query(sqlInsert, [values]);
-      //console.log("✅ Boletos insertados, resultado:", result);
 
-      // 2. ACTUALIZAR TOPES con formato correcto
+      // 2. ACTUALIZAR TOPES SOLO PARA BOLETOS NORMALES
       for (const boleto of boletos) {
-        const numeroBoleto = parseInt(boleto.ticketNumber); // Convertir a número (elimina ceros)
-        const monto = boleto.prizebox;
-        const fechaBoleto = boleto.fecha.split("T")[0];
+        // ✅ DETECTAR SI ES SERIE POR EL TIPO_SORTEO
+        const esSerie = boleto.tipoSorteo === "serie";
         
-        // CONVERTIR a formato correcto: "2025-11-07" → "07/11/2025"
-        const [ano, mes, dia] = fechaBoleto.split('-');
-        const fechaTope = `${dia}/${mes}/${ano}`;
-        
-        /*console.log("🔄 Actualizando tope con formato correcto:", { 
-          numeroBoleto, 
-          monto, 
-          fechaTope 
-        });*/
+        // ✅ SOLO actualizar topes si NO es serie (es normal)
+        if (!esSerie) {
+          const numeroBoleto = parseInt(boleto.ticketNumber);
+          const monto = boleto.prizebox;
+          const fechaBoleto = boleto.fecha.split("T")[0];
+          
+          // CONVERTIR a formato correcto: "2025-11-07" → "07/11/2025"
+          const [ano, mes, dia] = fechaBoleto.split('-');
+          const fechaTope = `${dia}/${mes}/${ano}`;
 
-        const sqlUpdateTope = `
-          UPDATE topes 
-          SET Cantidad = Cantidad + ? 
-          WHERE Numero = ? AND Fecha_sorteo = ?
-        `;
-        
-        const [updateResult] = await connection.query(sqlUpdateTope, [
-          monto,
-          numeroBoleto, // Número sin ceros
-          fechaTope // Formato DD/MM/YYYY con barras
-        ]);
+          const sqlUpdateTope = `
+            UPDATE topes 
+            SET Cantidad = Cantidad + ? 
+            WHERE Numero = ? AND Fecha_sorteo = ?
+          `;
+          
+          const [updateResult] = await connection.query(sqlUpdateTope, [
+            monto,
+            numeroBoleto,
+            fechaTope
+          ]);
 
-        /*console.log("📊 Resultado actualización tope:", {
-          affectedRows: updateResult.affectedRows,
-          changedRows: updateResult.changedRows,
-          numeroBoleto,
-          fechaTope,
-          monto
-        });*/
-
-        if (updateResult.affectedRows === 0) {
-          console.warn("⚠️ No se encontró tope para actualizar:", { 
-            numeroBoleto, 
-            fechaTope 
-          });
+          if (updateResult.affectedRows === 0) {
+            console.warn("⚠️ No se encontró tope para actualizar:", { 
+              numeroBoleto, 
+              fechaTope 
+            });
+          } else {
+            console.log("✅ Tope actualizado para boleto NORMAL:", {
+              numero: numeroBoleto,
+              monto: monto,
+              fecha: fechaTope
+            });
+          }
         } else {
-          console.log("✅ Tope actualizado exitosamente");
+          console.log("⏭️  SERIE detectada - Saltando actualización de tope:", {
+            numero: boleto.ticketNumber,
+            tipo: boleto.tipoSorteo,
+            monto: boleto.prizebox
+          });
         }
       }
 
@@ -101,7 +98,7 @@ export async function POST(req) {
 
       return NextResponse.json({
         success: true,
-        message: "Boletos guardados y topes actualizados",
+        message: "Boletos guardados - Topes actualizados solo para normales",
         boletos: boletosGuardados,
       });
 
