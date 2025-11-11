@@ -833,8 +833,7 @@ const CompraOnline = ({ sorteoId }) => {
             <div className="text-center py-8 text-gray-500">
               <div className="text-4xl mb-2">🛒</div>
               <p>Tu carrito está vacío</p>
-              <p className="text-sm">Selecciona "Comprar Normal" o "Comprar Serie"</p>
-            </div>
+              <p className="text-sm">Selecciona &quot;Comprar Normal&quot; o &quot;Comprar Serie&quot;</p>            </div>
           ) : (
             <>
               <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
