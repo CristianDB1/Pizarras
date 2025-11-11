@@ -210,18 +210,29 @@ const CompraOnline = ({ sorteoId }) => {
     return true;
   };
 
-  // FUNCIÓN MODIFICADA: Agregar al carrito con tipo
+  // FUNCIÓN MODIFICADA: Agregar al carrito con fecha específica
   const addTicketToList = (tipo = "normal", seriePadre = null) => {
     if (!Validate()) {
       return false;
     }
 
-    // Filtrar boletos con el mismo número de tope
+    // Obtener fecha formateada del sorteo ACTUAL
+    const fechaActual = selectedSorteo
+      ? new Date(
+          new Date(selectedSorteo.Fecha).getTime() +
+            new Date().getTimezoneOffset() * 60000
+        ).toLocaleDateString()
+      : "";
+    const [day, month, year] = fechaActual.split("/").map((num) => num.padStart(2, "0"));
+    const formattedFechaActual = `${day}/${month}/${year}`;
+
+    // Filtrar boletos con el mismo número de tope Y MISMA FECHA
     const boletosConMismoTope = tickets.filter((ticket) => {
-      return parseInt(ticket.numero) === numberTop;
+      return parseInt(ticket.numero) === numberTop && 
+            ticket.fechaSorteo === formattedFechaActual;
     });
 
-    // Calcular la cantidad acumulada de boletos en la lista
+    // Calcular la cantidad acumulada de boletos en la lista PARA ESTA FECHA
     const totalAcumulado = boletosConMismoTope.reduce((acc, ticket) => {
       return acc + parseInt(ticket.precio);
     }, 0);
@@ -252,8 +263,16 @@ const CompraOnline = ({ sorteoId }) => {
         cantidad: 1,
         subtotal: precio,
         comprador: name,
-        tipo: tipo, // "normal" o "serie"
-        seriePadre: seriePadre // Para agrupar series
+        tipo: tipo,
+        seriePadre: seriePadre,
+        // ✅ GUARDAR INFORMACIÓN DEL SORTEO ACTUAL - SOLO FECHA
+        idSorteo: selectedSorteo?.Idsorteo,
+        fechaSorteo: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : '',
+        // ✅ FORMATEAR fechaDisplay para que sea solo la fecha
+        fechaDisplay: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : formattedFechaActual,
+        tipoSorteo: selectedSorteo?.Tipo_sorteo,
+        primerPremio: selectedSorteo?.Primerpremio,
+        segundoPremio: selectedSorteo?.Segundopremio
       };
 
       setTickets((prevTickets) => [...prevTickets, nuevoTicket]);
@@ -293,7 +312,7 @@ const CompraOnline = ({ sorteoId }) => {
     }
   };
 
-  // FUNCIÓN MODIFICADA: Comprar Serie - Agrega automáticamente al carrito
+  // FUNCIÓN CORREGIDA: Comprar Serie - Agrega automáticamente al carrito
   const enviarDatosSerie = async (e) => {
     e.preventDefault();
     if (!prizebox || !name || !ticketNumber) {
@@ -314,6 +333,16 @@ const CompraOnline = ({ sorteoId }) => {
       return;
     }
 
+    // ✅ OBTENER INFORMACIÓN DEL SORTEO ACTUAL PARA LAS SERIES
+    const fechaActual = selectedSorteo
+      ? new Date(
+          new Date(selectedSorteo.Fecha).getTime() +
+            new Date().getTimezoneOffset() * 60000
+        ).toLocaleDateString()
+      : "";
+    const [day, month, year] = fechaActual.split("/").map((num) => num.padStart(2, "0"));
+    const formattedFechaActual = `${day}/${month}/${year}`;
+
     // AGREGAR SERIE COMPLETA AL CARRITO
     const numTickets = 10;
     const ticketNumbers = Array.from({ length: numTickets }, (_, i) => {
@@ -322,7 +351,7 @@ const CompraOnline = ({ sorteoId }) => {
       return ticket.toString().padStart(3, "0");
     });
 
-    // Agregar cada boleto de la serie al carrito
+    // ✅ AGREGAR CADA BOLETO DE LA SERIE CON INFORMACIÓN DEL SORTEO
     ticketNumbers.forEach((tn, index) => {
       const nuevoTicket = {
         id: Date.now() + index,
@@ -332,7 +361,14 @@ const CompraOnline = ({ sorteoId }) => {
         subtotal: prizebox / 10,
         comprador: name,
         tipo: "serie",
-        seriePadre: ticketNumber // Número base de la serie
+        seriePadre: ticketNumber, // Número base de la serie
+        // ✅ INFORMACIÓN DEL SORTEO PARA CADA BOLETO DE SERIE
+        idSorteo: selectedSorteo?.Idsorteo,
+        fechaSorteo: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : '',
+        fechaDisplay: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : formattedFechaActual,
+        tipoSorteo: selectedSorteo?.Tipo_sorteo,
+        primerPremio: selectedSorteo?.Primerpremio,
+        segundoPremio: selectedSorteo?.Segundopremio
       };
       setTickets(prev => [...prev, nuevoTicket]);
     });
@@ -364,7 +400,7 @@ const CompraOnline = ({ sorteoId }) => {
     setShowPreview(true);
   };
 
-  // FUNCIÓN MODIFICADA: Confirmar venta - Diferenciar tipos
+  // FUNCIÓN MODIFICADA: Confirmar venta - Usar fecha específica de cada boleto
   const confirmVenta = async ({ telefono, metodoPago, bancoSeleccionado }) => {
     setIsLoading(true);
 
@@ -375,30 +411,31 @@ const CompraOnline = ({ sorteoId }) => {
       
       let boletosPayload = [];
 
-      // Procesar SERIES (agrupar por seriePadre)
+      // Procesar SERIES (agrupar por seriePadre Y FECHA)
       const seriesAgrupadas = {};
       boletosSeries.forEach(boleto => {
-        if (!seriesAgrupadas[boleto.seriePadre]) {
-          seriesAgrupadas[boleto.seriePadre] = [];
+        const key = `${boleto.seriePadre}-${boleto.fechaSorteo}`; // ✅ Incluir fecha en la clave
+        if (!seriesAgrupadas[key]) {
+          seriesAgrupadas[key] = [];
         }
-        seriesAgrupadas[boleto.seriePadre].push(boleto);
+        seriesAgrupadas[key].push(boleto);
       });
 
-      // Agregar series al payload - CADA BOLETO INDIVIDUALMENTE
+      // Agregar series al payload
       Object.values(seriesAgrupadas).forEach(serie => {
         serie.forEach((boleto, index) => {
           boletosPayload.push({
-            idSorteo: selectedSorteo?.Idsorteo,
-            ticketNumber: boleto.numero, // Boleto individual
-            prizebox: boleto.precio, // Precio unitario
+            idSorteo: boleto.idSorteo,
+            ticketNumber: boleto.numero,
+            prizebox: boleto.precio,
             name: boleto.comprador,
             tipoSorteo: "serie",
-            fecha: selectedSorteo?.Fecha,
-            primerPremio: selectedSorteo?.Primerpremio,
-            segundoPremio: selectedSorteo?.Segundopremio,
+            fecha: boleto.fechaSorteo, // ✅ Usar fechaSorteo del boleto
+            primerPremio: boleto.primerPremio,
+            segundoPremio: boleto.segundoPremio,
             cantidadBoletos: 1,
             esSerie: true,
-            serieIndex: index // Para identificar orden en la serie
+            serieIndex: index
           });
         });
       });
@@ -406,14 +443,14 @@ const CompraOnline = ({ sorteoId }) => {
       // Agregar boletos normales al payload
       boletosNormales.forEach(t => {
         boletosPayload.push({
-          idSorteo: selectedSorteo?.Idsorteo,
+          idSorteo: t.idSorteo,
           ticketNumber: t.numero,
           prizebox: t.precio,
           name: t.comprador,
           tipoSorteo: "normal",
-          fecha: selectedSorteo?.Fecha,
-          primerPremio: selectedSorteo?.Primerpremio,
-          segundoPremio: selectedSorteo?.Segundopremio,
+          fecha: t.fechaSorteo, // ✅ Usar fechaSorteo del boleto
+          primerPremio: t.primerPremio,
+          segundoPremio: t.segundoPremio,
           cantidadBoletos: 1,
           esSerie: false
         });
@@ -431,49 +468,59 @@ const CompraOnline = ({ sorteoId }) => {
 
       const data = await res.json();
 
-      const fechaFormateada = selectedSorteo?.Fecha
-        ? new Date(selectedSorteo.Fecha).toISOString().split("T")[0]
-        : "";
-
       if (res.ok && data.success) {
-        // Construir mensaje WhatsApp diferenciado
-        let mensaje = "";
+        // Construir mensaje WhatsApp agrupado por fecha
+        let mensaje = `\u{1F39F}\uFE0F *Compra Online - Múltiples Sorteos* \u{1F39F}\uFE0F\n\n`;
 
-        if (boletosSeries.length > 0 && boletosNormales.length === 0) {
-          // Solo series
-          mensaje = `\u{1F39F}\uFE0F *Compra de Serie Online* \u{1F39F}\uFE0F\n\n`;
-          Object.values(seriesAgrupadas).forEach(serie => {
+        // Agrupar boletos por fecha de sorteo
+        const boletosPorFecha = {};
+        tickets.forEach(boleto => {
+          if (!boletosPorFecha[boleto.fechaSorteo]) {
+            boletosPorFecha[boleto.fechaSorteo] = [];
+          }
+          boletosPorFecha[boleto.fechaSorteo].push(boleto);
+        });
+
+        // Mostrar boletos agrupados por fecha
+        Object.entries(boletosPorFecha).forEach(([fecha, boletos]) => {
+          const fechaDisplay = boletos[0].fechaDisplay || fecha;
+          mensaje += `\u{1F4C5} *Sorteo: ${fechaDisplay}*\n`;
+          
+          // Agrupar series en esta fecha
+          const seriesEnFecha = {};
+          const normalesEnFecha = [];
+          
+          boletos.forEach(b => {
+            if (b.tipo === "serie") {
+              const key = b.seriePadre;
+              if (!seriesEnFecha[key]) seriesEnFecha[key] = [];
+              seriesEnFecha[key].push(b);
+            } else {
+              normalesEnFecha.push(b);
+            }
+          });
+
+          // Mostrar series
+          Object.values(seriesEnFecha).forEach(serie => {
             const primerBoleto = serie[0];
             const ultimoBoleto = serie[serie.length - 1];
             const totalSerie = serie.reduce((sum, b) => sum + b.precio, 0);
-            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${totalSerie}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
+            mensaje += `   ➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n`;
+            mensaje += `   \u{1F4E6} Cantidad: ${serie.length} boletos\n`;
+            mensaje += `   \u{1F4B0} Total: $${totalSerie}\n`;
+            mensaje += `   \u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
           });
-        } else if (boletosNormales.length > 0 && boletosSeries.length === 0) {
-          // Solo normales
-          mensaje = `\u{1F39F}\uFE0F *Compra de Boletos Online* \u{1F39F}\uFE0F\n\n`;
-          boletosNormales.forEach(b => {
-            mensaje += `➡️ Boleto: ${b.numero}\n\u{1F4B0} Precio: $${b.precio}\n\u{1F464} Nombre: ${b.comprador}\n\n`;
+
+          // Mostrar boletos normales
+          normalesEnFecha.forEach(b => {
+            mensaje += `   ➡️ Boleto: ${b.numero}\n`;
+            mensaje += `   \u{1F4B0} Precio: $${b.precio}\n`;
+            mensaje += `   \u{1F464} Nombre: ${b.comprador}\n\n`;
           });
-        } else {
-          // Mixto
-          mensaje = `\u{1F39F}\uFE0F *Compra Mixta Online* \u{1F39F}\uFE0F\n\n`;
-          
-          // Agregar series
-          Object.values(seriesAgrupadas).forEach(serie => {
-            const primerBoleto = serie[0];
-            const ultimoBoleto = serie[serie.length - 1];
-            const totalSerie = serie.reduce((sum, b) => sum + b.precio, 0);
-            mensaje += `➡️ Serie: ${primerBoleto.numero} - ${ultimoBoleto.numero}\n\u{1F4E6} Cantidad: ${serie.length} boletos\n\u{1F4B0} Total: $${totalSerie}\n\u{1F464} Nombre: ${primerBoleto.comprador}\n\n`;
-          });
-          
-          // Agregar normales
-          boletosNormales.forEach(b => {
-            mensaje += `➡️ Boleto: ${b.numero}\n\u{1F4B0} Precio: $${b.precio}\n\u{1F464} Nombre: ${b.comprador}\n\n`;
-          });
-        }
+        });
 
         // Información común
-        mensaje += `\u{1F4C5} Sorteo: ${selectedSorteo?.Tipo_sorteo} - ${fechaFormateada}\n\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`;
+        mensaje += `\u{1F4DE} Teléfono: ${telefono}\n\u{1F4B3} Método de pago: ${metodoPago}`;
         
         if (metodoPago === "Banco" && bancoSeleccionado) {
           mensaje += `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`;
@@ -499,6 +546,7 @@ const CompraOnline = ({ sorteoId }) => {
         Swal.fire({
           icon: "success",
           title: "Compra registrada",
+          text: `Boletos guardados para ${Object.keys(boletosPorFecha).length} sorteo(s)`,
           timer: 1500,
           showConfirmButton: false,
         });
@@ -785,7 +833,7 @@ const CompraOnline = ({ sorteoId }) => {
             <div className="text-center py-8 text-gray-500">
               <div className="text-4xl mb-2">🛒</div>
               <p>Tu carrito está vacío</p>
-              <p className="text-sm">Selecciona &quot;Comprar Normal&quot; o &quot;Comprar Serie&quot;</p>
+              <p className="text-sm">Selecciona "Comprar Normal" o "Comprar Serie"</p>
             </div>
           ) : (
             <>
@@ -809,6 +857,21 @@ const CompraOnline = ({ sorteoId }) => {
                         </button>
                       </div>
                       <div className="text-sm text-gray-500 mt-1">{ticket.comprador}</div>
+                      {/* ✅ MOSTRAR INFORMACIÓN DEL SORTEO ESPECÍFICO */}
+                      <div className="text-xs text-blue-600 mt-1">
+                        Sorteo: {
+                          ticket.fechaDisplay ? 
+                          (() => {
+                            const fecha = new Date(ticket.fechaDisplay + 'T12:00:00'); // Usar medio día para evitar cambios
+                            return fecha.toLocaleDateString('es-MX', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            });
+                          })() : 
+                          ticket.fechaSorteo
+                        } - {ticket.tipoSorteo}
+                      </div>
                     </div>
                   </div>
                 ))}
