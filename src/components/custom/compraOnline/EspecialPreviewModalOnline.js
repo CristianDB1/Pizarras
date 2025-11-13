@@ -61,7 +61,6 @@ const EspecialPreviewModalOnline = ({ onClose, onConfirm }) => {
             <option value="">-- Selecciona --</option>
             <option value="Efectivo">Efectivo</option>
             <option value="Banco">Transferencia Bancaria</option>
-            <option value="Otro">Otro</option>
           </select>
         </div>
 

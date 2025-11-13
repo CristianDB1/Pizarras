@@ -11,41 +11,60 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
   const [prizes, setPrizes] = useState(null);
   const [ticketNumber, setTicketNumber] = useState("");
   const [foundTope, setFoundTope] = useState(null);
-  const [prizebox, setPrizebox] = useState("");
+  const [precioFijo, setPrecioFijo] = useState("");
   const [name, setName] = useState("");
-  const [prizeboxError, setPrizeboxError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [boletos, setBoletos] = useState([]);
+  const [boletosOnline, setBoletosOnline] = useState([]);
   const router = useRouter();
   const [previewModal, setPreviewModal] = useState(false);
   const [showDisponibles, setShowDisponibles] = useState(false);
 
   // Cargar datos del sorteo especial desde localStorage
-    useEffect(() => {
-        const cargarSorteoEspecial = async () => {
-            try {
-            // Obtener el sorteo especial desde localStorage
-            const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
-            if (sorteoGuardado) {
-                const sorteo = JSON.parse(sorteoGuardado);
-                setPrizes(sorteo);
-            }
+  useEffect(() => {
+    const cargarSorteoEspecial = async () => {
+      try {
+        const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
+        if (sorteoGuardado) {
+          const sorteo = JSON.parse(sorteoGuardado);
+          setPrizes(sorteo);
+        }
 
-            // Cargar boletos vendidos
-            const response = await fetch("/api/ticketBuy", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-            });
-            const data = await response.json();
-            setBoletos(data.result || []);
-            } catch (error) {
-            console.error("Error cargando sorteo especial:", error);
-            Swal.fire("Error", "No se pudo cargar el sorteo especial", "error");
-            }
-        };
+        // Cargar precio fijo
+        const precioResponse = await fetch("/api/leyenda3");
+        const precioData = await precioResponse.json();
+        setPrecioFijo(precioData.precioBoleto);
 
-        cargarSorteoEspecial();
-    }, []);
+        // Cargar boletos vendidos (tabla boletos)
+        const responseBoletos = await fetch("/api/ticketBuy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const dataBoletos = await responseBoletos.json();
+        setBoletos(dataBoletos.result || []);
+
+        // Cargar boletos online filtrados por fecha (formato correcto)
+        if (prizes?.Fecha) {
+          const fechaFormateada = prizes.Fecha.split('T')[0];
+          const responseOnline = await fetch(`/api/boletosOnline?fecha=${fechaFormateada}`);
+          const dataOnline = await responseOnline.json();
+          
+          if (dataOnline.success) {
+            setBoletosOnline(dataOnline.boletos || []);
+          } else {
+            console.error("Error cargando boletos online:", dataOnline.error);
+            setBoletosOnline([]);
+          }
+        }
+
+      } catch (error) {
+        console.error("Error cargando sorteo especial:", error);
+        Swal.fire("Error", "No se pudo cargar el sorteo especial", "error");
+      }
+    };
+
+    cargarSorteoEspecial();
+  }, [prizes?.Fecha]);
 
   // Loading state
   if (!prizes) {
@@ -68,12 +87,30 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
     }
     setTicketNumber(value);
 
-    // Validar disponibilidad
-    const ticket = boletos.find((t) => t.Boleto === Number(value));
-    if (ticket && ticket.fecha_sorteo === prizes.Fecha) {
-      setFoundTope(true); // No disponible
+    const fechaFormateada = prizes.Fecha.split('T')[0];
+
+    // NORMALIZAR el número de boleto a string de 3 dígitos
+    const boletoBuscado = value.padStart(3, '0'); // "1" → "001", "123" → "123"
+
+    const boletoNormal = boletos.find((t) => 
+      t.Boleto === Number(value) && t.Fecha === fechaFormateada
+    );
+    
+    // Comparar como strings
+    const boletoOnline = boletosOnline.find((t) => 
+      t.numero_boleto === boletoBuscado && t.fecha_sorteo === fechaFormateada
+    );
+    
+    /*console.log('Buscando boleto:', {
+      boletoBuscado,
+      boletosOnline: boletosOnline.map(b => ({ numero: b.numero_boleto, fecha: b.fecha_sorteo })),
+      encontrado: boletoOnline
+    });*/
+    
+    if (boletoNormal || boletoOnline) {
+      setFoundTope(true);
     } else {
-      setFoundTope(null); // Disponible
+      setFoundTope(null);
     }
   };
 
@@ -84,7 +121,7 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
   };
 
   const enviarDatosNormal = () => {
-    if (!prizebox || !name) {
+    if (!precioFijo || !name) {
       ValidateBox();
       return;
     }
@@ -92,26 +129,7 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
       Swal.fire("Este boleto ya no está disponible");
       return;
     }
-    if (prizeboxError) {
-      ErrorPrizes();
-      setPrizebox("");
-      return;
-    }
     setPreviewModal(true);
-  };
-
-  const handlePrizeboxChange = (e) => {
-    let value = e.target.value;
-    if (!/^[0-9]*$/.test(value)) {
-      value = value.slice(0, -1);
-    }
-    setPrizebox(value);
-
-    if (value % 10 !== 0) {
-      setPrizeboxError("El precio debe ser múltiplo de 10");
-    } else {
-      setPrizeboxError(null);
-    }
   };
 
   if (isLoading) {
@@ -128,7 +146,7 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
     const boletoData = {
       idSorteo: prizes.Idsorteo,
       ticketNumber,
-      prizebox,
+      prizebox: precioFijo, 
       name,
       tipoSorteo: prizes.Tipo_sorteo,
       fecha: prizes.Fecha,
@@ -155,7 +173,7 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
         const fechaCorta = new Date(prizes.Fecha).toISOString().split("T")[0];
         const mensaje = encodeURIComponent(
             `\u{1F39F}\uFE0F *Compra Boleto Especial Online* \u{1F39F}\uFE0F\n\n` +
-            `➡️ Boleto: ${ticketNumber}\n\u{1F4B0} Precio: $${prizebox}\n\u{1F464} Nombre: ${name}` +
+            `➡️ Boleto: ${ticketNumber}\n\u{1F4B0} Precio: $${precioFijo}\n\u{1F464} Nombre: ${name}` + // 🔄 Usar precioFijo
             `\n\n\u{1F4C5} Sorteo Especial: ${fechaCorta}` +
             `\n\u{1F4DE} Teléfono: ${telefono}` +
             `\n\u{1F4B3} Método de pago: ${metodoPago}` +
@@ -174,6 +192,26 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
           window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
         }
 
+        try {
+          // Recargar boletos normales
+          const responseBoletos = await fetch("/api/ticketBuy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          const dataBoletos = await responseBoletos.json();
+          setBoletos(dataBoletos.result || []);
+
+          // Recargar boletos online
+          const fechaFormateada = prizes.Fecha.split('T')[0];
+          const responseOnline = await fetch(`/api/boletosOnline?fecha=${fechaFormateada}`);
+          const dataOnline = await responseOnline.json();
+          if (dataOnline.success) {
+            setBoletosOnline(dataOnline.boletos || []);
+          }
+        } catch (error) {
+          console.error("Error recargando datos:", error);
+        }
+
         Swal.fire({
           icon: "success",
           title: "Compra registrada 🎉",
@@ -190,7 +228,6 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
     setIsLoading(false);
     setPreviewModal(false);
     setTicketNumber("");
-    setPrizebox("");
     setName("");
   };
 
@@ -274,22 +311,21 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
             />
           </div>
 
-          {/* Precio */}
+          {/* Precio FIJO */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Precio ($)
             </label>
             <input
-              type="number"
-              value={prizebox}
-              onChange={handlePrizeboxChange}
-              maxLength={4}
-              className="w-full p-4 border border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
-              placeholder="Ej: 10"
+              type="text"
+              value={precioFijo ? `$${precioFijo}` : "Cargando..."}
+              readOnly
+              disabled
+              className="w-full p-4 border border-gray-300 rounded-lg bg-gray-100 text-center font-bold focus:outline-none"
             />
-            {prizeboxError && (
-              <div className="mt-1 text-sm text-red-600">{prizeboxError}</div>
-            )}
+            <div className="mt-1 text-sm text-gray-500 text-center">
+              Precio establecido
+            </div>
           </div>
 
           {/* Nombre */}
@@ -328,7 +364,7 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
           <h3 className="font-semibold text-yellow-800 mb-2">📌 Información importante:</h3>
           <ul className="text-sm text-yellow-700 space-y-1">
             <li>• Los boletos especiales son únicos por número</li>
-            <li>• El precio debe ser múltiplo de 10</li>
+            <li>• Todos los boletos tiene Precio establecido</li>
             <li>• Verifica disponibilidad antes de comprar</li>
           </ul>
         </div>
@@ -337,7 +373,10 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
       {/* Modales */}
       {showDisponibles && (
         <EspecialBoletosDisponiblesModalOnline
-          tickets={boletos}
+          tickets={{
+            boletosNormal: boletos, 
+            boletosOnline: boletosOnline 
+          }}
           onClose={() => setShowDisponibles(false)}
         />
       )}

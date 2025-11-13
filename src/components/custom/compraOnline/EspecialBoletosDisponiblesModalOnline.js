@@ -1,16 +1,25 @@
 import React from "react";
 
 const EspecialBoletosDisponiblesModalOnline = ({ tickets, onClose }) => {
-  const boletosVendidos = tickets.map((ticket) => ticket.Boleto);
+  const boletosVendidosNormal = tickets.boletosNormal || [];
+  const boletosVendidosOnline = tickets.boletosOnline || [];
+  
+  // 🔥 NORMALIZAR a números para comparar correctamente
+  const todosBoletosVendidos = [
+    ...boletosVendidosNormal.map(ticket => ticket.Boleto), // Ya son números
+    ...boletosVendidosOnline.map(ticket => Number(ticket.numero_boleto)) // Convertir "001" → 1
+  ];
+
   const todosLosBoletos = Array.from({ length: 1000 }, (_, i) => i);
   const boletosDisponibles = todosLosBoletos.filter(
-    (boleto) => !boletosVendidos.includes(boleto)
+    (boleto) => !todosBoletosVendidos.includes(boleto)
   );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-96 max-h-[80vh] overflow-hidden">
         <h2 className="text-xl font-bold mb-4 text-purple-800">Boletos Especiales Disponibles</h2>
+
         <div className="mb-4 h-64 overflow-y-auto border border-gray-200 rounded-lg">
           <div className="p-3 bg-gray-50 border-b border-gray-200">
             <span className="text-sm text-gray-600">

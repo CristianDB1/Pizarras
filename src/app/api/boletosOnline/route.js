@@ -1,6 +1,35 @@
 import pool from "@/db/MysqlConection";
 import { NextResponse } from "next/server";
 
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const fechaSorteo = searchParams.get('fecha');
+    
+    let sql = `SELECT numero_boleto, fecha_sorteo FROM boletos_online`;
+    let params = [];
+    
+    if (fechaSorteo) {
+      sql += ` WHERE fecha_sorteo = ?`;
+      params.push(fechaSorteo);
+    }
+    
+    const [result] = await pool.query(sql, params);
+    
+    return NextResponse.json({ 
+      success: true,
+      boletos: result 
+    });
+    
+  } catch (error) {
+    console.error("Error en GET /api/boletosOnline:", error);
+    return NextResponse.json(
+      { error: "Error al obtener boletos online", detalle: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req) {
   try {
     const data = await req.json();
