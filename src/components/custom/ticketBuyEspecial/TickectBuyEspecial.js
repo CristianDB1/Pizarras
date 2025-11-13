@@ -21,13 +21,12 @@ const TickectBuyEspecial = ({ selectedDate }) => {
   const [prizes, setPrizes] = useState(selectedDate);
   const [ticketNumber, setTicketNumber] = useState("");
   const [foundTope, setFoundTope] = useState(null);
-  const [prizebox, setPrizebox] = useState("");
   const [name, setName] = useState("");
-  const [prizeboxError, setPrizeboxError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [boletos, setBoletos] = useState([]);
   const router = useRouter();
   const [previewModal, setPreviewModal] = useState(false);
+  const [precioFijo, setPrecioFijo] = useState("");
 
   useEffect(() => {
     const ticket = localStorage.getItem("TickectEspecial");
@@ -42,6 +41,16 @@ const TickectBuyEspecial = ({ selectedDate }) => {
       .then((res) => res.json())
       .then((data) => {
         setBoletos(data.result);
+      });
+
+      //Cargar precio fijo desde la nueva API
+    fetch("/api/leyenda3")
+      .then((res) => res.json())
+      .then((data) => {
+        setPrecioFijo(data.precioBoleto);
+      })
+      .catch(error => {
+        console.error("Error cargando precio fijo:", error);
       });
   }, []);
 
@@ -90,27 +99,20 @@ const TickectBuyEspecial = ({ selectedDate }) => {
   const enviarDatosNormal = async () => {
     VailidationEstatus();
 
-    if (!prizebox || !name) {
-      ValidateBox();
-      return;
+    if (!precioFijo || !name) {
+    ValidateBox();
+    return;
     }
+    
     if (foundTope !== null) {
       Especial();
       return;
     }
 
-    if (prizeboxError) {
-      ErrorPrizes();
-      setPrizebox("");
-      return;
-    }
-
     setIsLoading(true);
-    setTicketNumber("");
-    setPrizebox("");
-    setName("");
+    
     const data = {
-      prizebox,
+      prizebox: precioFijo, 
       name,
       tipoSorteo,
       ticketNumber,
@@ -124,38 +126,50 @@ const TickectBuyEspecial = ({ selectedDate }) => {
 
     const options = {
       method: "POST",
-      header: {
+      headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     };
-    await fetch("/api/sell", options)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
-          Swal.fire(data.error);
-        } else if (data[0][0]) {
-          generatePDF([data[0][0]], fecha);
-        }
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+    
+    try {
+      const res = await fetch("/api/sell", options);
+      const result = await res.json();
+      
+      if (result.error) {
+        Swal.fire(result.error);
+      } else if (result[0][0]) {
+        generatePDF([result[0][0]], fecha);
+        
+        //ACTUALIZAR LISTA DE BOLETOS DESPUÉS DE COMPRAR
+        await refreshBoletos();
+      }
+    } catch (error) {
+      console.error("Error en la compra:", error);
+      Swal.fire("Error al procesar la compra");
+    } finally {
+      setIsLoading(false);
+      setTicketNumber("");
+      setName("");
+    }
   };
 
-  const handlePrizeboxChange = (e) => {
-    let value = e.target.value;
-    if (!/^[0-9]*$/.test(value)) {
-      value = value.slice(0, -1);
-    }
-    setPrizebox(value);
-    // Verifica si el valor es un múltiplo de 10
-    if (value % 10 !== 0) {
-      setPrizeboxError("El precio debe ser un múltiplo de 10");
-    } else {
-      setPrizeboxError(null);
+  // Función para refrescar los boletos
+  const refreshBoletos = async () => {
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    };
+
+    try {
+      const res = await fetch("/api/ticketBuy", options);
+      const data = await res.json();
+      setBoletos(data.result);
+    } catch (error) {
+      console.error("Error al refrescar boletos:", error);
     }
   };
+
   if (isLoading) {
     loading();
   }
@@ -218,10 +232,10 @@ const TickectBuyEspecial = ({ selectedDate }) => {
               Precio
             </div>
             <input
-              className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-10  "
-              value={prizebox}
-              onChange={handlePrizeboxChange}
-              maxLength={4}
+              className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-10"
+              value={precioFijo ? `$${precioFijo}` : "Cargando..."}
+              readOnly
+              disabled
             />
           </div>
           <div className="flex flex-row gap-8">
