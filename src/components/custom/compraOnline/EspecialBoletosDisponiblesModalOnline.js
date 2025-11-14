@@ -7,7 +7,7 @@ const EspecialBoletosDisponiblesModalOnline = ({ tickets, onClose }) => {
   // 🔥 NORMALIZAR a números para comparar correctamente
   const todosBoletosVendidos = [
     ...boletosVendidosNormal.map(ticket => ticket.Boleto), // Ya son números
-    ...boletosVendidosOnline.map(ticket => Number(ticket.numero_boleto)) // Convertir "001" → 1
+    ...boletosVendidosOnline.map(ticket => ticket.numero_boleto)
   ];
 
   const todosLosBoletos = Array.from({ length: 1000 }, (_, i) => i);

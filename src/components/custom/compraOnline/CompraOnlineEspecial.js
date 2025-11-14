@@ -89,16 +89,13 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
 
     const fechaFormateada = prizes.Fecha.split('T')[0];
 
-    // NORMALIZAR el número de boleto a string de 3 dígitos
-    const boletoBuscado = value.padStart(3, '0'); // "1" → "001", "123" → "123"
-
     const boletoNormal = boletos.find((t) => 
       t.Boleto === Number(value) && t.Fecha === fechaFormateada
     );
     
     // Comparar como strings
     const boletoOnline = boletosOnline.find((t) => 
-      t.numero_boleto === boletoBuscado && t.fecha_sorteo === fechaFormateada
+      t.numero_boleto === Number(value) && t.fecha_sorteo === fechaFormateada
     );
     
     /*console.log('Buscando boleto:', {
