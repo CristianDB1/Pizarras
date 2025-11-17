@@ -11,7 +11,7 @@ import {
   Especial,
 } from "../alerts/menu/Alerts";
 import { useRouter } from "next/navigation";
-import { FaHome } from "react-icons/fa";
+import { FaHome, FaDice } from "react-icons/fa";
 import EspecialPreviewModal from "./EspecialPreviewModal";
 import VailidationEstatus from "@/hook/validationEstatus";
 import updateInfo from "../validation/updateInfo";
@@ -69,6 +69,76 @@ const TickectBuyEspecial = ({ selectedDate }) => {
       </div>
     );
   }
+
+  // Función para obtener un número aleatorio disponible para boletos especiales
+const getRandomNumberEspecial = async () => {
+  try {
+    setIsLoading(true);
+
+    // Obtener los boletos ya vendidos
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    };
+
+    const response = await fetch("/api/ticketBuy", options);
+    const data = await response.json();
+
+    if (data.result) {
+      // Filtrar boletos vendidos para el sorteo actual
+      const boletosVendidos = data.result
+        .filter(ticket => ticket.fecha_sorteo === prizes.Fecha)
+        .map(ticket => ticket.Boleto);
+
+      // Generar números hasta encontrar uno disponible
+      let numeroAleatorio;
+      let intentos = 0;
+      const maxIntentos = 1000; // Para evitar loop infinito
+
+      do {
+        numeroAleatorio = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        intentos++;
+      } while (boletosVendidos.includes(parseInt(numeroAleatorio)) && intentos < maxIntentos);
+
+      if (intentos >= maxIntentos) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se encontraron números disponibles'
+        });
+        return;
+      }
+
+      // Establecer el número encontrado
+      setTicketNumber(numeroAleatorio);
+      
+      // Establecer nombre por defecto
+      setName("Trébol de la Suerte");
+
+      // Limpiar validación de tope (simular que el número está disponible)
+      setFoundTope(null);
+
+      // Mostrar mensaje de éxito
+      Swal.fire({
+        icon: 'success',
+        title: 'Número aleatorio generado',
+        text: `Número: ${numeroAleatorio}`,
+        timer: 1500,
+        timerProgressBar: true,
+        showConfirmButton: false
+      });
+    }
+  } catch (error) {
+    console.error("Error al obtener número aleatorio:", error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Error al conectar con el servidor'
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleTicketNumberChange = (e) => {
     let value = e.target.value;
@@ -262,6 +332,19 @@ const TickectBuyEspecial = ({ selectedDate }) => {
               onChange={(e) => setName(e.target.value)}
               className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-5  "
             />
+          </div>
+
+          {/* Fila de botones Azar*/}
+          <div className="flex flex-row gap-4 justify-center items-center pt-2">
+            <button
+              onClick={getRandomNumberEspecial}
+              disabled={isLoading}
+              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Generar número aleatorio"
+            >
+              <FaDice className={`${isLoading ? 'animate-spin' : ''} text-2xl`} />
+              <span className="text-xs font-semibold mt-1">Azar</span>
+            </button>
           </div>
         </div>
 
