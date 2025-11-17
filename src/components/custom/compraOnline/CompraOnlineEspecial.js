@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FaHome } from "react-icons/fa";
+import { FaHome, FaDice } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { ErrorPrizes, loading, ValidateBox } from "../alerts/menu/Alerts";
 import EspecialPreviewModalOnline from "./EspecialPreviewModalOnline";
@@ -65,6 +65,87 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
 
     cargarSorteoEspecial();
   }, [prizes?.Fecha]);
+
+  // Función para obtener un número aleatorio disponible para boletos especiales ONLINE
+  const getRandomNumberEspecialOnline = async () => {
+    try {
+      setIsLoading(true);
+
+      // Obtener ambas listas de boletos vendidos
+      const fechaFormateada = prizes.Fecha.split('T')[0];
+      
+      // Cargar boletos normales vendidos
+      const responseBoletos = await fetch("/api/ticketBuy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const dataBoletos = await responseBoletos.json();
+
+      // Cargar boletos online vendidos
+      const responseOnline = await fetch(`/api/boletosOnline?fecha=${fechaFormateada}`);
+      const dataOnline = await responseOnline.json();
+
+      if (dataBoletos.result && dataOnline.success) {
+        // Filtrar boletos normales vendidos para esta fecha
+        const boletosNormalesVendidos = dataBoletos.result
+          .filter(ticket => ticket.Fecha === fechaFormateada)
+          .map(ticket => ticket.Boleto);
+
+        // Obtener boletos online vendidos para esta fecha
+        const boletosOnlineVendidos = dataOnline.boletos.map(ticket => ticket.numero_boleto);
+
+        // Combinar ambas listas
+        const todosLosBoletosVendidos = [...boletosNormalesVendidos, ...boletosOnlineVendidos];
+
+        // Generar números hasta encontrar uno disponible
+        let numeroAleatorio;
+        let intentos = 0;
+        const maxIntentos = 1000;
+
+        do {
+          numeroAleatorio = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+          intentos++;
+        } while (todosLosBoletosVendidos.includes(parseInt(numeroAleatorio)) && intentos < maxIntentos);
+
+        if (intentos >= maxIntentos) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontraron números disponibles'
+          });
+          return;
+        }
+
+        // Establecer el número encontrado
+        setTicketNumber(numeroAleatorio);
+        
+        // Establecer nombre por defecto
+        setName("Trébol de la Suerte");
+
+        // Limpiar validación de tope
+        setFoundTope(null);
+
+        // Mostrar mensaje de éxito
+        Swal.fire({
+          icon: 'success',
+          title: 'Número aleatorio generado',
+          text: `Número: ${numeroAleatorio}`,
+          timer: 1500,
+          timerProgressBar: true,
+          showConfirmButton: false
+        });
+      }
+    } catch (error) {
+      console.error("Error al obtener número aleatorio online:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al conectar con el servidor'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Loading state
   if (!prizes) {
@@ -293,19 +374,55 @@ const CompraOnlineEspecial = ({ sorteoId }) => {
         {/* Formulario de compra */}
         <div className="space-y-4">
           {/* Número de boleto */}
-          <div>
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Número del Boleto (3 dígitos)
             </label>
-            <input
-              type="text"
-              value={ticketNumber}
-              onChange={handleTicketNumberChange}
-              onBlur={handleBlur}
-              maxLength={3}
-              className="w-full p-4 border border-gray-300 rounded-lg text-center text-2xl font-bold focus:border-purple-500 focus:outline-none"
-              placeholder="000"
-            />
+            
+            {/* Input principal - Mejorado para móviles */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={ticketNumber}
+                  onChange={handleTicketNumberChange}
+                  onBlur={handleBlur}
+                  maxLength={3}
+                  className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg text-center text-xl sm:text-2xl font-bold focus:border-blue-500 focus:outline-none"
+                  placeholder="000"
+                />
+              </div>
+              
+              {/* En pantallas grandes: botón de Azar al lado */}
+              <div className="hidden sm:flex gap-2">
+                <button
+                  onClick={getRandomNumberEspecialOnline}
+                  disabled={isLoading}
+                  className={`bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 transition duration-200 flex flex-col items-center justify-center ${
+                    isLoading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  title="Generar número aleatorio"
+                >
+                  <FaDice className={`${isLoading ? "animate-spin" : ""} text-xl`} />
+                  <span className="text-xs mt-1">Azar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* En pantallas móviles: botón de Azar debajo */}
+            <div className="sm:hidden flex justify-center">
+              <button
+                onClick={getRandomNumberEspecialOnline}
+                disabled={isLoading}
+                className={`bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2 ${
+                  isLoading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                title="Generar número aleatorio"
+              >
+                <FaDice className={`${isLoading ? "animate-spin" : ""}`} />
+                <span>Generar Número Aleatorio</span>
+              </button>
+            </div>
           </div>
 
           {/* Precio FIJO */}
