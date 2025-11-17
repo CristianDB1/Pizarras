@@ -16,6 +16,7 @@ import EspecialPreviewModal from "./EspecialPreviewModal";
 import VailidationEstatus from "@/hook/validationEstatus";
 import updateInfo from "../validation/updateInfo";
 import Swal from "sweetalert2";
+import { useTotalVenta } from "@/context/TotalVentasContext";
 
 const TickectBuyEspecial = ({ selectedDate }) => {
   const [prizes, setPrizes] = useState(selectedDate);
@@ -27,6 +28,8 @@ const TickectBuyEspecial = ({ selectedDate }) => {
   const router = useRouter();
   const [previewModal, setPreviewModal] = useState(false);
   const [precioFijo, setPrecioFijo] = useState("");
+  const {addVenta}= useTotalVenta();
+  
 
   useEffect(() => {
     const ticket = localStorage.getItem("TickectEspecial");
@@ -139,7 +142,19 @@ const TickectBuyEspecial = ({ selectedDate }) => {
       if (result.error) {
         Swal.fire(result.error);
       } else if (result[0][0]) {
-        generatePDF([result[0][0]], fecha);
+        const ticketSold = result[0][0];
+        
+        // AGREGAR ESTAS LÍNEAS PARA REGISTRAR EN EL MODAL
+        addVenta({
+          tipo: "especial", 
+          numero: ticketSold.Boleto || ticketNumber,
+          cantidad: 1,
+          precio: Number(ticketSold.Costo || precioFijo) || 0,
+          subtotal: (Number(ticketSold.Costo || precioFijo) || 0) * 1,
+          comprador: ticketSold.comprador || name,
+        });
+        
+        generatePDF([ticketSold], fecha);
         
         //ACTUALIZAR LISTA DE BOLETOS DESPUÉS DE COMPRAR
         await refreshBoletos();

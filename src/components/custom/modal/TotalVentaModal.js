@@ -63,9 +63,10 @@ export default function TotalVentasModal(){
                 ventas.map((v, i) => (
                   <div key={i} className="border-b py-1 flex justify-between">
                     <span>
-                      {v.tipo === "boleto" && "🎟️"}
-                      {v.tipo === "serie" && "📦"}
-                      {v.tipo === "premio" && "💸"}
+                      {v.tipo === "boleto" && "Boleto normal 🎟️"}
+                      {v.tipo === "serie" && "serie 📦"}
+                      {v.tipo === "especial" && "Boleto especial⭐"}
+                      {v.tipo === "premio" && "Premio 💸"}
                       {" "}
                       <strong>{v.descripcion || v.numero}</strong>
                     </span>

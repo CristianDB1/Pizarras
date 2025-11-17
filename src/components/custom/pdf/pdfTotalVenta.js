@@ -3,76 +3,95 @@ import Swal from "sweetalert2";
 
 export const generarPDFTotalVenta = async (total, ventas) => {
   try {
-    //Calcular altura dinámica
+    // Calcular altura dinámica
     const baseHeight = 60; 
-    const itemHeight = 12; 
+    const itemHeight = 12; // Volví a la altura original
     const itemsHeight = ventas.length * itemHeight;
     const totalHeight = baseHeight + itemsHeight + 40; 
     const finalHeight = Math.max(totalHeight, 120);
 
-    //Crear doc
+    // Crear doc
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "mm",
       format: [80, finalHeight],
     });
 
-    //Logo
+    // Logo
     const imageURL = "/noSencillo.jpg";
     doc.addImage(imageURL, "JPEG", 10, 2, 60, 20);
 
-    //Titulo
+    // Titulo
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("Reporte Total de Ventas", 5, 30);
 
-    //Fecha de generacion
+    // Fecha de generacion
     const fecha = new Date().toLocaleDateString();
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Generado: ${fecha}`, 5, 38);
 
-    //Linea divisoria
+    // Linea divisoria
     doc.setDrawColor(0);
     doc.line(5, 42, 75, 42);
 
-    //Listar ventas
+    // Listar ventas
     let y = 50;
     ventas.forEach((v, i) => {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text(`${v.descripcion || v.numero}`, 5, y);
+      // Determinar el tipo con su descripción
+      let tipoDescripcion = "";
+      switch(v.tipo) {
+        case "boleto":
+          tipoDescripcion = "Normal";
+          break;
+        case "serie":
+          tipoDescripcion = "Serie";
+          break;
+        case "especial":
+          tipoDescripcion = "Especial";
+          break;
+        case "premio":
+          tipoDescripcion = "Premio";
+          break;
+        default:
+          tipoDescripcion = v.tipo;
+      }
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.text(`Cant: ${v.cantidad} — $${v.subtotal}`, 5, y + 6);
+      // Tipo y número/descripción en la MISMA línea con mejor espaciado
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`${tipoDescripcion}:`, 5, y);
 
-        y += itemHeight;
+      doc.setFont("helvetica", "normal");
+      doc.text(`${v.descripcion || v.numero}`, 20, y); // Más espacio entre tipo y número
+
+      // Cantidad y subtotal en la misma línea a la derecha
+      doc.text(`Cant: ${v.cantidad} - $${v.subtotal < 0 ? `-${Math.abs(v.subtotal)}` : v.subtotal}`, 45, y);
+
+      y += 7; // Menos espacio entre líneas
     });
 
-    //Linea antes del total
+    // Linea antes del total
     doc.line(5, y, 75, y);
     y += 8;
 
-    //Total
+    // Total
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(
-      `TOTAL: $${total}`,
-      5,
-      y
-    );
-
-    //Si el total es negativo, poner rojo
+    
+    // Color del total basado en si es positivo o negativo
     if (total < 0) {
       doc.setTextColor(200, 0, 0);
     } else {
       doc.setTextColor(0, 150, 0);
     }
+    
+    doc.text(`TOTAL: $${total}`, 5, y);
     doc.text(`${total < 0 ? "(-)" : "(+)"}`, 65, y);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(0, 0, 0); // Reset color
 
-    //Descargar y compartir
+    // Descargar y compartir
     doc.autoPrint();
 
     var blob = doc.output("blob");
@@ -92,7 +111,7 @@ export const generarPDFTotalVenta = async (total, ventas) => {
     });
 
     if (result.isConfirmed) {
-        //Compartir
+      // Compartir
       if (navigator.share) {
         navigator
           .share({
@@ -105,8 +124,8 @@ export const generarPDFTotalVenta = async (total, ventas) => {
         window.open(url);
       }
     } else if(result.isDenied){
-        //Descargar
-        doc.save(fileName)
+      // Descargar
+      doc.save(fileName)
     }
 
     setTimeout(() => URL.revokeObjectURL(url), 30000);
