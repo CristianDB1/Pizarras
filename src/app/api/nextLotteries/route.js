@@ -10,7 +10,7 @@ export async function GET(req) {
     const [rows] = await pool.query(`
       SELECT * FROM sorteo
       WHERE Estatus = 'abierto'
-      AND Tipo_sorteo != 'especial'  -- o el campo que uses para identificar
+      AND Tipo_sorteo != 'especial'
       ORDER BY Fecha ASC
       LIMIT 3
     `);
