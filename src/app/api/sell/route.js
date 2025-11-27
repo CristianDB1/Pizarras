@@ -31,7 +31,7 @@ export async function POST(req) {
 
     //console.log("DATOS RECIBIDOS:", datos);
 
-    //1 Verificar tope - CON FORMATO CORREGIDO
+    // Verificar tope 
     const numeroBoleto = parseInt(ticketNumber); // Convertir a número
     const [ano, mes, dia] = fechaModificada.split('-');
     const fechaTope = `${dia}/${mes}/${ano}`; // Formato DD/MM/YYYY
@@ -75,7 +75,7 @@ export async function POST(req) {
     //console.log("INSERT RESULT:", insertResult);
     //console.log("ID INSERTADO:", insertedId);
 
-    // Actualizar tope - CON FORMATO CORREGIDO
+    // Actualizar tope
     if (topesRows.length > 0) {
       await connection.query(
         `UPDATE topes SET Cantidad = Cantidad + ? WHERE Numero = ? AND Fecha_sorteo = ?`,
@@ -89,14 +89,14 @@ export async function POST(req) {
       throw new Error("No se obtuvo insertId al crear el boleto");
     }
 
-    // 3️⃣ Generar QR (usando el Idsorteo como identificador)
+    // Generar QR (usando el Idsorteo como identificador)
     const qrData = `N${insertedId}`;
     //console.log("GENERANDO QR PARA:", qrData);
     
     const qrCodeBase64 = await QRCode.toDataURL(qrData);
     //console.log("QR GENERADO");
 
-    // 4️⃣ Actualizar SOLO con qr_code (columna que SÍ existe)
+    // Actualizar SOLO con qr_code
     const updateSql = `UPDATE boletos SET qr_code = ? WHERE Idsorteo = ?`;
     //console.log("🔧 EJECUTANDO UPDATE QR...");
     

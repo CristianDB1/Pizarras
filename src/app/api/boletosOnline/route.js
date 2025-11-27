@@ -46,7 +46,7 @@ export async function POST(req) {
     await connection.beginTransaction();
 
     try {
-      // 1. INSERTAR en boletos_online (SIN CAMBIOS)
+      // Insertar en boletos_online (sin cambios)
       const sqlInsert = `
         INSERT INTO boletos_online
         (id_sorteo, numero_boleto, costo, comprador, telefono, metodo_pago, tipo_sorteo, fecha_sorteo, estatus, fecha_compra)
@@ -68,12 +68,12 @@ export async function POST(req) {
 
       const [result] = await connection.query(sqlInsert, [values]);
 
-      // 2. ACTUALIZAR TOPES SOLO PARA BOLETOS NORMALES
+      // ACTUALIZAR TOPES SOLO PARA BOLETOS NORMALES
       for (const boleto of boletos) {
-        // ✅ DETECTAR SI ES SERIE POR EL TIPO_SORTEO
+        // DETECTAR SI ES SERIE POR EL TIPO_SORTEO
         const esSerie = boleto.tipoSorteo === "serie";
         
-        // ✅ SOLO actualizar topes si NO es serie (es normal)
+        // SOLO actualizar topes si NO es serie (es normal)
         if (!esSerie) {
           const numeroBoleto = parseInt(boleto.ticketNumber);
           const monto = boleto.prizebox;

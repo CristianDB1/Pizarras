@@ -178,18 +178,18 @@ const WinnerTicket = () => {
         }),
       });
 
-      // ✅ VERIFICAR SI LA RESPUESTA ES VÁLIDA ANTES DE HACER .json()
+      // VERIFICAR SI LA RESPUESTA ES VÁLIDA ANTES DE HACER .json()
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
       }
 
-      // ✅ VERIFICAR QUE LA RESPUESTA NO ESTÉ VACÍA
+      // VERIFICAR QUE LA RESPUESTA NO ESTÉ VACÍA
       const responseText = await response.text();
       if (!responseText) {
         throw new Error("Respuesta vacía del servidor");
       }
 
-      // ✅ PARSEAR EL JSON
+      // PARSEAR EL JSON
       const data = JSON.parse(responseText);
       console.log("Respuesta del servidor:", data);
       
@@ -240,7 +240,7 @@ const WinnerTicket = () => {
     } catch (error) {
       console.error("Error al marcar como pagado:", error);
       
-      // ✅ MENSAJE DE ERROR MÁS ESPECÍFICO
+      // MENSAJE DE ERROR MÁS ESPECÍFICO
       let errorMessage = "Ocurrió un error al procesar el pago";
       if (error.message.includes("HTTP")) {
         errorMessage = `Error del servidor: ${error.message}`;
@@ -335,7 +335,7 @@ const WinnerTicket = () => {
         let stream = null;
         let capturedImage = null;
 
-        // 🔥 OPCIÓN 1: ABRIR CÁMARA TRASERA
+        // OPCIÓN 1: ABRIR CÁMARA TRASERA
         openCameraButton.addEventListener("click", async () => {
           try {
             // Obtener todas las cámaras disponibles
@@ -360,7 +360,7 @@ const WinnerTicket = () => {
           }
         });
 
-        // 🔥 OPCIÓN 2: SELECCIONAR DE GALERÍA
+        // OPCIÓN 2: SELECCIONAR DE GALERÍA
         selectFileButton.addEventListener("click", () => {
           fileInput.click();
         });
@@ -389,7 +389,7 @@ const WinnerTicket = () => {
           }
         });
 
-        // 📸 TOMAR FOTO CON CÁMARA
+        // TOMAR FOTO CON CÁMARA
         takePhotoButton.addEventListener("click", async () => {
           const canvas = document.createElement("canvas");
           canvas.width = cameraPreview.videoWidth;
@@ -498,7 +498,7 @@ const WinnerTicket = () => {
     };
   }, []);
 
-  // === ESCÁNER QR ===
+  // ESCÁNER QR 
   const startQrScanner = async () => {
     try {
       const readerElement = document.getElementById("reader");
@@ -529,7 +529,7 @@ const WinnerTicket = () => {
         { deviceId: { exact: backCamera.id } },
         config,
         (decodedText) => {
-          // ✅ Texto del QR: "ticketNumber-fecha"
+          // Texto del QR: "ticketNumber-fecha"
           const numeroSerie = decodedText.split("-")[0];
           setSearch(numeroSerie);
 

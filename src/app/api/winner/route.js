@@ -86,7 +86,7 @@ export async function PUT(request) {
       [id]
     );
 
-    // ✅ CORREGIDO: Retornar solo datos serializables
+    // Retornar solo datos serializables
     return NextResponse.json({
       message: "Boleto premiado actualizado correctamente",
       success: true,

@@ -58,7 +58,6 @@ const CompraOnline = ({ sorteoId }) => {
   const currentHour = new Date().getHours();
 
   // Loading state
-  // Loading state - CORREGIDO
   if (!selectedSorteo) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -210,7 +209,7 @@ const CompraOnline = ({ sorteoId }) => {
     return true;
   };
 
-  // FUNCIÓN MODIFICADA: Agregar al carrito con fecha específica
+  // Agregar al carrito con fecha específica
   const addTicketToList = (tipo = "normal", seriePadre = null) => {
     if (!Validate()) {
       return false;
@@ -265,10 +264,10 @@ const CompraOnline = ({ sorteoId }) => {
         comprador: name,
         tipo: tipo,
         seriePadre: seriePadre,
-        // ✅ GUARDAR INFORMACIÓN DEL SORTEO ACTUAL - SOLO FECHA
+        // GUARDAR INFORMACIÓN DEL SORTEO ACTUAL - SOLO FECHA
         idSorteo: selectedSorteo?.Idsorteo,
         fechaSorteo: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : '',
-        // ✅ FORMATEAR fechaDisplay para que sea solo la fecha
+        // FORMATEAR fechaDisplay para que sea solo la fecha
         fechaDisplay: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : formattedFechaActual,
         tipoSorteo: selectedSorteo?.Tipo_sorteo,
         primerPremio: selectedSorteo?.Primerpremio,
@@ -287,7 +286,7 @@ const CompraOnline = ({ sorteoId }) => {
     return false;
   };
 
-  // FUNCIÓN MODIFICADA: Comprar Normal - Agrega automáticamente al carrito
+  // Comprar Normal - Agrega automáticamente al carrito
   const enviarDatosNormal = async (e) => {
     e.preventDefault();
     
@@ -312,7 +311,7 @@ const CompraOnline = ({ sorteoId }) => {
     }
   };
 
-  // FUNCIÓN CORREGIDA: Comprar Serie - Agrega automáticamente al carrito
+  // Comprar Serie - Agrega automáticamente al carrito
   const enviarDatosSerie = async (e) => {
     e.preventDefault();
     if (!prizebox || !name || !ticketNumber) {
@@ -333,7 +332,7 @@ const CompraOnline = ({ sorteoId }) => {
       return;
     }
 
-    // ✅ OBTENER INFORMACIÓN DEL SORTEO ACTUAL PARA LAS SERIES
+    // OBTENER INFORMACIÓN DEL SORTEO ACTUAL PARA LAS SERIES
     const fechaActual = selectedSorteo
       ? new Date(
           new Date(selectedSorteo.Fecha).getTime() +
@@ -351,7 +350,7 @@ const CompraOnline = ({ sorteoId }) => {
       return ticket.toString().padStart(3, "0");
     });
 
-    // ✅ AGREGAR CADA BOLETO DE LA SERIE CON INFORMACIÓN DEL SORTEO
+    // AGREGAR CADA BOLETO DE LA SERIE CON INFORMACIÓN DEL SORTEO
     ticketNumbers.forEach((tn, index) => {
       const nuevoTicket = {
         id: Date.now() + index,
@@ -362,7 +361,7 @@ const CompraOnline = ({ sorteoId }) => {
         comprador: name,
         tipo: "serie",
         seriePadre: ticketNumber, // Número base de la serie
-        // ✅ INFORMACIÓN DEL SORTEO PARA CADA BOLETO DE SERIE
+        // INFORMACIÓN DEL SORTEO PARA CADA BOLETO DE SERIE
         idSorteo: selectedSorteo?.Idsorteo,
         fechaSorteo: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : '',
         fechaDisplay: selectedSorteo?.Fecha ? selectedSorteo.Fecha.split('T')[0] : formattedFechaActual,
@@ -387,7 +386,7 @@ const CompraOnline = ({ sorteoId }) => {
     });
   };
 
-  // NUEVA FUNCIÓN: Proceder al pago
+  // Proceder al pago
   const procederAlPago = () => {
     if (tickets.length === 0) {
       Swal.fire({
@@ -400,7 +399,7 @@ const CompraOnline = ({ sorteoId }) => {
     setShowPreview(true);
   };
 
-  // FUNCIÓN MODIFICADA: Confirmar venta - Usar fecha específica de cada boleto
+  // Confirmar venta - Usar fecha específica de cada boleto
   const confirmVenta = async ({ telefono, metodoPago, bancoSeleccionado }) => {
     setIsLoading(true);
 
@@ -430,7 +429,7 @@ const CompraOnline = ({ sorteoId }) => {
             prizebox: boleto.precio,
             name: boleto.comprador,
             tipoSorteo: "serie",
-            fecha: boleto.fechaSorteo, // ✅ Usar fechaSorteo del boleto
+            fecha: boleto.fechaSorteo, // Usar fechaSorteo del boleto
             primerPremio: boleto.primerPremio,
             segundoPremio: boleto.segundoPremio,
             cantidadBoletos: 1,
@@ -448,7 +447,7 @@ const CompraOnline = ({ sorteoId }) => {
           prizebox: t.precio,
           name: t.comprador,
           tipoSorteo: "normal",
-          fecha: t.fechaSorteo, // ✅ Usar fechaSorteo del boleto
+          fecha: t.fechaSorteo, // Usar fechaSorteo del boleto
           primerPremio: t.primerPremio,
           segundoPremio: t.segundoPremio,
           cantidadBoletos: 1,
@@ -795,7 +794,7 @@ const CompraOnline = ({ sorteoId }) => {
             />
           </div>
 
-          {/* Botones de Compra - NUEVO FLUJO */}
+          {/* Botones de Compra */}
           <div className="space-y-3">
             {/* Botones de Compra */}
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -856,7 +855,7 @@ const CompraOnline = ({ sorteoId }) => {
                         </button>
                       </div>
                       <div className="text-sm text-gray-500 mt-1">{ticket.comprador}</div>
-                      {/* ✅ MOSTRAR INFORMACIÓN DEL SORTEO ESPECÍFICO */}
+                      {/* MOSTRAR INFORMACIÓN DEL SORTEO ESPECÍFICO */}
                       <div className="text-xs text-blue-600 mt-1">
                         Sorteo: {
                           ticket.fechaDisplay ? 

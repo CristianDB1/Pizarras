@@ -16,7 +16,7 @@ const nextConfig = {
   experimental: {
     esmExternals: 'loose'
   },
-  // Si usas MySQL u otras dependencias server-only
+  // Si se usa MYSQL u otras dependencias server-only
   webpack: (config) => {
     config.externals = [...config.externals, 'mysql2']
     return config

@@ -4,7 +4,7 @@ const EspecialBoletosDisponiblesModalOnline = ({ tickets, onClose }) => {
   const boletosVendidosNormal = tickets.boletosNormal || [];
   const boletosVendidosOnline = tickets.boletosOnline || [];
   
-  // 🔥 NORMALIZAR a números para comparar correctamente
+  // NORMALIZAR a números para comparar correctamente
   const todosBoletosVendidos = [
     ...boletosVendidosNormal.map(ticket => ticket.Boleto), // Ya son números
     ...boletosVendidosOnline.map(ticket => ticket.numero_boleto)

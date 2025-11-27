@@ -13,7 +13,7 @@ export async function POST(req) {
             sql = `SELECT * FROM premiados WHERE Sorteo = ? ORDER BY idpremiados DESC LIMIT 1`;
             params = [Sorteo];
         } else if (fecha) {
-            // Búsqueda por fecha - IMPORTANTE: ajustar el formato según tu base de datos
+            // Búsqueda por fecha 
             sql = `SELECT * FROM premiados WHERE DATE(fechasorteo) = ? ORDER BY idpremiados DESC LIMIT 1`;
             params = [fecha];
         } else {
