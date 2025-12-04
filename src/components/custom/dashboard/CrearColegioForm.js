@@ -23,7 +23,7 @@ export default function CrearColegioForm() {
             nombre: '',
             logo_url: '',
             admin_nombre: '',
-            admin_email: '',
+            admin_usuario: '',
             admin_password: '',
             confirm_password: '',
             cifras_sorteo: 5,
@@ -262,28 +262,35 @@ export default function CrearColegioForm() {
                                     )}
                                 </div>
 
-                                {/* Email del Admin */}
+                                {/* Usuario del Admin */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Email del Administrador *
+                                        Usuario del Administrador *
                                     </label>
                                     <input
-                                        {...register('admin_email', { 
-                                            required: 'El email es requerido',
+                                        {...register('admin_usuario', { 
+                                            required: 'El usuario es requerido',
+                                            minLength: {
+                                                value: 3,
+                                                message: 'Mínimo 3 caracteres'
+                                            },
                                             pattern: {
-                                                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                                                message: 'Email inválido'
+                                                value: /^[a-zA-Z0-9_]+$/,
+                                                message: 'Solo letras, números y guiones bajos'
                                             }
                                         })}
-                                        type="email"
+                                        type="text"
                                         className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                                            errors.admin_email ? 'border-red-500' : 'border-gray-300'
+                                            errors.admin_usuario ? 'border-red-500' : 'border-gray-300'
                                         }`}
-                                        placeholder="admin@colegio.edu"
+                                        placeholder="admin_colegio"
                                     />
-                                    {errors.admin_email && (
-                                        <p className="mt-1 text-sm text-red-600">{errors.admin_email.message}</p>
+                                    {errors.admin_usuario && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.admin_usuario.message}</p>
                                     )}
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        El administrador usará este usuario para iniciar sesión
+                                    </p>
                                 </div>
 
                                 {/* Contraseña */}
