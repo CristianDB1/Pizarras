@@ -73,7 +73,18 @@ export async function POST(req) {
             todos_colegios: todosColegios
         };
 
-        return NextResponse.json([responseData]);
+        return NextResponse.json([{
+            id_usuario: user[0].id_usuario,
+            nombre: user[0].nombre,
+            usuario: user[0].usuario,
+            rol: user[0].rol,
+            colegio_id: user[0].colegio_id,
+            estatus: user[0].estatus,
+            requestTime: currentTime[0].currentTime,
+            colegio: colegio,
+            sorteos_activos: sorteos,
+            todos_colegios: todosColegios
+        }])
 
     } catch (error) {
         console.error('Error en login admin:', error);
