@@ -446,10 +446,6 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                                         {...registerColegio('configuracion')}
                                         rows="3"
                                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"
-                                        value={mostrarConfiguracion(watch('configuracion'))} // Si usas watch de react-hook-form
-                                        onChange={(e) => {
-                                            // Manejar cambios
-                                        }}
                                     />
                                 </div>
                                 
@@ -498,22 +494,12 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                                             <pre className="text-xs font-mono">
                                                 {(function() {
                                                     try {
-                                                        if (!colegio.configuracion || colegio.configuracion === '{}' || colegio.configuracion === '') {
-                                                            return '{}';
-                                                        }
-                                                        // Si ya es un objeto, stringificarlo directamente
-                                                        if (typeof colegio.configuracion === 'object') {
-                                                            return JSON.stringify(colegio.configuracion, null, 2);
-                                                        }
-                                                        // Si es un string, intentar parsearlo
-                                                        if (typeof colegio.configuracion === 'string') {
-                                                            const parsed = JSON.parse(colegio.configuracion);
-                                                            return JSON.stringify(parsed, null, 2);
-                                                        }
-                                                        return '{}';
-                                                    } catch (error) {
-                                                        console.error('Error parseando configuración:', error);
-                                                        return 'Error al mostrar configuración';
+                                                        const config = colegio.configuracion;
+                                                        if (!config || config === '{}') return '{}';
+                                                        if (typeof config === 'object') return JSON.stringify(config, null, 2);
+                                                        return JSON.stringify(JSON.parse(config), null, 2);
+                                                    } catch {
+                                                        return colegio.configuracion || '{}';
                                                     }
                                                 })()}
                                             </pre>
