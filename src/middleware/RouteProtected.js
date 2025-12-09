@@ -1,44 +1,36 @@
-import { NextResponse } from 'next/server';
-import useSession from '@/hook/useSession';
+"use client";
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import useSession from "@/hook/useSession";
 
-export function middleware(request) {
+export default function RouteProtected({ children }) {
+    const router = useRouter();
+    const pathname = usePathname();
     const session = useSession();
-    const isLoggedIn = session.isLoggedIn();
-    const userType = session.getUserType();
-    
-    // Solo permitir vendedores y staff
-    if (!isLoggedIn || !(userType === 'vendedor' || userType === 'staff')) {
-        // Redirigir al login principal (de vendedores)
-        const loginUrl = new URL('/', request.url);
-        return NextResponse.redirect(loginUrl);
-    }
-    
-    // Verificar que vendedor acceda solo a su colegio
-    const colegioIdUsuario = session.getColegioId();
-    if (colegioIdUsuario) {
-        const path = request.nextUrl.pathname;
-        
-        // Si la ruta incluye un colegio_id, verificar que coincida
-        const colegioMatch = path.match(/\/colegio\/(\d+)/);
-        if (colegioMatch) {
-            const colegioIdEnURL = parseInt(colegioMatch[1]);
-            if (colegioIdUsuario !== colegioIdEnURL) {
-                // Redirigir a su propio dashboard de vendedor
-                const dashboardUrl = new URL(`/colegio/${colegioIdUsuario}/vendedor/dashboard`, request.url);
-                return NextResponse.redirect(dashboardUrl);
+
+    useEffect(() => {
+        if (!session.isLoggedIn()) {
+            router.push("/");
+            return;
+        }
+
+        const userType = session.getUserType();
+        if (!(userType === "vendedor" || userType === "staff")) {
+            router.push("/");
+            return;
+        }
+
+        // Validar colegio
+        const colegioIdUsuario = session.getColegioId();
+        const match = pathname.match(/\/colegio\/(\d+)/);
+
+        if (match) {
+            const colegioIdURL = parseInt(match[1]);
+            if (colegioIdURL !== colegioIdUsuario) {
+                router.push(`/colegio/${colegioIdUsuario}/vendedor/dashboard`);
             }
         }
-    }
-    
-    return NextResponse.next();
-}
+    }, [session, router, pathname]);
 
-export const config = {
-    matcher: [
-        '/ventas/:path*',
-        '/corte-caja/:path*',
-        '/boletos/:path*',
-        '/menu',
-        // Agrega otras rutas de vendedores aquí
-    ]
-};
+    return children;
+}

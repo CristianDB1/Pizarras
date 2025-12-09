@@ -1,58 +1,44 @@
-import { NextResponse } from 'next/server';
-import useSession from '@/hook/useSession';
+"use client";
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import useSession from "@/hook/useSession";
 
-export function middleware(request) {
-    console.log('🛡️ Middleware RouteProtectedAdmin ejecutándose para:', request.nextUrl.pathname)
+export default function RouteProtectedAdmin({ children }) {
+    const router = useRouter();
+    const pathname = usePathname();
     const session = useSession();
-    const isLoggedIn = session.isLoggedIn();
-    const userType = session.getUserType();
-    
-    // Verificar que esté logueado y sea admin
-    if (!isLoggedIn || !(userType === 'superadmin' || userType === 'admin_colegio')) {
-        // Redirigir al login de administradores
-        const loginUrl = new URL('/loginAdmin', request.url);
-        return NextResponse.redirect(loginUrl);
-    }
-    
-    // Si es admin_colegio, verificar que solo acceda a su colegio
-    if (userType === 'admin_colegio') {
-        const path = request.nextUrl.pathname;
-        
-        // Extraer colegio_id de la URL si está en una ruta de colegio
-        const colegioMatch = path.match(/\/colegio\/(\d+)/);
-        if (colegioMatch) {
-            const colegioIdEnURL = parseInt(colegioMatch[1]);
-            const colegioIdUsuario = session.getColegioId();
-            
-            if (colegioIdUsuario !== colegioIdEnURL) {
-                // Redirigir a su propio dashboard
-                const dashboardUrl = new URL(`/colegio/${colegioIdUsuario}/admin/dashboard`, request.url);
-                return NextResponse.redirect(dashboardUrl);
+
+    useEffect(() => {
+        if (!session.isLoggedIn()) {
+            router.push("/loginAdmin");
+            return;
+        }
+
+        const userType = session.getUserType();
+        if (!(userType === "superadmin" || userType === "admin_colegio")) {
+            router.push("/loginAdmin");
+            return;
+        }
+
+        // Validar colegio
+        if (userType === "admin_colegio") {
+            const match = pathname.match(/\/colegio\/(\d+)/);
+            if (match) {
+                const colegioIdURL = parseInt(match[1]);
+                const colegioIdUsuario = session.getColegioId();
+
+                if (colegioIdURL !== colegioIdUsuario) {
+                    router.push(`/colegio/${colegioIdUsuario}/admin/dashboard`);
+                }
             }
         }
-    }
 
-    const logged = request.cookies.get('logged')?.value
-    console.log('🍪 Cookie logged:', logged)
-    
-    // Si no está logueado, redirigir
-    if (!logged || logged !== 'true') {
-        console.log('❌ No autenticado, redirigiendo a /loginAdmin')
-        const loginUrl = new URL('/loginAdmin', request.url)
-        return NextResponse.redirect(loginUrl)
-    }
+        // Validar cookie
+        const logged = document.cookie.includes("logged=true");
+        if (!logged) {
+            router.push("/loginAdmin");
+        }
+    }, [session, router, pathname]);
 
-    console.log('✅ Middleware pasado')
-    
-    return NextResponse.next();
+    return children;
 }
-
-// Configurar en qué rutas aplicar este middleware
-export const config = {
-    matcher: [
-        '/admin/:path*',
-        '/superadmin/:path*',
-        '/colegio/:path*', // Aplica a todas las rutas de colegio
-        '/configuracion/:path*'
-    ]
-};
