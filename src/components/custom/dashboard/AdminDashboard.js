@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import useSession from '@/hook/useSession'
-import { useRouter } from 'next/navigation'
 
 // Componente separado para los gráficos (solo se carga en cliente)
 const ChartSection = ({ incomeChartData, drawsChartData }) => {
@@ -109,6 +109,7 @@ const ChartSection = ({ incomeChartData, drawsChartData }) => {
 const AdminDashboard = () => {
     const session = useSession()
     const router = useRouter()
+    const params = useParams() 
     const [isClient, setIsClient] = useState(false)
     const [activeMenu, setActiveMenu] = useState('dashboard')
     const [searchTerm, setSearchTerm] = useState('')
@@ -122,6 +123,10 @@ const AdminDashboard = () => {
     const [vendedores, setVendedores] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [authChecked, setAuthChecked] = useState(false)
+    const [colegioIdFromURL, setColegioIdFromURL] = useState(null)
+
+    const hasLoaded = useRef(false)
+    const loadingRef = useRef(false)
 
     // Datos para gráficos...
     const incomeChartData = {
@@ -166,10 +171,75 @@ const AdminDashboard = () => {
         { id: 'reportes', icon: '📄', label: 'Reportes' }
     ]
 
+    const loadAllData = async (colegioId) => {
+        // Evitar múltiples llamadas simultáneas
+        if (loadingRef.current) return
+        loadingRef.current = true
+        
+        try {
+            setIsLoading(true)
+            console.log('📊 Cargando datos del dashboard para colegio:', colegioId)
+            
+            if (!colegioId) {
+                console.log('❌ No hay colegioId para cargar datos')
+                return
+            }
+            
+            // Cargar datos del colegio
+            console.log('📁 Cargando datos del colegio...')
+            const colegioResponse = await fetch(`/api/colegios/${colegioId}`)
+            if (colegioResponse.ok) {
+                const data = await colegioResponse.json()
+                setColegioData(data)
+                console.log('✅ Datos del colegio cargados:', data.nombre)
+            }
+
+            // Cargar estadísticas
+            console.log('📈 Cargando estadísticas...')
+            const statsResponse = await fetch(`/api/stats/colegio/${colegioId}`)
+            if (statsResponse.ok) {
+                const statsData = await statsResponse.json()
+                setStats(statsData)
+                console.log('✅ Estadísticas cargadas')
+            }
+
+            // Cargar vendedores
+            console.log('👥 Cargando vendedores...')
+            const vendedoresResponse = await fetch(`/api/vendedores/colegio/${colegioId}`)
+            if (vendedoresResponse.ok) {
+                const vendedoresData = await vendedoresResponse.json()
+                setVendedores(vendedoresData)
+                console.log('✅ Vendedores cargados:', vendedoresData.length)
+            } else {
+                // Datos de ejemplo
+                console.log('⚠️ Usando datos de ejemplo para vendedores')
+                setVendedores([
+                    { id: 1, nombre: 'María Contreras', boletos: 487, ventas: 24350, comision: 2435, estado: 'activo', iniciales: 'MC' },
+                    { id: 2, nombre: 'José López', boletos: 425, ventas: 21250, comision: 2125, estado: 'activo', iniciales: 'JL' },
+                    { id: 3, nombre: 'Ana García', boletos: 398, ventas: 19900, comision: 1990, estado: 'activo', iniciales: 'AG' }
+                ])
+            }
+        } catch (error) {
+            console.error('❌ Error cargando datos:', error)
+        } finally {
+            setIsLoading(false)
+            loadingRef.current = false
+            console.log('🏁 Carga de datos completada')
+        }
+    }
+
     useEffect(() => {
         console.log('🔵 useEffect - Marcando como cliente')
         setIsClient(true)
     }, [])
+
+    // Obtener colegioId de los parámetros de la ruta
+    useEffect(() => {
+        if (params && params.colegioId) {
+            console.log('📌 Colegio ID de la URL:', params.colegioId)
+            setColegioIdFromURL(params.colegioId)
+        }
+    }, [params])
 
     // VERIFICACIÓN DE AUTENTICACIÓN - CORREGIDA
     useEffect(() => {
@@ -179,10 +249,8 @@ const AdminDashboard = () => {
         }
 
         console.log('🔍 Verificando autenticación...')
-        console.log('isClient:', isClient)
-        console.log('session.isLoggedIn():', session.isLoggedIn())
-        console.log('session.getUserType():', session.getUserType())
-        console.log('session.getUserData():', session.getUserData())
+        console.log('isLoggedIn:', session.isLoggedIn())
+        console.log('userType:', session.getUserType())
 
         const userData = session.getUserData()
         
@@ -205,78 +273,22 @@ const AdminDashboard = () => {
             return
         }
 
-        console.log('✅ Autenticación OK, marcando como verificada')
+        console.log('✅ Autenticación OK')
         setAuthChecked(true)
         
-    }, [isClient, session, router])
-
-    // Cargar datos solo después de verificar autenticación
-    useEffect(() => {
-        if (!authChecked || !isClient) return
-
-        console.log('📊 Cargando datos del dashboard...')
-        const userData = session.getUserData()
+        // Determinar el colegioId a usar
+        const colegioId = userData?.colegio_id || colegioIdFromURL
         
-        const loadAllData = async () => {
-            try {
-                setIsLoading(true)
-                
-                // Cargar datos del colegio
-                if (userData?.colegio_id) {
-                    console.log('📁 Cargando datos del colegio:', userData.colegio_id)
-                    const colegioResponse = await fetch(`/api/colegios/${userData.colegio_id}`)
-                    if (colegioResponse.ok) {
-                        const data = await colegioResponse.json()
-                        setColegioData(data)
-                        console.log('✅ Datos del colegio cargados:', data.nombre)
-                    }
-                }
-
-                // Cargar estadísticas
-                if (userData?.colegio_id) {
-                    console.log('📈 Cargando estadísticas...')
-                    const statsResponse = await fetch(`/api/stats/colegio/${userData.colegio_id}`)
-                    if (statsResponse.ok) {
-                        const statsData = await statsResponse.json()
-                        setStats(statsData)
-                        console.log('✅ Estadísticas cargadas')
-                    }
-                }
-
-                // Cargar vendedores
-                if (userData?.colegio_id) {
-                    console.log('👥 Cargando vendedores...')
-                    const vendedoresResponse = await fetch(`/api/vendedores/colegio/${userData.colegio_id}`)
-                    if (vendedoresResponse.ok) {
-                        const vendedoresData = await vendedoresResponse.json()
-                        setVendedores(vendedoresData)
-                        console.log('✅ Vendedores cargados:', vendedoresData.length)
-                    } else {
-                        // Datos de ejemplo
-                        setVendedores([
-                            { id: 1, nombre: 'María Contreras', boletos: 487, ventas: 24350, comision: 2435, estado: 'activo', iniciales: 'MC' },
-                            { id: 2, nombre: 'José López', boletos: 425, ventas: 21250, comision: 2125, estado: 'activo', iniciales: 'JL' },
-                            { id: 3, nombre: 'Ana García', boletos: 398, ventas: 19900, comision: 1990, estado: 'activo', iniciales: 'AG' }
-                        ])
-                    }
-                }
-            } catch (error) {
-                console.error('❌ Error cargando datos:', error)
-            } finally {
-                setIsLoading(false)
-                console.log('🏁 Carga de datos completada')
-            }
+        // Cargar datos solo una vez
+        if (!hasLoaded.current && colegioId) {
+            console.log('🚀 Iniciando carga de datos con colegioId:', colegioId)
+            loadAllData(colegioId)
+            hasLoaded.current = true
         }
+        
+    }, [isClient, colegioIdFromURL, session, router])
 
-        loadAllData()
-    }, [authChecked, isClient, session])
-
-    // ... resto de las funciones (handleLogout, getUserInitials, etc.)
-
-    const filteredVendedores = vendedores.filter(vendedor =>
-        vendedor.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
+    // Función para manejar el logout
     const handleLogout = () => {
         console.log('🚪 Cerrando sesión...')
         session.logout()
@@ -298,29 +310,12 @@ const AdminDashboard = () => {
         return 'AD'
     }
 
-    // Mostrar loading mientras se verifica autenticación
-    if (!isClient || !authChecked) {
-        console.log('🌀 Mostrando loading (verificando autenticación)')
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="relative w-32 h-32">
-                        <div className="absolute top-0 left-0 animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-red-500"></div>
-                        <div className="absolute top-0 left-0 flex items-center justify-center h-32 w-32">
-                            <div className="text-center">
-                                <div className="text-xl font-semibold text-gray-700">Verificando</div>
-                                <div className="text-sm text-gray-500">sesión...</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
+    const filteredVendedores = vendedores.filter(vendedor =>
+        vendedor.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
-    // Si está cargando datos
-    if (isLoading) {
-        console.log('🌀 Mostrando loading (cargando datos)')
+    // Mostrar loading
+    if (!isClient || isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <div className="text-center">

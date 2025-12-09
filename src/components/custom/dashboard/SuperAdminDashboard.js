@@ -286,7 +286,7 @@ export default function SuperAdminDashboard() {
                                         </td>
                                         <td className="p-4">
                                             <button
-                                                onClick={() => router.push(`/colegio/${colegio.id_colegio}/admin`)}
+                                                onClick={() => router.push(`/superadmin/colegios/${colegio.id_colegio}`)}
                                                 className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                                             >
                                                 Ver detalles →

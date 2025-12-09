@@ -53,7 +53,6 @@ export const config = {
         '/admin/:path*',
         '/superadmin/:path*',
         '/colegio/:path*', // Aplica a todas las rutas de colegio
-        '/boxcut',
         '/configuracion/:path*'
     ]
 };

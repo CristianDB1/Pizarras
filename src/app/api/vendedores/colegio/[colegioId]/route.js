@@ -12,10 +12,8 @@ export async function GET(request, { params }) {
                 v.usuario,
                 v.estatus,
                 v.rol,
-                v.created_at,
                 COUNT(b.id_boleto) as boletos_vendidos,
-                SUM(b.precio) as total_ventas,
-                (SUM(b.precio) * v.comision / 100) as comision
+                COALESCE(SUM(b.precio), 0) as total_ventas
              FROM vendedores v
              LEFT JOIN boletos b ON v.id_vendedor = b.id_vendedor 
                 AND b.colegio_id = v.colegio_id
@@ -33,9 +31,9 @@ export async function GET(request, { params }) {
             nombre: vendedor.nombre,
             boletos: vendedor.boletos_vendidos || 0,
             ventas: vendedor.total_ventas || 0,
-            comision: vendedor.comision || 0,
+            comision: (vendedor.total_ventas || 0) * 0.1, // 10% de comisión (ajusta según tu tabla)
             estado: vendedor.estatus,
-            iniciales: vendedor.nombre?.substring(0, 2).toUpperCase()
+            iniciales: vendedor.nombre?.substring(0, 2).toUpperCase() || 'NN'
         }));
         
         return NextResponse.json(formattedData);

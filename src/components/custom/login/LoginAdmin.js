@@ -61,9 +61,21 @@ const LoginAdmin = () => {
             const usuario = data[0]
             console.log('📋 Usuario recibido:', usuario)
             
+            // Validar que tenga los campos necesarios
+            if (!usuario.rol) {
+                console.error('❌ Error: usuario no tiene campo rol', usuario)
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Datos de usuario incompletos',
+                    icon: 'error'
+                })
+                setLoading(false)
+                return
+            }
+            
             // PASO 2: Guardar sesión INMEDIATAMENTE
             console.log('💾 Guardando sesión con loginAdmin...')
-            loginAdmin(usuario) // ← ESTA ES LA FUNCIÓN IMPORTANTE
+            loginAdmin(usuario)
             
             // PASO 3: Verificar que se guardó correctamente
             console.log('🔍 Verificando localStorage:')
@@ -85,7 +97,7 @@ const LoginAdmin = () => {
             if (!verificarHora || (hour < 18 && hour >= 0)) {
                 console.log('✅ Autenticación exitosa, redirigiendo...')
                 
-                // PASO 6: Redirigir según rol
+                // PASO 6: Redirigir según rol - CORREGIDO
                 if (usuario.rol === 'superadmin') {
                     console.log('👑 Redirigiendo a superadmin dashboard')
                     router.push('/superadmin/dashboard')
@@ -102,8 +114,9 @@ const LoginAdmin = () => {
                         })
                     }
                 } else {
-                    console.log('🔄 Redirigiendo a boxCut como fallback')
-                    router.push('/boxCut')
+                    // Si llega aquí, es un rol no reconocido
+                    console.log(`❌ Rol no reconocido: ${usuario.rol}, redirigiendo a home`)
+                    router.push('/')
                 }
             } else {
                 console.log('⏰ Hora no permitida')

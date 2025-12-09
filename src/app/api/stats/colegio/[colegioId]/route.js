@@ -5,11 +5,12 @@ export async function GET(request, { params }) {
     try {
         const { colegioId } = params;
         
-        // Obtener ingresos totales (ejemplo)
+        // Obtener ingresos totales del último mes
         const [ingresos] = await pool.query(
-            `SELECT SUM(precio) as total 
+            `SELECT COALESCE(SUM(precio), 0) as total 
              FROM boletos 
-             WHERE colegio_id = ? AND DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)`,
+             WHERE colegio_id = ? 
+               AND DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)`,
             [colegioId]
         );
         
