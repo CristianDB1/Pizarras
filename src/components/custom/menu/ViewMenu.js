@@ -75,9 +75,11 @@ const ViewMenu = () => {
 
     return (
         <div className="relative min-h-screen w-full bg-[rgb(38,38,38)]">
-            <div className="w-full flex justify-center items-center text-2xl pt-6 pb-2">
-                <FaLeaf className="h-10 mr-2 text-green-700" />
-                <label className="text-[#FFF113]">El Trebol De La Suerte</label>
+            <div className="w-full flex flex-col items-center text-center pt-6 pb-2">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 to-purple-600 bg-clip-text text-transparent">
+                    TU SORTEO
+                </h1>
+                <p className="text-gray-300 text-sm mt-1">Sistema de Gestión</p>
             </div>
             
             <div className="w-full flex justify-center items-center flex-col space-y-1 pb-4">

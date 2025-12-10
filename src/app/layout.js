@@ -15,9 +15,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <link rel="icon" type="image/svg+xml" href="/Sencillo.svg" />
-        <link rel="icon" type="image/png" href="/Sencillo.png" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/logo.png" />
       </head>
       <body className={inter.className}>
         <TotalVentaProvider>

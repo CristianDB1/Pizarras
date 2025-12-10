@@ -163,11 +163,21 @@ const LoginAdmin = () => {
 
     return (
         <form onSubmit={handleSubmit(enviarDatos)} className="max-w-sm mx-auto w-full">
-            <div className="flex justify-center -mt-10 text-2xl text-white">
-                <img src="/noSencillo.png" alt="Logo" className="w-full h-[132px]" />
-            </div>
-            <div className="mb-6 text-white flex justify-center items-center text-xl">
-                Panel Administrativo
+            <div className="flex flex-col items-center justify-center -mt-10 mb-6">
+                <div className="relative w-24 h-24 mb-4">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-purple-600 rounded-full"></div>
+                    <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                    <span className="text-3xl font-bold bg-gradient-to-r from-red-600 to-purple-600 bg-clip-text text-transparent">
+                        TS
+                    </span>
+                    </div>
+                </div>
+                <h1 className="text-3xl font-bold text-white text-center">
+                    <span className="bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
+                    TU SORTEO
+                    </span>
+                </h1>
+                <p className="text-gray-300 text-sm mt-2">Panel Administrativo</p>
             </div>
             
             <div className="relative z-0 w-full px-8 mb-5 group">
