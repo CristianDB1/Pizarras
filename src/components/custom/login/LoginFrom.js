@@ -1,12 +1,11 @@
 'use client'
 import { FaUserCircle } from "react-icons/fa";
 import { PiPasswordFill } from "react-icons/pi";
-import { set, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import useSession from "@/hook/useSession";
 import { useRouter } from 'next/navigation'
 import Swal from 'sweetalert2'
 import { useState } from "react";
-import { error, loading } from "../alerts/menu/Alerts";
 
 const LoginForm = () => {
   const { login } = useSession();
@@ -15,55 +14,89 @@ const LoginForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
-    formState: { errors },
   } = useForm();
+
   const enviarDatos = async (dataUser) => {
-
     setLoading(true)
-    const options = {
-      method: 'POST',
-      header: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(dataUser)
-    }
-    await fetch("/api/login", options)
-      .then(res => res.json())
-      .then(data => processData(data))
-      .finally(() => {
-        setLoading(false)
+    
+    try {
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dataUser)
+      }
+      
+      const response = await fetch("/api/login", options)
+      const data = await response.json()
+      
+      processData(data)
+      
+    } catch (error) {
+      console.error('Error en login:', error)
+      Swal.fire({
+        position: 'top-center',
+        title: 'Error',
+        text: 'Error de conexión con el servidor',
+        icon: 'error',
+        showConfirmButton: false,
+        timer: 2500
       })
-
-
+      setLoading(false)
+    }
   }
 
   const processData = (data) => {
-    if (data.length === 0) {
+    console.log('🔧 Procesando datos del login...', data)
+    
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      console.log('❌ No hay datos o array vacío')
       Swal.fire({
-        position: 'top-center',
         title: 'Error',
         text: 'Usuario o contraseña incorrectos',
         icon: 'error',
-        showConfirmButton: false,
-        timer: 2500
+        showConfirmButton: true, // Cambiado a true para debugging
+        confirmButtonText: 'OK'
       })
       setLoading(false)
       return;
-    } else if (data[0].Estatus === 'baja') {
+    }
+
+    // Normalizar datos - manejar tanto array como objeto
+    const userData = Array.isArray(data) ? data[0] : data;
+    console.log('👤 Datos del usuario:', userData)
+    
+    // CORRECCIÓN: Definir 'rol' aquí antes de usarlo
+    let rol = 'vendedor'; // Valor por defecto
+    
+    if (userData.rol) {
+      rol = userData.rol; // Si viene el campo rol en los datos
+    } else if (userData.sucursal === "Loteria") {
+      rol = 'staff'; // Compatibilidad con sistema antiguo
+    }
+    
+    console.log('🎭 Rol determinado:', rol)
+
+    // Verificar estatus (ambas versiones por compatibilidad)
+    const estatus = userData.Estatus || userData.estatus;
+    
+    if (estatus === 'baja' || estatus === 'inactivo') {
+      console.log('❌ Usuario inactivo')
       Swal.fire({
-        position: 'top-center',
         title: 'Error',
-        text: 'Usuario bloqueado por el  administrador',
+        text: 'Usuario bloqueado por el administrador',
         icon: 'error',
-        showConfirmButton: false,
-        timer: 2500
+        showConfirmButton: true,
+        confirmButtonText: 'OK'
       })
       setLoading(false)
-      return
-    }else if (data[0].Estatus === 'suspendido') {
+      return;
+    }
+
+    if (estatus === 'suspendido') {
+      console.log('❌ Usuario suspendido')
       Swal.fire({
-        position: 'top-center',
         title: 'Cuenta suspendida',
         html: `
           <div style="font-size:18px; font-weight:bold; color:#b91c1c;">
@@ -87,23 +120,33 @@ const LoginForm = () => {
       return;
     }
 
-    let time = data[0].requestTime.indexOf('T') > 0 ? data[0].requestTime.split('T')[1].split('.')[0] : data[0].requestTime;
-    let hour = parseInt(time.split(':')[0]);
+    // Estructurar datos para el sistema
+    const formattedUserData = {
+      id_vendedor: userData.id_vendedor || userData.id,
+      nombre: userData.Nombre || userData.nombre,
+      usuario: userData.usuario,
+      rol: rol, // Usamos la variable 'rol' que definimos arriba
+      comision: userData.comision || 0,
+      estatus: estatus,
+      Estatus: estatus, // Para compatibilidad
+      colegio_id: userData.colegio_id,
+      Puntos: userData.Puntos || 0,
+      sucursal: userData.sucursal,
+      mensaje: userData.mensaje
+    };
 
-    //hour < 18 && hour >= 0
+    console.log('💾 Datos formateados:', formattedUserData)
 
-const verificarHora = false;
-
-if (!verificarHora || (hour < 18 && hour >= 0)) {
-  // Redirige al usuario a la página del menú
-  login(data[0]);
-  router.push('/menu');
-} else {
-  // Muestra un mensaje de error
-  error();
-}
-
+    // Guardar sesión y redirigir
+    console.log('🔄 Ejecutando login()...')
+    login(formattedUserData)
+    
+    console.log('🔄 Redirigiendo a /menu...')
+    router.push('/menu')
+    
+    setLoading(false)
   }
+
   if (isloading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -118,7 +161,6 @@ if (!verificarHora || (hour < 18 && hour >= 0)) {
   }
 
   return (
-
     <form onSubmit={handleSubmit(enviarDatos)} className="max-w-sm mx-auto w-full ">
       <div className="flex justify-center -mt-10 text-2xl text-white ">
         <img src="/noSencillo.png" alt="Logo" className="w-full h-[132px]" />
@@ -126,20 +168,36 @@ if (!verificarHora || (hour < 18 && hour >= 0)) {
       <div className="mb-6 text-white flex justify-center items-center">Bienvenido</div>
       <div className="relative z-0 w-full px-8 mb-5 group">
         <div className="relative">
-          <input {...register("user", { required: true })} className=" block py-2.5 px-0 w-full text-sm  text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-red-500 focus:outline-none focus:ring-0 relative pl-12" placeholder=" Usuario" required />
-          <FaUserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500 " />
+          <input 
+            {...register("user", { required: true })} 
+            className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 relative pl-12" 
+            placeholder="Usuario" 
+            required 
+          />
+          <FaUserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500" />
         </div>
-        <div className="relative ">
-          <input {...register("pass", { required: true })} type="password" className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-red-500 focus:outline-none focus:ring-0 pl-12" placeholder=" Password" required />
-          <PiPasswordFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500 " />
+        <div className="relative mt-6">
+          <input 
+            {...register("pass", { required: true })} 
+            type="password" 
+            className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 pl-12" 
+            placeholder="Contraseña" 
+            required 
+          />
+          <PiPasswordFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500" />
         </div>
       </div>
-      <div className=" relative z-0 px-8 ">
-        <button type="submit" className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-full px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800">Ingresar</button>
+      <div className="relative z-0 px-8 ">
+        <button 
+          type="submit" 
+          className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-full px-5 py-2.5 text-center"
+          disabled={isloading}
+        >
+          {isloading ? 'Ingresando...' : 'Ingresar'}
+        </button>
       </div>
     </form>
-
   );
-
 }
+
 export default LoginForm;

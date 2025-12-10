@@ -11,99 +11,131 @@ const useSession = () => {
     const isBrowser = typeof window !== 'undefined'
 
     const login = useCallback((userData) => {
+        console.log('🔄 useSession.login() ejecutándose con:', userData);
+        
         if (isBrowser) {
-            if (userData.Estatus === 'activo') {
-                localStorage.setItem('logged', 'true')
-                localStorage.setItem('userType', 'vendedor')
-                localStorage.setItem('userData', JSON.stringify(userData))
+            // CORRECCIÓN: Verificar estatus (ambas versiones por compatibilidad)
+            const estatus = userData.estatus || userData.Estatus;
+            console.log('📋 Estatus del usuario:', estatus);
+            
+            if (estatus === 'activo') {
+                console.log('✅ Usuario activo, guardando sesión...');
+                localStorage.setItem('logged', 'true');
+                
+                // Determinar userType basado en rol
+                let userType = 'vendedor'; // Por defecto
+                if (userData.rol === 'staff') {
+                    userType = 'staff';
+                } else if (userData.rol === 'vendedor') {
+                    userType = 'vendedor';
+                }
+                
+                localStorage.setItem('userType', userType);
+                localStorage.setItem('userData', JSON.stringify(userData));
+                
+                console.log('💾 Sesión guardada:', {
+                    logged: 'true',
+                    userType: userType,
+                    userData: userData
+                });
             } else {
-                localStorage.setItem('logged', 'false')
-                localStorage.removeItem('userData')
-                localStorage.removeItem('userType')
+                console.log('❌ Usuario no activo, limpiando sesión...');
+                localStorage.setItem('logged', 'false');
+                localStorage.removeItem('userData');
+                localStorage.removeItem('userType');
             }
         }
     }, [isBrowser])
 
     const loginAdmin = useCallback((userData) => {
+        console.log('🔄 useSession.loginAdmin() ejecutándose');
         if (isBrowser) {
-            localStorage.setItem('logged', 'true')
-            localStorage.setItem('userType', userData.rol)
-            localStorage.setItem('userData', JSON.stringify(userData))
-            localStorage.setItem('userDataAdmin', JSON.stringify(userData))
+            localStorage.setItem('logged', 'true');
+            localStorage.setItem('userType', userData.rol || 'admin');
+            localStorage.setItem('userData', JSON.stringify(userData));
+            localStorage.setItem('userDataAdmin', JSON.stringify(userData));
         }
     }, [isBrowser])
 
     const loginWinner = useCallback((userData) => {
+        console.log('🔄 useSession.loginWinner() ejecutándose');
         if (isBrowser) {
-            localStorage.setItem('logged', 'true')
-            localStorage.setItem('userType', 'winner')
-            localStorage.setItem('userData', JSON.stringify(userData))
-            localStorage.setItem('userDataWinner', JSON.stringify(userData))
+            localStorage.setItem('logged', 'true');
+            localStorage.setItem('userType', 'winner');
+            localStorage.setItem('userData', JSON.stringify(userData));
+            localStorage.setItem('userDataWinner', JSON.stringify(userData));
         }
     }, [isBrowser])
 
     const logout = useCallback(() => {
+        console.log('🔄 useSession.logout() ejecutándose');
         if (isBrowser) {
-            localStorage.clear()
+            localStorage.clear();
+            console.log('✅ Sesión limpiada');
         }
     }, [isBrowser])
 
     const getUserData = useCallback(() => {
         if (isBrowser) {
-            const userData = localStorage.getItem('userData')
-            return userData ? JSON.parse(userData) : null
+            const userData = localStorage.getItem('userData');
+            const parsed = userData ? JSON.parse(userData) : null;
+            console.log('📋 getUserData():', parsed);
+            return parsed;
         }
-        return null
+        return null;
     }, [isBrowser])
 
-    // AGREGAR ESTA FUNCIÓN NUEVA
     const getUserName = useCallback(() => {
         if (isBrowser) {
-            const userData = getUserData()
-            return userData?.nombre || userData?.usuario || ''
+            const userData = getUserData();
+            return userData?.nombre || userData?.usuario || '';
         }
-        return ''
+        return '';
     }, [isBrowser, getUserData])
 
     const getUserType = useCallback(() => {
         if (isBrowser) {
-            return localStorage.getItem('userType')
+            const userType = localStorage.getItem('userType');
+            console.log('📋 getUserType():', userType);
+            return userType;
         }
-        return null
+        return null;
     }, [isBrowser])
 
     const isLoggedIn = useCallback(() => {
         if (isBrowser) {
-            return localStorage.getItem('logged') === 'true'
+            const logged = localStorage.getItem('logged') === 'true';
+            console.log('📋 isLoggedIn():', logged);
+            return logged;
         }
-        return false
+        return false;
     }, [isBrowser])
 
     const isSuperAdmin = useCallback(() => {
         if (isBrowser) {
-            return localStorage.getItem('userType') === 'superadmin'
+            return localStorage.getItem('userType') === 'superadmin';
         }
-        return false
+        return false;
     }, [isBrowser])
 
     const isAdminColegio = useCallback(() => {
         if (isBrowser) {
-            return localStorage.getItem('userType') === 'admin_colegio'
+            return localStorage.getItem('userType') === 'admin_colegio';
         }
-        return false
+        return false;
     }, [isBrowser])
 
     const isVendedor = useCallback(() => {
         if (isBrowser) {
-            const userType = localStorage.getItem('userType')
-            return userType === 'vendedor' || userType === 'staff'
+            const userType = localStorage.getItem('userType');
+            return userType === 'vendedor' || userType === 'staff';
         }
-        return false
+        return false;
     }, [isBrowser])
 
     const getColegioId = useCallback(() => {
-        const userData = getUserData()
-        return userData?.colegio_id || null
+        const userData = getUserData();
+        return userData?.colegio_id || null;
     }, [getUserData])
 
     return { 
@@ -123,4 +155,4 @@ const useSession = () => {
     }
 }
 
-export default useSession
+export default useSession;
