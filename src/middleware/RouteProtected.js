@@ -1,19 +1,36 @@
-'use client'
-import VailidationEstatus from "@/hook/validationEstatus";
+"use client";
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import useSession from "@/hook/useSession";
 
-const RouteProtected = ({ children }) => {
-    VailidationEstatus();
+export default function RouteProtected({ children }) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const session = useSession();
 
-    let logged = false;
-    if (typeof window !== 'undefined') {
-        logged = localStorage.getItem('logged') === 'true';
-    }
+    useEffect(() => {
+        if (!session.isLoggedIn()) {
+            router.push("/");
+            return;
+        }
 
-    if (!logged && typeof window !== 'undefined') { // Verifica si estás en el lado del cliente
-        window.location.href = '/';
-        return null;
-    }
+        const userType = session.getUserType();
+        if (!(userType === "vendedor" || userType === "staff")) {
+            router.push("/");
+            return;
+        }
+
+        // Validar colegio
+        const colegioIdUsuario = session.getColegioId();
+        const match = pathname.match(/\/colegio\/(\d+)/);
+
+        if (match) {
+            const colegioIdURL = parseInt(match[1]);
+            if (colegioIdURL !== colegioIdUsuario) {
+                router.push(`/colegio/${colegioIdUsuario}/vendedor/dashboard`);
+            }
+        }
+    }, [session, router, pathname]);
+
     return children;
-};
-
-export default RouteProtected;
+}

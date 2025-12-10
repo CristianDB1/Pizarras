@@ -1,56 +1,51 @@
+// src/components/custom/menu/ViewMenu.js (MODIFICADO)
 'use client'
 import { IoTicketSharp } from "react-icons/io5";
 import { ImStatsDots } from "react-icons/im";
-import { FaCashRegister, FaHome } from "react-icons/fa";
+import { FaCashRegister} from "react-icons/fa";
 import { RiLogoutBoxFill } from "react-icons/ri";
 import useSession from "@/hook/useSession";
 import { useRouter } from 'next/navigation'
-import AlertMenu from "../alerts/menu/AlertMenu";
 import { useEffect, useState } from "react";
-import { FaClover } from "react-icons/fa6";
 import { GiPodiumWinner } from "react-icons/gi";
-
+import { FaLeaf } from "react-icons/fa";
 
 const ViewMenu = () => {
-    let mensaje = null;
     const router = useRouter();
-    let userData = null;
-
     const { logout } = useSession();
+    const [userData, setUserData] = useState(null);
     const [cerrarSession, setCerrarSession] = useState(false);
+
+    useEffect(() => {
+        // Obtener datos del usuario desde localStorage
+        if (typeof window !== 'undefined') {
+            const data = JSON.parse(localStorage.getItem('userData'));
+            setUserData(data);
+        }
+    }, []);
 
     const session = () => {
         setCerrarSession(true);
     };
 
-    if (cerrarSession) {
-        logout();
-        window.location.href = '/';
-    }
+    useEffect(() => {
+        if (cerrarSession) {
+            logout();
+            window.location.href = '/';
+        }
+    }, [cerrarSession, logout]);
 
-    let accessBlocked = false;
-
-    if (typeof window !== 'undefined') {
-        userData = JSON.parse(localStorage.getItem('userData'));
-        mensaje = userData.mensaje;
-        const currentHour = new Date().getHours();
-    }
-
+    // Navegación según el componente existente
     const handleTypeDraw = () => {
-        if (!accessBlocked)
-            router.push('/typeDraw')
+        router.push('/typeDraw')
     }
 
-    const handleboxCut = async (userData) => {
-        console.log("userData:", userData.sucursal);
-        if (userData && userData.sucursal === "Loteria") {
-            console.log("Accediendo a BoxCutLotery");
+    const handleboxCut = () => {
+        if (userData && (userData.rol === 'staff' || userData.rol === 'vendedor')) {
             router.push('boxCutLotery');
         } else {
-            console.log("Acceso denegado a BoxCutLotery");
             router.push('/loginAdmin')
         }
-
     }
 
     const handleWinnerSraffle = () => {
@@ -61,93 +56,115 @@ const ViewMenu = () => {
         router.push('/winningTicket')
     }
 
-    // Verificar si el usuario pertenece a la sucursal Loteria
-    const isLoteriaUser = userData && userData.sucursal === "Loteria";
+    // Determinar qué mostrar según rol
+    const isStaff = userData && userData.rol === 'staff';
+    const isVendedor = userData && userData.rol === 'vendedor';
+
+    if (!userData) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="relative w-32 h-32">
+                    <div className="absolute top-0 left-0 animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-500"></div>
+                    <div className="absolute top-0 left-0 flex items-center justify-center h-32 w-32">
+                        <span className="text-white text-sm">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="relative min-h-screen">
-            {accessBlocked ? (
-                <div>
-                    <AlertMenu />
-                </div>
-            ) : (
-                <div className="w-full bg-[rgb(38,38,38)]">
-                    <div className=" w-full flex justify-center items-center text-2xl  pt-6 pb-2">
-                        <FaClover className="h-10 mr-2 text-green-700" />
-                        <label className="text-[#FFF113]">El Trebol De La Suerte</label>
-                    </div>
-                    <div className="w-full flex justify-center items-center  flex-col space-y-1 pb-4">
-                        {userData ? (
-                            <>
-                                <label className="text-white text-xl">Vendedor: {userData.Nombre}</label>
-                                <label className="text-white text-xl">Sucursal: {userData.sucursal}</label>
-                            </>
-                        ) : (
-                            // Maneja el caso en que no hay datos de usuario
-                            <p className="text-white">Loading...</p>
-                        )}
-                    </div>
-                    {mensaje && (
-                        <div className="flex justify-center items-center px-8">
-                            <div className="flex justify-center items-center text-lg text-white  bg-green-700 p-4 rounded-xl">
-                                {mensaje}
-                            </div>
-                        </div>
-                    )}
+        <div className="relative min-h-screen w-full bg-[rgb(38,38,38)]">
+            <div className="w-full flex flex-col items-center text-center pt-6 pb-2">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 to-purple-600 bg-clip-text text-transparent">
+                    TU SORTEO
+                </h1>
+                <p className="text-gray-300 text-sm mt-1">Sistema de Gestión</p>
+            </div>
+            
+            <div className="w-full flex justify-center items-center flex-col space-y-1 pb-4">
+                <label className="text-white text-xl">Vendedor: {userData.Nombre || userData.nombre}</label>
+                <label className="text-white text-xl">
+                    {isStaff ? "Rol: Staff" : isVendedor ? "Rol: Vendedor" : "Rol: No definido"}
+                </label>
+                {userData.colegio_id && (
+                    <label className="text-white text-sm">Colegio ID: {userData.colegio_id}</label>
+                )}
+            </div>
 
-                    <div className="w-full flex flex-col space-y-6 pt-6 px-10 ">
-                        <div className="relative">
-                            <button className="w-full rounded-lg bg-red-700 text-white text-2xl  h-[66px] relative" onClick={handleTypeDraw}>
-                                Boletos
-                                <IoTicketSharp className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
-                            </button>
-                        </div>
-                        {isLoteriaUser && (
-                            <div className="relative">
-                                <button
-                                    onClick={() => handleWinnerSraffle()}
-                                    className="w-full rounded-lg bg-red-700 text-white text-2xl  h-[66px] relative">
-                                    Resultados
-                                    <ImStatsDots className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
-                                </button>
-                            </div>
-                        )}
-                        <div className="relative">
-                            <button
-                                onClick={() => handleboxCut(userData)}
-                                className="w-full rounded-lg bg-red-700 text-white text-2xl  h-[66px] relative" >
-                                Corte de caja
-                                <FaCashRegister className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
-                            </button>
-                        </div>
-
-                        {/* Mostrar botón de boletos ganadores solo si el usuario es de la sucursal Loteria */}
-                        {isLoteriaUser && (
-                            <div className="relative">
-                                <button
-                                    onClick={() => handleWinnigTicket(userData)}
-                                    className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative" >
-                                    Boletos ganadores
-                                    <GiPodiumWinner className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="relative">
-                            <button className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative" onClick={session}>
-                                Cerrar sesión
-                                <RiLogoutBoxFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
-                            </button>
-                            <div>
-                                {cerrarSession}
-                            </div>
-                        </div>
+            {userData.mensaje && (
+                <div className="flex justify-center items-center px-8 mb-4">
+                    <div className="flex justify-center items-center text-lg text-white bg-green-700 p-4 rounded-xl">
+                        {userData.mensaje}
                     </div>
                 </div>
             )}
+
+            <div className="w-full flex flex-col space-y-6 pt-6 px-10">
+                {/* BOTÓN DE BOLETOS - Visible para ambos roles */}
+                <div className="relative">
+                    <button 
+                        className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative hover:bg-red-800 transition-colors"
+                        onClick={handleTypeDraw}
+                    >
+                        Boletos
+                        <IoTicketSharp className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
+                    </button>
+                </div>
+
+                {/* BOTÓN DE RESULTADOS - Solo para staff */}
+                {isStaff && (
+                    <div className="relative">
+                        <button
+                            onClick={handleWinnerSraffle}
+                            className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative hover:bg-red-800 transition-colors"
+                        >
+                            Resultados
+                            <ImStatsDots className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
+                        </button>
+                    </div>
+                )}
+
+                {/* BOTÓN DE CORTE DE CAJA - Visible para ambos roles */}
+                <div className="relative">
+                    <button
+                        onClick={handleboxCut}
+                        className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative hover:bg-red-800 transition-colors"
+                    >
+                        Corte de caja
+                        <FaCashRegister className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
+                    </button>
+                </div>
+
+                {/* BOTÓN DE BOLETOS GANADORES - Solo para staff */}
+                {isStaff && (
+                    <div className="relative">
+                        <button
+                            onClick={handleWinnigTicket}
+                            className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative hover:bg-red-800 transition-colors"
+                        >
+                            Boletos ganadores
+                            <GiPodiumWinner className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
+                        </button>
+                    </div>
+                )}
+
+                {/* BOTÓN DE CERRAR SESIÓN - Visible para ambos roles */}
+                <div className="relative">
+                    <button 
+                        className="w-full rounded-lg bg-red-700 text-white text-2xl h-[66px] relative hover:bg-red-800 transition-colors"
+                        onClick={session}
+                    >
+                        Cerrar sesión
+                        <RiLogoutBoxFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Puntos - Visible para ambos roles */}
             <div className="fixed bottom-4 right-4 bg-green-700 flex items-center justify-center text-white h-[60px] w-[160px] rounded-full">
                 <div className="flex flex-row">
-                    {userData ? `Puntos: ${userData.Puntos}` : 'Cargando...'}
+                    Puntos: {userData.Puntos || 0}
                 </div>
             </div>
         </div>

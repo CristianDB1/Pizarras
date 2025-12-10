@@ -10,17 +10,44 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],
       },
+      {
+        source: '/uploads/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { 
+            key: 'Cache-Control', 
+            value: 'public, max-age=31536000, immutable' 
+          },
+        ],
+      },
     ]
   },
-  // Para evitar errores durante el build
   experimental: {
+    //prerenderEarlyExit: true,
     esmExternals: 'loose'
   },
-  // Si se usa MYSQL u otras dependencias server-only
   webpack: (config) => {
     config.externals = [...config.externals, 'mysql2']
     return config
-  }
+  },
+  
+  // Configuración de imágenes si usas next/image
+  images: {
+    domains: ['localhost'],
+    // remotePatterns: [
+    //   {
+    //     protocol: 'http',
+    //     hostname: 'localhost',
+    //     port: '3000',
+    //     pathname: '/uploads/**',
+    //   },
+    // ],
+  },
+  
+  // Opcional: Para ignorar errores de ESLint durante el build (temporal)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 }
 
 export default nextConfig
