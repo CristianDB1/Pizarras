@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
     Pencil, 
     Save, 
@@ -24,7 +24,7 @@ export default function SorteosManager({ colegioId }) {
     const [mensaje, setMensaje] = useState('')
 
     // Cargar sorteos del colegio
-    const cargarSorteos = async () => {
+    const cargarSorteos = useCallback(async () => {
         if (!colegioId) {
             setError('No hay ID de colegio')
             return
@@ -55,8 +55,9 @@ export default function SorteosManager({ colegioId }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [colegioId]); // ← IMPORTANTE: Dependencias de useCallback
 
+    // 2. useEffect con la función estable
     useEffect(() => {
         if (colegioId) {
             cargarSorteos();
