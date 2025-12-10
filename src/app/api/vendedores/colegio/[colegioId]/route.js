@@ -5,42 +5,50 @@ export async function GET(request, { params }) {
     try {
         const { colegioId } = params;
         
-        const [rows] = await pool.query(
-            `SELECT 
-                v.id_vendedor as id,
-                v.nombre,
-                v.usuario,
-                v.estatus,
-                v.rol,
-                COUNT(b.id_boleto) as boletos_vendidos,
-                COALESCE(SUM(b.precio), 0) as total_ventas
-             FROM vendedores v
-             LEFT JOIN boletos b ON v.id_vendedor = b.id_vendedor 
-                AND b.colegio_id = v.colegio_id
-                AND MONTH(b.created_at) = MONTH(CURDATE())
-             WHERE v.colegio_id = ? 
-                AND v.estatus = 'activo'
-             GROUP BY v.id_vendedor
-             ORDER BY total_ventas DESC`,
+        console.log('👥 Obteniendo vendedores del colegio:', colegioId);
+        
+        // Validar que el colegio existe
+        const [colegioExiste] = await pool.query(
+            `SELECT id_colegio FROM colegios WHERE id_colegio = ?`,
             [colegioId]
         );
         
-        // Formatear datos para el dashboard
-        const formattedData = rows.map(vendedor => ({
-            id: vendedor.id,
-            nombre: vendedor.nombre,
-            boletos: vendedor.boletos_vendidos || 0,
-            ventas: vendedor.total_ventas || 0,
-            comision: (vendedor.total_ventas || 0) * 0.1, // 10% de comisión (ajusta según tu tabla)
-            estado: vendedor.estatus,
-            iniciales: vendedor.nombre?.substring(0, 2).toUpperCase() || 'NN'
-        }));
+        if (colegioExiste.length === 0) {
+            return NextResponse.json(
+                { error: 'Colegio no encontrado' },
+                { status: 404 }
+            );
+        }
         
-        return NextResponse.json(formattedData);
+        // Obtener vendedores del colegio
+        const [vendedores] = await pool.query(
+            `SELECT 
+                id_vendedor,
+                nombre,
+                usuario,
+                fecha_ingreso,
+                domicilio,
+                telefono,
+                comision,
+                estatus,
+                colegio_id,
+                rol,
+                created_at
+             FROM vendedores 
+             WHERE colegio_id = ?
+             ORDER BY nombre ASC`,
+            [colegioId]
+        );
+        
+        return NextResponse.json(vendedores);
+        
     } catch (error) {
-        console.error('Error obteniendo vendedores:', error);
+        console.error('❌ Error obteniendo vendedores:', error);
         return NextResponse.json(
-            { error: 'Error interno del servidor' },
+            { 
+                error: 'Error interno del servidor',
+                details: error.message 
+            },
             { status: 500 }
         );
     }
