@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import useSession from '@/hook/useSession'
 import Swal from 'sweetalert2'
 import Link from 'next/link'
+import Image from 'next/image';
 
 export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
     const router = useRouter()
@@ -363,7 +364,7 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                         </div>
                         <div className="flex items-center gap-3">
                             {colegio.logo_url && (
-                                <img 
+                                <Image 
                                     src={colegio.logo_url} 
                                     alt={colegio.nombre}
                                     className="w-12 h-12 rounded-full border"

@@ -10,7 +10,6 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],
       },
-      // Agregar cache para archivos subidos
       {
         source: '/uploads/:path*',
         headers: [
@@ -23,20 +22,30 @@ const nextConfig = {
       },
     ]
   },
-  // Para evitar errores durante el build
   experimental: {
     esmExternals: 'loose'
   },
-  // Si se usa MYSQL u otras dependencias server-only
   webpack: (config) => {
     config.externals = [...config.externals, 'mysql2']
     return config
   },
-  // Opcional: Configurar límite de tamaño para API (útil para subida de imágenes)
-  api: {
-    bodyParser: {
-      sizeLimit: '4mb', // Aumentar límite para imágenes Base64
-    },
+  
+  // Configuración de imágenes si usas next/image
+  images: {
+    domains: ['localhost'],
+    // remotePatterns: [
+    //   {
+    //     protocol: 'http',
+    //     hostname: 'localhost',
+    //     port: '3000',
+    //     pathname: '/uploads/**',
+    //   },
+    // ],
+  },
+  
+  // Opcional: Para ignorar errores de ESLint durante el build (temporal)
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 }
 

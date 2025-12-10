@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react' // Agregar useRef aquí
+import { useState, useEffect, useRef } from 'react'
 import useSession from '@/hook/useSession'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image';
 
 export default function SuperAdminDashboard() {
     const session = useSession()
@@ -62,7 +63,7 @@ export default function SuperAdminDashboard() {
             hasLoaded.current = true
         }
         
-    }, [isClient]) // IMPORTANTE: Solo dependencia de isClient
+    }, [isClient, router, session]); // IMPORTANTE: Solo dependencia de isClient
 
     const loadColegios = async () => {
         try {
@@ -247,7 +248,7 @@ export default function SuperAdminDashboard() {
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 {colegio.logo_url ? (
-                                                    <img 
+                                                    <Image 
                                                         src={colegio.logo_url} 
                                                         alt={colegio.nombre}
                                                         className="w-10 h-10 rounded-full"

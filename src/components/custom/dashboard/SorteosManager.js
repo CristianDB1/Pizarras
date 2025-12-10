@@ -59,9 +59,9 @@ export default function SorteosManager({ colegioId }) {
 
     useEffect(() => {
         if (colegioId) {
-            cargarSorteos()
+            cargarSorteos();
         }
-    }, [colegioId])
+    }, [colegioId, cargarSorteos]);
 
     // Iniciar edición
     const iniciarEdicion = (sorteo) => {
@@ -560,7 +560,7 @@ export default function SorteosManager({ colegioId }) {
                 <ul className="text-sm text-blue-700 space-y-1">
                     <li>• ✅ <strong>Campos editables:</strong> Nombre, Precio, Comisión, Premios</li>
                     <li>• 🔒 <strong>No editable desde aquí:</strong> Dígitos del boleto (solo superadmin)</li>
-                    <li>• ⚠️ Solo puedes editar sorteos con estado "Activo"</li>
+                    <li>• ⚠️ Solo puedes editar sorteos con estado &quot;Activo&quot;</li>
                     <li>• 📅 La fecha del sorteo no es editable</li>
                 </ul>
             </div>

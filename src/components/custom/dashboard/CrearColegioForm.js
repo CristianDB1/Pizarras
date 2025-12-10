@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import useSession from '@/hook/useSession'
 import { useRouter } from 'next/navigation'
 import Swal from 'sweetalert2'
+import Image from 'next/image';
 
 export default function CrearColegioForm() {
     const session = useSession()
@@ -344,10 +345,12 @@ export default function CrearColegioForm() {
                                             Vista previa del logo
                                         </label>
                                         <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
-                                            <img 
-                                                src={logoPreview} 
-                                                alt="Preview" 
-                                                className="w-full h-full object-contain"
+                                            <Image 
+                                            src={logoPreview} 
+                                            alt="Preview" 
+                                            width={100} // Especificar width
+                                            height={100} // Especificar height
+                                            priority={false} // Opcional
                                             />
                                         </div>
                                     </div>
