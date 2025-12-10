@@ -23,6 +23,7 @@ const nextConfig = {
     ]
   },
   experimental: {
+    //prerenderEarlyExit: true,
     esmExternals: 'loose'
   },
   webpack: (config) => {

@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSession from '@/hook/useSession'
 
-export default function CreacionExitosa() {
+function ContenidoDeExito(){
     const session = useSession()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -81,4 +81,12 @@ export default function CreacionExitosa() {
             </div>
         </div>
     )
+}
+
+export default function CreacionExitosa() {
+
+    return(<Suspense fallback={<div>Cargando parametros...</div>}>
+        <ContenidoDeExito />
+        </Suspense>);
+    
 }
