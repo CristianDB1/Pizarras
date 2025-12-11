@@ -2,7 +2,7 @@
 import { PiNumberSquareOneFill } from "react-icons/pi";
 import { PiNumberSquareTwoFill } from "react-icons/pi";
 import { BsCalendarDateFill } from "react-icons/bs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import generatePDF from "../tickectBuy/pdf";
 import {
   ErrorPrizes,
@@ -18,87 +18,176 @@ import updateInfo from "../validation/updateInfo";
 import Swal from "sweetalert2";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 
-const TickectBuyEspecial = ({ selectedDate }) => {
-  const [prizes, setPrizes] = useState(selectedDate);
+const TickectBuyEspecial = () => {
+  const [prizes, setPrizes] = useState(null);
   const [ticketNumber, setTicketNumber] = useState("");
   const [foundTope, setFoundTope] = useState(null);
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [boletos, setBoletos] = useState([]);
+  const [boletosVendidos, setBoletosVendidos] = useState([]);
   const router = useRouter();
   const [previewModal, setPreviewModal] = useState(false);
   const [precioFijo, setPrecioFijo] = useState("");
-  const {addVenta}= useTotalVenta();
-  
+  const {addVenta} = useTotalVenta();
+  const [sorteoData, setSorteoData] = useState(null);
+  const [colegioId, setColegioId] = useState(null);
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
+    console.log('🎯 TickectBuyEspecial montado');
+    
+    // Obtener datos del sorteo desde localStorage
     const ticket = localStorage.getItem("TickectEspecial");
-    setPrizes(JSON.parse(ticket));
-
-    const options = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    };
-
-    fetch("/api/ticketBuy", options)
-      .then((res) => res.json())
-      .then((data) => {
-        setBoletos(data.result);
+    
+    if (!ticket) {
+      console.error('❌ No hay datos en localStorage');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se encontró información del sorteo. Vuelve a seleccionar un sorteo.'
+      }).then(() => {
+        router.push('/typedraw');
       });
+      return;
+    }
 
-      //Cargar precio fijo desde la nueva API
-    fetch(`/api/leyenda3?t=${Date.now()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setPrecioFijo(data.precioBoleto);
-      })
-      .catch(error => {
-        console.error("Error cargando precio fijo:", error);
+    try {
+      const parsedTicket = JSON.parse(ticket);
+      console.log('✅ Datos del sorteo cargados:', parsedTicket);
+      
+      // Verificar que el sorteo esté activo
+      if (parsedTicket.estatus !== 'activo') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sorteo no disponible',
+          text: 'Este sorteo no está activo para venta'
+        }).then(() => {
+          router.push('/typedraw');
+        });
+        return;
+      }
+      
+      setPrizes(parsedTicket);
+      setSorteoData(parsedTicket);
+      
+      // Obtener datos del usuario
+      const storedUserData = JSON.parse(localStorage.getItem("userData"));
+      console.log('👤 Datos de usuario:', storedUserData);
+      setUserData(storedUserData);
+      
+      if (storedUserData && storedUserData.colegio_id) {
+        setColegioId(storedUserData.colegio_id);
+      }
+
+      // Establecer precio fijo desde datos del sorteo
+      if (parsedTicket.precio_boleto) {
+        console.log('💰 Precio del boleto:', parsedTicket.precio_boleto);
+        setPrecioFijo(parsedTicket.precio_boleto);
+      } else {
+        console.log('⚠️ No hay precio, cargando desde API alternativa');
+        fetch(`/api/leyenda3?t=${Date.now()}`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log('💰 Precio desde API:', data.precioBoleto);
+            setPrecioFijo(data.precioBoleto);
+          })
+          .catch(error => {
+            console.error("Error cargando precio fijo:", error);
+          });
+      }
+
+      // Cargar boletos vendidos
+      const sorteoId = parsedTicket.Idsorteo || parsedTicket.id_sorteo;
+      if (sorteoId) {
+        console.log('📥 Cargando boletos vendidos para sorteo:', sorteoId);
+        fetchBoletosVendidos(sorteoId);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error parsing sorteo data:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al cargar datos del sorteo'
+      }).then(() => {
+        router.push('/typedraw');
       });
-  }, []);
+    }
+  }, [router]);
 
-  if (!prizes) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="relative w-32 h-32">
-          <div className="absolute top-0 left-0 animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-500"></div>
-          <div className="absolute top-0 left-0 flex items-center justify-center h-32 w-32">
-            <span className="text-white text-sm">Cargando...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Función para obtener boletos vendidos desde la nueva API - CORREGIDA
+  const fetchBoletosVendidos = useCallback(async (sorteoId) => {
+    try {
+      const user = userData || JSON.parse(localStorage.getItem("userData"));
+      const colegioIdParam = colegioId || user?.colegio_id;
+      
+      // ✅ CORRECCIÓN: Usar la ruta correcta /api/boletos/sorteo/[id]
+      const url = colegioIdParam 
+        ? `/api/boletos/sorteo/${sorteoId}?colegio_id=${colegioIdParam}`
+        : `/api/boletos/sorteo/${sorteoId}`;
+      
+      console.log('📤 Fetching boletos vendidos from:', url);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`❌ Error ${response.status} al obtener boletos`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('📥 Respuesta de boletos vendidos:', data);
+      
+      if (data.success) {
+        // Mapear datos a formato compatible
+        const mappedBoletos = data.datos.map(boleto => ({
+          Boleto: boleto.numero_boleto,
+          fecha_sorteo: prizes?.Fecha || sorteoData?.Fecha,
+        }));
+        setBoletosVendidos(mappedBoletos);
+        console.log(`✅ ${mappedBoletos.length} boletos vendidos cargados`);
+      }
+    } catch (error) {
+      console.error("❌ Error al obtener boletos vendidos:", error);
+    }
+  }, [colegioId, userData, prizes?.Fecha, sorteoData?.Fecha]);
 
   // Función para obtener un número aleatorio disponible para boletos especiales
-const getRandomNumberEspecial = async () => {
-  try {
-    setIsLoading(true);
+  const getRandomNumberEspecial = async () => {
+    try {
+      setIsLoading(true);
 
-    // Obtener los boletos ya vendidos
-    const options = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    };
+      if (!sorteoData) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo cargar información del sorteo'
+        });
+        return;
+      }
 
-    const response = await fetch("/api/ticketBuy", options);
-    const data = await response.json();
-
-    if (data.result) {
-      // Filtrar boletos vendidos para el sorteo actual
-      const boletosVendidos = data.result
-        .filter(ticket => ticket.fecha_sorteo === prizes.Fecha)
-        .map(ticket => ticket.Boleto);
-
+      console.log('🎲 Generando número aleatorio...');
+      
       // Generar números hasta encontrar uno disponible
       let numeroAleatorio;
       let intentos = 0;
-      const maxIntentos = 1000; // Para evitar loop infinito
+      const maxIntentos = 1000;
+      
+      // Obtener boletos ya vendidos
+      const boletosVendidosNumeros = boletosVendidos.map(b => b.Boleto);
+      console.log(`🎯 Boletos ya vendidos: ${boletosVendidosNumeros.length} números`);
 
       do {
-        numeroAleatorio = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        // Generar número con la cantidad de dígitos correcta
+        const maxNumber = Math.pow(10, sorteoData.digitos_boleto) - 1;
+        const randomNum = Math.floor(Math.random() * (maxNumber + 1));
+        numeroAleatorio = randomNum.toString().padStart(sorteoData.digitos_boleto, '0');
         intentos++;
-      } while (boletosVendidos.includes(parseInt(numeroAleatorio)) && intentos < maxIntentos);
+        
+        if (intentos % 100 === 0) {
+          console.log(`🔄 Intento ${intentos}: ${numeroAleatorio}`);
+        }
+      } while (boletosVendidosNumeros.includes(parseInt(numeroAleatorio)) && intentos < maxIntentos);
 
       if (intentos >= maxIntentos) {
         Swal.fire({
@@ -115,10 +204,11 @@ const getRandomNumberEspecial = async () => {
       // Establecer nombre por defecto
       setName("Trébol de la Suerte");
 
-      // Limpiar validación de tope (simular que el número está disponible)
+      // Limpiar validación de tope
       setFoundTope(null);
 
-      // Mostrar mensaje de éxito
+      console.log(`✅ Número generado: ${numeroAleatorio} (en ${intentos} intentos)`);
+      
       Swal.fire({
         icon: 'success',
         title: 'Número aleatorio generado',
@@ -127,18 +217,17 @@ const getRandomNumberEspecial = async () => {
         timerProgressBar: true,
         showConfirmButton: false
       });
+    } catch (error) {
+      console.error("❌ Error al obtener número aleatorio:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al conectar con el servidor'
+      });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error("Error al obtener número aleatorio:", error);
-    Swal.fire({
-      icon: 'error',
-      title: 'Error',
-      text: 'Error al conectar con el servidor'
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleTicketNumberChange = (e) => {
     let value = e.target.value;
@@ -147,91 +236,175 @@ const getRandomNumberEspecial = async () => {
     }
     setTicketNumber(value);
 
-    const ticket = boletos.find((ticket) => ticket.Boleto === Number(value));
+    if (sorteoData) {
+      const boletoExistente = boletosVendidos.find(
+        ticket => ticket.Boleto === Number(value)
+      );
 
-    if (ticket && ticket.fecha_sorteo === prizes.Fecha) {
-      setFoundTope(true);
-    } else {
-      setFoundTope(null);
+      if (boletoExistente) {
+        console.log(`❌ Boleto ${value} ya está vendido`);
+        setFoundTope(true);
+      } else {
+        console.log(`✅ Boleto ${value} disponible`);
+        setFoundTope(null);
+      }
     }
   };
+
   const handleBlur = (e) => {
     let value = e.target.value;
-    // Asegúrate de que el valor sea un número y tenga una longitud de 3 caracteres
-    value = value.padStart(3, "0");
+    if (sorteoData) {
+      value = value.padStart(sorteoData.digitos_boleto, "0");
+    } else {
+      value = value.padStart(3, "0");
+    }
     setTicketNumber(value);
   };
-  const userData = JSON.parse(localStorage.getItem("userData"));
-  const idVendedor = userData.Idvendedor;
-  const idSorteo = prizes.Idsorteo;
-  const tipoSorteo = prizes.Tipo_sorteo;
-  const fecha = new Date(
-    new Date(prizes.Fecha).getTime() + new Date().getTimezoneOffset() * 60000
-  ).toLocaleDateString();
 
   const enviarDatosNormal = async () => {
+    console.log('🔄 Iniciando venta de boleto...');
     VailidationEstatus();
 
-    if (!precioFijo || !name) {
-    ValidateBox();
-    return;
+    if (!precioFijo || !name || !ticketNumber) {
+      console.error('❌ Faltan datos requeridos');
+      ValidateBox();
+      return;
     }
-    
+
     if (foundTope !== null) {
+      console.error('❌ Boleto no disponible');
       Especial();
       return;
     }
 
-    setIsLoading(true);
-    
-    const data = {
-      prizebox: precioFijo, 
-      name,
-      tipoSorteo,
-      ticketNumber,
-      topePermitido: null,
-      idVendedor,
-      idSorteo,
-      fecha: prizes.Fecha,
-      primerPremio: prizes.Primerpremio,
-      segundoPremio: prizes.Segundopremio,
-    };
+    if (!sorteoData) {
+      console.error('❌ No hay datos del sorteo');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo cargar información del sorteo'
+      });
+      return;
+    }
 
-    const options = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    };
-    
+    const user = userData || JSON.parse(localStorage.getItem("userData"));
+    if (!user) {
+      console.error('❌ No hay datos del usuario');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se encontraron datos del vendedor'
+      });
+      return;
+    }
+
+    const idVendedor = user.Idvendedor;
+    const colegioIdParam = colegioId || user.colegio_id;
+
+    if (!colegioIdParam) {
+      console.error('❌ No hay colegio_id');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo identificar el colegio'
+      });
+      return;
+    }
+
+    console.log('📤 Datos para venta:', {
+      idVendedor,
+      colegioIdParam,
+      sorteoId: sorteoData.id_sorteo || sorteoData.Idsorteo,
+      ticketNumber,
+      name
+    });
+
+    setIsLoading(true);
+
     try {
-      const res = await fetch("/api/sell", options);
-      const result = await res.json();
+      // Crear boleto usando la nueva API - CORREGIDA
+      const boletoData = {
+        id_sorteo: sorteoData.id_sorteo || sorteoData.Idsorteo,
+        id_vendedor: idVendedor,
+        numero_boleto: ticketNumber,
+        comprador: name,
+        colegio_id: colegioIdParam
+      };
+
+      console.log('📤 Enviando datos de boleto:', boletoData);
+
+      // ✅ CORRECCIÓN: Usar la ruta correcta /api/boletos/crear
+      const response = await fetch('/api/boletos/crear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(boletoData),
+      });
+
+      console.log('📥 Respuesta status:', response.status);
       
-      if (result.error) {
-        Swal.fire(result.error);
-      } else if (result[0][0]) {
-        const ticketSold = result[0][0];
+      const result = await response.json();
+      console.log('📥 Resultado de la venta:', result);
+
+      if (result.success) {
+        const boletoVendido = result.boleto;
         
-        // AGREGAR ESTAS LÍNEAS PARA REGISTRAR EN EL MODAL
+        // Registrar en el contexto de ventas
         addVenta({
           tipo: "especial", 
-          numero: ticketSold.Boleto || ticketNumber,
+          numero: boletoVendido.boleto || ticketNumber,
           cantidad: 1,
-          precio: Number(ticketSold.Costo || precioFijo) || 0,
-          subtotal: (Number(ticketSold.Costo || precioFijo) || 0) * 1,
-          comprador: ticketSold.comprador || name,
+          precio: Number(sorteoData.precio_boleto || precioFijo) || 0,
+          subtotal: (Number(sorteoData.precio_boleto || precioFijo) || 0) * 1,
+          comprador: boletoVendido.comprador || name,
+          comision: result.comision_vendedor || 0
         });
         
-        generatePDF([ticketSold], fecha);
+        // Preparar datos para PDF
+        const pdfData = [{
+          ...boletoVendido,
+          Costo: sorteoData.precio_boleto || precioFijo,
+          Tipo_sorteo: 'especial',
+          Primerpremio: sorteoData.primer_premio || sorteoData.Primerpremio,
+          Segundopremio: sorteoData.segundo_premio || sorteoData.Segundopremio,
+          Boleto: boletoVendido.boleto || ticketNumber
+        }];
         
-        //ACTUALIZAR LISTA DE BOLETOS DESPUÉS DE COMPRAR
-        await refreshBoletos();
+        const fecha = new Date(
+          new Date(sorteoData.fecha || sorteoData.Fecha).getTime() + 
+          new Date().getTimezoneOffset() * 60000
+        ).toLocaleDateString();
+        
+        console.log('🖨️ Generando PDF...');
+        generatePDF(pdfData, fecha);
+        
+        // Actualizar lista de boletos
+        console.log('🔄 Actualizando lista de boletos...');
+        await fetchBoletosVendidos(sorteoData.id_sorteo || sorteoData.Idsorteo);
+        
+        Swal.fire({
+          icon: 'success',
+          title: '¡Éxito!',
+          text: result.message || 'Boleto vendido exitosamente',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } else {
+        console.error('❌ Error en la respuesta:', result.error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.error || 'Error al vender el boleto'
+        });
       }
     } catch (error) {
-      console.error("Error en la compra:", error);
-      Swal.fire("Error al procesar la compra");
+      console.error("❌ Error en la compra:", error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al procesar la compra'
+      });
     } finally {
       setIsLoading(false);
       setTicketNumber("");
@@ -239,53 +412,62 @@ const getRandomNumberEspecial = async () => {
     }
   };
 
-  // Función para refrescar los boletos
-  const refreshBoletos = async () => {
-    const options = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    };
-
-    try {
-      const res = await fetch("/api/ticketBuy", options);
-      const data = await res.json();
-      setBoletos(data.result);
-    } catch (error) {
-      console.error("Error al refrescar boletos:", error);
+  const goToMenu = () => {
+    const user = userData || JSON.parse(localStorage.getItem("userData"));
+    if (user && user.Idvendedor) {
+      updateInfo(user.Idvendedor).then(() => {
+        router.push("/menu");
+      });
+    } else {
+      router.push("/menu");
     }
   };
 
-  if (isLoading) {
-    loading();
-  }
-  const goToMenu = () => {
-    updateInfo(idVendedor).then(() => {
-      router.push("/menu");
-    });
-  };
   const hanlePreviewModal = () => {
     VailidationEstatus();
     setPreviewModal(true);
   };
 
-  return (
-    <div className="relative min-h-screen">
-      <div className="max-w-sm mx-auto w-full bg-[rgb(38,38,38)]">
-        <div className="text-2xl text-white flex justify-center items-center pb-4 pt-6 ">
-          Boletos
+  if (!prizes || !sorteoData) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-[rgb(38,38,38)]">
+        <div className="text-center">
+          <div className="relative w-32 h-32 mx-auto">
+            <div className="absolute top-0 left-0 animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-red-500"></div>
+            <div className="absolute top-0 left-0 flex items-center justify-center h-32 w-32">
+              <span className="text-white text-sm">Cargando...</span>
+            </div>
+          </div>
+          <p className="text-white mt-4">Cargando información del sorteo</p>
         </div>
-        <div className="w-full flex justify-center items-center flex-col space-y-1  relative">
-          <label className="text-white text-xl flex justify-center items-center realative pr-8 ">
-            <BsCalendarDateFill className="inline-block h-6 w-6 mr-1 text-red-600 " />{" "}
-            Sorteo:{fecha}
+      </div>
+    );
+  }
+
+  const fechaSorteo = new Date(sorteoData.fecha || sorteoData.Fecha).toLocaleDateString();
+
+  return (
+    <div className="relative min-h-screen bg-[rgb(38,38,38)]">
+      <div className="max-w-sm mx-auto w-full">
+        <div className="text-2xl text-white flex justify-center items-center pb-4 pt-6">
+          Venta de Boletos
+        </div>
+        
+        <div className="w-full flex justify-center items-center flex-col space-y-1 relative">
+          <label className="text-white text-xl flex justify-center items-center relative pr-8">
+            <BsCalendarDateFill className="inline-block h-6 w-6 mr-1 text-red-600" /> 
+            Sorteo: {fechaSorteo}
           </label>
           <label className="text-white text-xl flex justify-center items-center relative">
             <PiNumberSquareOneFill className="text-red-600 inline-block h-6 w-6 mr-1" />
-            Premio:{prizes.Primerpremio}
+            Premio: {sorteoData.primer_premio || sorteoData.Primerpremio}
           </label>
-          <label className="text-white text-xl flex justify-center items-center  realative">
-            <PiNumberSquareTwoFill className="inline-block h-6 w-6 mr-1 text-red-600" />{" "}
-            Premio:{prizes.Segundopremio}
+          <label className="text-white text-xl flex justify-center items-center relative">
+            <PiNumberSquareTwoFill className="inline-block h-6 w-6 mr-1 text-red-600" /> 
+            Premio: {sorteoData.segundo_premio || sorteoData.Segundopremio}
+          </label>
+          <label className="text-white text-sm flex justify-center items-center relative">
+            Dígitos: {sorteoData.digitos_boleto} | Precio: ${sorteoData.precio_boleto}
           </label>
         </div>
 
@@ -309,7 +491,8 @@ const getRandomNumberEspecial = async () => {
               value={ticketNumber}
               onChange={handleTicketNumberChange}
               onBlur={handleBlur}
-              maxLength={3}
+              maxLength={sorteoData.digitos_boleto}
+              placeholder={`${sorteoData.digitos_boleto} dígitos`}
             />
           </div>
           <div className="flex flex-row gap-12">
@@ -318,7 +501,7 @@ const getRandomNumberEspecial = async () => {
             </div>
             <input
               className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-10"
-              value={precioFijo ? `$${precioFijo}` : "Cargando..."}
+              value={`$${sorteoData.precio_boleto}`}
               readOnly
               disabled
             />
@@ -330,7 +513,8 @@ const getRandomNumberEspecial = async () => {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-5  "
+              className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-5"
+              placeholder="Comprador"
             />
           </div>
 
@@ -349,12 +533,13 @@ const getRandomNumberEspecial = async () => {
         </div>
 
         <div className="flex flex-col gap-3 pt-3">
-          <div className="flex justify-center items-center flex-col  px-8 ">
+          <div className="flex justify-center items-center flex-col px-8">
             <button
               onClick={enviarDatosNormal}
-              className="w-full rounded-lg bg-red-700 text-white h-[56px] text-xl"
+              disabled={isLoading}
+              className={`w-full rounded-lg ${isLoading ? 'bg-gray-500' : 'bg-red-700'} text-white h-[56px] text-xl`}
             >
-              Normal
+              {isLoading ? 'Procesando...' : 'Vender'}
             </button>
           </div>
 
@@ -376,6 +561,7 @@ const getRandomNumberEspecial = async () => {
           </div>
         </div>
       </div>
+      
       <button
         onClick={goToMenu}
         className="fixed bottom-4 right-4 bg-red-700 text-3xl text-white flex justify-center items-center h-[56px] w-[56px] rounded-full"
@@ -385,11 +571,13 @@ const getRandomNumberEspecial = async () => {
 
       {previewModal && (
         <EspecialPreviewModal
-          tickets={boletos}
+          tickets={boletosVendidos}
+          digitosBoleto={sorteoData.digitos_boleto}
           onClose={() => setPreviewModal(false)}
         />
       )}
     </div>
   );
 };
+
 export default TickectBuyEspecial;
