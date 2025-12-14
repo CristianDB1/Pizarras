@@ -1,42 +1,68 @@
+// validationEstatus.js - VERSIÓN FINAL
+import Swal from 'sweetalert2';
+
 const VailidationEstatus = async () => {
-    if (typeof window !== 'undefined') {
-        try {
-            // Obtener userData desde localStorage
-            const userData = localStorage.getItem('userData');
-            if (!userData) {
-                throw new Error('No se encontró userData en localStorage');
-            }
-
-            const parsedUserData = JSON.parse(userData);
-            const userId = parsedUserData.Idvendedor;
-
-            // Realizar la solicitud POST a la API para obtener la información del usuario
-            const response = await fetch('/api/user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ userId }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Error en la solicitud a la API');
-            }
-
-            const userApiData = await response.json();
-
-            // Verificar el estado del usuario
-            if (userApiData.Estatus === 'alta') {
-                localStorage.setItem('logged', true);
-            } else if (userApiData.Estatus === 'baja') {
-                localStorage.setItem('logged', false);
-                window.location.href = '/';
-            }
-        } catch (error) {
-            console.error('Error al obtener la información del usuario:', error);
-            localStorage.setItem('logged', false);
-            window.location.href = '/';
+    console.log('🔍 Validando estatus del vendedor...');
+    
+    try {
+        // Obtener datos del usuario de localStorage
+        const userDataStr = localStorage.getItem("userData");
+        
+        if (!userDataStr) {
+            console.warn('⚠️ No hay datos de usuario');
+            return true; // Permitir continuar
         }
+        
+        const userData = JSON.parse(userDataStr);
+        
+        // Buscar id_vendedor en diferentes formatos
+        const idVendedor = userData.Idvendedor || userData.idVendedor || userData.id_vendedor || userData.id;
+        
+        if (!idVendedor) {
+            console.warn('⚠️ No se pudo obtener id_vendedor. Campos disponibles:', Object.keys(userData));
+            return true; // Permitir continuar
+        }
+        
+        console.log('👤 Validando vendedor ID:', idVendedor);
+        
+        // Llamar a la nueva API
+        const response = await fetch(`/api/vendedores/${idVendedor}`);
+        
+        if (!response.ok) {
+            console.warn('⚠️ No se pudo validar vendedor (HTTP ' + response.status + ')');
+            return true; // No bloquear por error de conexión
+        }
+        
+        const data = await response.json();
+        console.log('📥 Respuesta de validación:', data);
+        
+        if (data.success && data.vendedor) {
+            const vendedor = data.vendedor;
+            
+            // Verificar estatus
+            if (vendedor.estatus === 'inactivo' || vendedor.estatus === 'bloqueado') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Vendedor inactivo',
+                    text: 'Tu cuenta está inactiva. Contacta al administrador.',
+                    confirmButtonText: 'Entendido'
+                }).then(() => {
+                    localStorage.clear();
+                    window.location.href = '/';
+                });
+                return false;
+            }
+            
+            console.log('✅ Vendedor validado correctamente');
+            return true;
+        } else {
+            console.warn('⚠️ No se pudo obtener datos del vendedor');
+            return true; // Permitir continuar
+        }
+        
+    } catch (error) {
+        console.error('❌ Error en validación:', error);
+        return true; // NO BLOQUEAR en caso de error
     }
 };
 

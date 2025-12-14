@@ -15,12 +15,15 @@ export async function POST(request) {
             colegio_id
         } = data;
         
-        console.log('🔄 Creando boleto:', { id_sorteo, numero_boleto, colegio_id });
+        console.log('🔄 Creando boleto:', { id_sorteo, id_vendedor, numero_boleto, colegio_id });
         
         // Validaciones básicas
         if (!id_sorteo || !id_vendedor || !numero_boleto || !colegio_id) {
             return NextResponse.json(
-                { error: 'Faltan datos requeridos' },
+                { 
+                    success: false,
+                    error: 'Faltan datos requeridos' 
+                },
                 { status: 400 }
             );
         }
@@ -28,7 +31,22 @@ export async function POST(request) {
         connection = await pool.getConnection();
         await connection.beginTransaction();
         
-        // 1. Verificar que el sorteo existe y está activo
+        // 1. Obtener nombre del vendedor primero
+        let nombreVendedor = '';
+        try {
+            const [vendedorInfo] = await connection.query(
+                `SELECT nombre FROM vendedores WHERE id_vendedor = ?`,
+                [id_vendedor]
+            );
+            
+            if (vendedorInfo.length > 0) {
+                nombreVendedor = vendedorInfo[0].nombre;
+            }
+        } catch (error) {
+            console.warn('⚠️ No se pudo obtener nombre del vendedor:', error.message);
+        }
+        
+        // 2. Verificar que el sorteo existe y está activo
         const [sorteo] = await connection.query(
             `SELECT * FROM sorteo 
              WHERE id_sorteo = ? AND colegio_id = ? AND estatus = 'activo'`,
@@ -39,14 +57,17 @@ export async function POST(request) {
             await connection.rollback();
             connection.release();
             return NextResponse.json(
-                { error: 'Sorteo no disponible o no pertenece al colegio' },
+                { 
+                    success: false,
+                    error: 'Sorteo no disponible o no pertenece al colegio' 
+                },
                 { status: 400 }
             );
         }
         
         const sorteoData = sorteo[0];
         
-        // 2. Verificar que el boleto no esté vendido para ESTE sorteo
+        // 3. Verificar que el boleto no esté vendido para ESTE sorteo
         const [boletoExistente] = await connection.query(
             `SELECT id_boleto FROM boletos 
              WHERE id_sorteo = ? AND boleto = ?`,
@@ -57,23 +78,29 @@ export async function POST(request) {
             await connection.rollback();
             connection.release();
             return NextResponse.json(
-                { error: `El boleto ${numero_boleto} ya está vendido para este sorteo` },
+                { 
+                    success: false,
+                    error: `El boleto ${numero_boleto} ya está vendido para este sorteo` 
+                },
                 { status: 400 }
             );
         }
         
-        // 3. Verificar formato del número (debe tener los dígitos correctos)
+        // 4. Verificar formato del número (debe tener los dígitos correctos)
         const digitosEsperados = sorteoData.digitos_boleto;
         if (numero_boleto.toString().length !== digitosEsperados) {
             await connection.rollback();
             connection.release();
             return NextResponse.json(
-                { error: `El boleto debe tener ${digitosEsperados} dígitos` },
+                { 
+                    success: false,
+                    error: `El boleto debe tener ${digitosEsperados} dígitos` 
+                },
                 { status: 400 }
             );
         }
         
-        // 4. Insertar el boleto
+        // 5. Insertar el boleto
         const [result] = await connection.query(
             `INSERT INTO boletos 
              (id_sorteo, boleto, comprador, id_vendedor, colegio_id, precio, estado_pago, fecha_venta) 
@@ -90,17 +117,24 @@ export async function POST(request) {
         
         const idBoleto = result.insertId;
         
-        // 5. Generar QR
-        const qrData = `BOLETO-${idBoleto}-${colegio_id}-${id_sorteo}`;
+        // 6. Generar QR con mejor información
+        const qrData = JSON.stringify({
+            id_boleto: idBoleto,
+            sorteo_id: id_sorteo,
+            numero_boleto: numero_boleto,
+            colegio_id: colegio_id,
+            fecha: new Date().toISOString().split('T')[0]
+        });
+        
         const qrCodeBase64 = await QRCode.toDataURL(qrData);
         
-        // 6. Actualizar con QR
+        // 7. Actualizar con QR
         await connection.query(
             `UPDATE boletos SET qr_code = ? WHERE id_boleto = ?`,
             [qrCodeBase64, idBoleto]
         );
         
-        // 7. Obtener boleto completo para respuesta
+        // 8. Obtener boleto completo para respuesta
         const [boletoCreado] = await connection.query(
             `SELECT * FROM boletos WHERE id_boleto = ?`,
             [idBoleto]
@@ -111,10 +145,24 @@ export async function POST(request) {
         
         console.log('✅ Boleto creado exitosamente:', idBoleto);
         
+        // 9. Preparar respuesta completa para el frontend
+        const boletoCompleto = boletoCreado[0];
+        
         return NextResponse.json({
             success: true,
             message: 'Boleto vendido exitosamente',
-            boleto: boletoCreado[0],
+            boleto: {
+                ...boletoCompleto,
+                // Datos adicionales para el PDF
+                nombreSorteo: sorteoData.nombre,
+                primer_premio: sorteoData.primer_premio,
+                segundo_premio: sorteoData.segundo_premio,
+                numero_sorteo: sorteoData.numero_sorteo,
+                leyenda1: sorteoData.leyenda1 || '',
+                leyenda2: sorteoData.leyenda2 || '',
+                nombreVendedor: nombreVendedor,
+                precio_boleto: sorteoData.precio_boleto
+            },
             sorteo: {
                 nombre: sorteoData.nombre,
                 precio: sorteoData.precio_boleto,

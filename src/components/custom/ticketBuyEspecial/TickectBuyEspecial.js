@@ -115,6 +115,33 @@ const TickectBuyEspecial = () => {
     }
   }, [router]);
 
+  // Agrega al principio del useEffect o en un useEffect separado
+  useEffect(() => {
+      console.log('🔍 DEBUG - localStorage completo:');
+      console.log('🔍 TickectEspecial:', localStorage.getItem("TickectEspecial"));
+      
+      const userDataStr = localStorage.getItem("userData");
+      console.log('🔍 userData raw:', userDataStr);
+      
+      if (userDataStr) {
+          try {
+              const userDataParsed = JSON.parse(userDataStr);
+              console.log('🔍 userData parsed:', userDataParsed);
+              console.log('🔍 Todas las claves de userData:', Object.keys(userDataParsed));
+              console.log('🔍 Valores importantes:', {
+                  Idvendedor: userDataParsed.Idvendedor,
+                  idVendedor: userDataParsed.idVendedor,
+                  IdVendedor: userDataParsed.IdVendedor,
+                  id_vendedor: userDataParsed.id_vendedor,
+                  colegio_id: userDataParsed.colegio_id,
+                  colegioId: userDataParsed.colegioId
+              });
+          } catch (e) {
+              console.error('❌ Error parseando userData:', e);
+          }
+      }
+  }, []);
+
   // Función para obtener boletos vendidos desde la nueva API - CORREGIDA
   const fetchBoletosVendidos = useCallback(async (sorteoId) => {
     try {
@@ -263,52 +290,97 @@ const TickectBuyEspecial = () => {
 
   const enviarDatosNormal = async () => {
     console.log('🔄 Iniciando venta de boleto...');
+    
+    let user;
+    try {
+        const userDataStr = localStorage.getItem("userData");
+        console.log('🔍 userData de localStorage:', userDataStr);
+        
+        if (!userDataStr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Sesión expirada',
+                text: 'Vuelve a iniciar sesión'
+            }).then(() => {
+                router.push('/login');
+            });
+            return;
+        }
+        
+        user = JSON.parse(userDataStr);
+        console.log('👤 Usuario parseado:', user);
+        
+        // BUSCAR id_vendedor en TODOS los campos posibles
+        const posiblesIds = ['Idvendedor', 'idVendedor', 'IdVendedor', 'id_vendedor', 'vendedor_id', 'vendedorId'];
+        let idVendedor;
+        
+        for (const key of posiblesIds) {
+            if (user[key] !== undefined) {
+                idVendedor = user[key];
+                console.log(`✅ Encontrado ${key}:`, idVendedor);
+                break;
+            }
+        }
+        
+        if (!idVendedor) {
+            console.error('❌ NO SE ENCONTRÓ id_vendedor. Campos disponibles:', Object.keys(user));
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo identificar al vendedor. Contacta al administrador.'
+            });
+            return;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo datos del usuario:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al obtener datos de la sesión'
+        });
+        return;
+    }
+    
+    // 2. Validaciones básicas
     VailidationEstatus();
 
     if (!precioFijo || !name || !ticketNumber) {
-      console.error('❌ Faltan datos requeridos');
-      ValidateBox();
-      return;
+        console.error('❌ Faltan datos:', { precioFijo, name, ticketNumber });
+        ValidateBox();
+        return;
     }
 
     if (foundTope !== null) {
-      console.error('❌ Boleto no disponible');
-      Especial();
-      return;
+        console.error('❌ Boleto no disponible:', ticketNumber);
+        Especial();
+        return;
     }
 
     if (!sorteoData) {
-      console.error('❌ No hay datos del sorteo');
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo cargar información del sorteo'
-      });
-      return;
-    }
-
-    const user = userData || JSON.parse(localStorage.getItem("userData"));
-    if (!user) {
-      console.error('❌ No hay datos del usuario');
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se encontraron datos del vendedor'
-      });
-      return;
+        console.error('❌ No hay datos del sorteo');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo cargar información del sorteo'
+        });
+        return;
     }
 
     const idVendedor = user.Idvendedor;
-    const colegioIdParam = colegioId || user.colegio_id;
 
+    // 3. Obtener colegio_id
+    const colegioIdParam = colegioId || user.colegio_id || user.colegioId || sorteoData.colegio_id;
+    console.log('🏫 Colegio ID:', colegioIdParam);
+    
     if (!colegioIdParam) {
-      console.error('❌ No hay colegio_id');
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No se pudo identificar el colegio'
-      });
-      return;
+        console.error('❌ No hay colegio_id');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo identificar el colegio'
+        });
+        return;
     }
 
     console.log('📤 Datos para venta:', {
@@ -322,32 +394,33 @@ const TickectBuyEspecial = () => {
     setIsLoading(true);
 
     try {
-      // Crear boleto usando la nueva API - CORREGIDA
+      // 4. Preparar datos para la API
       const boletoData = {
-        id_sorteo: sorteoData.id_sorteo || sorteoData.Idsorteo,
-        id_vendedor: idVendedor,
-        numero_boleto: ticketNumber,
-        comprador: name,
-        colegio_id: colegioIdParam
+          id_sorteo: sorteoData.id_sorteo || sorteoData.Idsorteo,
+          id_vendedor: user.Idvendedor || user.idVendedor || user.IdVendedor || user.id_vendedor,
+          numero_boleto: ticketNumber,
+          comprador: name,
+          colegio_id: colegioIdParam
       };
 
       console.log('📤 Enviando datos de boleto:', boletoData);
 
       // ✅ CORRECCIÓN: Usar la ruta correcta /api/boletos/crear
       const response = await fetch('/api/boletos/crear', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(boletoData),
-      });
-
-      console.log('📥 Respuesta status:', response.status);
-      
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(boletoData),
+        });
+      console.log('📥 Status:', response.status);
+      console.log('📥 Headers:', Object.fromEntries(response.headers.entries()));
+        
       const result = await response.json();
-      console.log('📥 Resultado de la venta:', result);
+      console.log('📥 Respuesta completa:', result);
 
       if (result.success) {
+        console.log('✅ Éxito:', result.message);
         const boletoVendido = result.boleto;
         
         // Registrar en el contexto de ventas
@@ -355,41 +428,67 @@ const TickectBuyEspecial = () => {
           tipo: "especial", 
           numero: boletoVendido.boleto || ticketNumber,
           cantidad: 1,
-          precio: Number(sorteoData.precio_boleto || precioFijo) || 0,
-          subtotal: (Number(sorteoData.precio_boleto || precioFijo) || 0) * 1,
+          precio: Number(boletoVendido.precio || boletoVendido.precio_boleto || sorteoData.precio_boleto || precioFijo) || 0,
+          subtotal: (Number(boletoVendido.precio || boletoVendido.precio_boleto || sorteoData.precio_boleto || precioFijo) || 0) * 1,
           comprador: boletoVendido.comprador || name,
           comision: result.comision_vendedor || 0
-        });
-        
+      });
+          
         // Preparar datos para PDF
-        const pdfData = [{
-          ...boletoVendido,
-          Costo: sorteoData.precio_boleto || precioFijo,
-          Tipo_sorteo: 'especial',
-          Primerpremio: sorteoData.primer_premio || sorteoData.Primerpremio,
-          Segundopremio: sorteoData.segundo_premio || sorteoData.Segundopremio,
-          Boleto: boletoVendido.boleto || ticketNumber
-        }];
-        
-        const fecha = new Date(
-          new Date(sorteoData.fecha || sorteoData.Fecha).getTime() + 
-          new Date().getTimezoneOffset() * 60000
-        ).toLocaleDateString();
-        
-        console.log('🖨️ Generando PDF...');
-        generatePDF(pdfData, fecha);
+        try {
+                const pdfData = [{
+              ...boletoVendido,
+              // Asegurar campos necesarios
+              Costo: boletoVendido.precio || boletoVendido.precio_boleto || sorteoData.precio_boleto || precioFijo,
+              Tipo_sorteo: 'especial',
+              Primerpremio: boletoVendido.primer_premio || sorteoData.primer_premio,
+              Segundopremio: boletoVendido.segundo_premio || sorteoData.segundo_premio,
+              Boleto: boletoVendido.boleto || ticketNumber,
+              nombreSorteo: boletoVendido.nombreSorteo || sorteoData.nombre,
+              numero_sorteo: boletoVendido.numero_sorteo || sorteoData.numero_sorteo,
+              nombreVendedor: boletoVendido.nombreVendedor,
+              colegio_id: boletoVendido.colegio_id || colegioIdParam,
+              leyenda1: boletoVendido.leyenda1 || '',
+              leyenda2: boletoVendido.leyenda2 || ''
+          }];
+                
+                const fecha = new Date(
+                    new Date(sorteoData.fecha || sorteoData.Fecha).getTime() + 
+                    new Date().getTimezoneOffset() * 60000
+                ).toLocaleDateString();
+                
+                generatePDF(pdfData, fecha);
+                console.log('✅ PDF generado');
+            } catch (pdfError) {
+                console.warn('⚠️ Error al generar PDF (continuando):', pdfError);
+            }
         
         // Actualizar lista de boletos
         console.log('🔄 Actualizando lista de boletos...');
-        await fetchBoletosVendidos(sorteoData.id_sorteo || sorteoData.Idsorteo);
+        fetchBoletosVendidos(sorteoData.id_sorteo || sorteoData.Idsorteo)
+                .catch(err => console.warn('⚠️ Error actualizando boletos:', err));
         
-        Swal.fire({
-          icon: 'success',
-          title: '¡Éxito!',
-          text: result.message || 'Boleto vendido exitosamente',
-          timer: 2000,
-          showConfirmButton: false
-        });
+        // 4. Mostrar mensaje de éxito (ESPERAR a que se cierre)
+            await Swal.fire({
+                icon: 'success',
+                title: '¡Venta Exitosa!',
+                html: `
+                    <div style="text-align: center;">
+                        <p>${result.message || 'Boleto vendido exitosamente'}</p>
+                        <p><strong>Boleto:</strong> ${boletoVendido.boleto || ticketNumber}</p>
+                        <p><strong>Comprador:</strong> ${boletoVendido.comprador || name}</p>
+                        <p><strong>Precio:</strong> $${sorteoData.precio_boleto || precioFijo}</p>
+                    </div>
+                `,
+                confirmButtonText: 'Continuar',
+                confirmButtonColor: '#3085d6',
+                showCancelButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            });
+            
+            console.log('✅ Venta completada exitosamente');
+
       } else {
         console.error('❌ Error en la respuesta:', result.error);
         Swal.fire({
