@@ -4,7 +4,7 @@ import pool from "@/db/MysqlConection";
 export async function POST(req) {
   try {
     const data = await req.json();
-    const idVendedor = data.Idvendedor || data.idVendedor;
+    const idVendedor = data.id_vendedor || data.idVendedor || data.Idvendedor;
     
     if (!idVendedor) {
       return NextResponse.json({ 
@@ -13,84 +13,123 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
-    console.log('📋 Obteniendo boletos NO CORTADOS para vendedor:', idVendedor);
+    console.log('🔍 DEBUG: Obteniendo boletos para vendedor:', idVendedor);
+    console.log('🔍 DEBUG: Datos recibidos:', data);
 
-    // CONSULTA FINAL - Boletos que NO están incluidos en un corte de caja
-    // Un boleto está "cortado" si existe un corte para ese sorteo-fecha
-    const sql = `
+    // PRIMERO: Verificar si hay boletos en general para este vendedor
+    const checkSql = `
+        SELECT COUNT(*) as total_boletos,
+               SUM(CASE WHEN estado_pago = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+               SUM(CASE WHEN estado_pago = 'pagado' THEN 1 ELSE 0 END) as pagados
+        FROM boletos 
+        WHERE id_vendedor = ?;
+    `;
+    
+    const [countResult] = await pool.query(checkSql, [idVendedor]);
+    console.log('🔍 DEBUG: Estadísticas de boletos:', countResult[0]);
+
+    // SEGUNDO: Consulta SIMPLE sin joins complejos ni filtros de corte
+    const simpleSql = `
+        SELECT 
+            b.id_boleto,
+            b.id_sorteo,
+            b.boleto,
+            b.comprador,
+            b.id_vendedor,
+            b.precio,
+            b.estado_pago,
+            b.fecha_venta,
+            b.colegio_id,
+            s.nombre AS nombreSorteo,
+            s.fecha AS FechaSorteo,
+            v.nombre AS nombreVendedor
+        FROM boletos b
+        JOIN sorteo s ON b.id_sorteo = s.id_sorteo
+        JOIN vendedores v ON b.id_vendedor = v.id_vendedor
+        WHERE b.id_vendedor = ?
+        ORDER BY b.fecha_venta DESC
+        LIMIT 10;
+    `;
+
+    const [simpleBoletos] = await pool.query(simpleSql, [idVendedor]);
+    console.log('🔍 DEBUG: Boletos encontrados (simple query):', simpleBoletos.length);
+    if (simpleBoletos.length > 0) {
+      console.log('🔍 DEBUG: Primer boleto ejemplo:', simpleBoletos[0]);
+    }
+
+    // TERCERO: Verificar si hay cortes para este vendedor
+    const cortesSql = `
+        SELECT * FROM cortesdecaja 
+        WHERE id_vendedor = ? 
+        LIMIT 5;
+    `;
+    
+    const [cortes] = await pool.query(cortesSql, [idVendedor]);
+    console.log('🔍 DEBUG: Cortes encontrados:', cortes.length);
+    if (cortes.length > 0) {
+      console.log('🔍 DEBUG: Primer corte ejemplo:', cortes[0]);
+    }
+
+    // CUARTO: Consulta final pero simplificando el filtro de corte
+    const finalSql = `
         SELECT 
             b.*, 
-            c.leyenda1, 
-            s.leyenda2, 
-            s.fecha AS FechaSorteo,
             s.nombre AS nombreSorteo,
+            s.fecha AS FechaSorteo,
             s.primer_premio,
             s.segundo_premio,
-            v.Nombre AS nombreVendedor, 
-            v.Comision AS comisiones, 
-            d.cantidad AS deuda,
-            CASE 
-                WHEN cc.id_corte IS NOT NULL THEN TRUE
-                ELSE FALSE
-            END AS cortado
+            v.nombre AS nombreVendedor
         FROM boletos b
-        CROSS JOIN configuracion c
-        JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-        JOIN vendedores v ON b.id_vendedor = v.Idvendedor
-        LEFT JOIN deuda d ON v.Idvendedor = d.usuario
-        LEFT JOIN cortesdecaja cc ON 
-            b.id_vendedor = cc.id_vendedor 
-            AND b.tipo_sorteo = cc.id_sorteo
-            AND DATE(s.fecha) = DATE(cc.fecha_sorteo)
-            AND cc.id_vendedor = ?
+        JOIN sorteo s ON b.id_sorteo = s.id_sorteo
+        JOIN vendedores v ON b.id_vendedor = v.id_vendedor
         WHERE b.id_vendedor = ?
           AND b.estado_pago = 'pendiente'
-          AND cc.id_corte IS NULL  -- Solo boletos NO incluidos en cortes
-        ORDER BY b.created_at DESC;
-        `;
+          AND NOT EXISTS (
+            SELECT 1 FROM cortesdecaja cc 
+            WHERE cc.id_vendedor = b.id_vendedor 
+              AND cc.id_sorteo = b.id_sorteo
+              AND DATE(cc.fecha_sorteo) = DATE(s.fecha)
+          )
+        ORDER BY b.fecha_venta DESC;
+    `;
 
-    const [boletos] = await pool.query(sql, [idVendedor, idVendedor]);
-
+    const [boletos] = await pool.query(finalSql, [idVendedor]);
     console.log(`✅ ${boletos.length} boletos pendientes (no cortados) para vendedor ${idVendedor}`);
+
+    if (boletos.length === 0 && simpleBoletos.length > 0) {
+      console.log('⚠️ ADVERTENCIA: Hay boletos pero la consulta filtrada devuelve 0.');
+      console.log('   Posibles causas:');
+      console.log('   1. Los boletos tienen estado_pago diferente a "pendiente"');
+      console.log('   2. Ya están incluidos en cortes de caja');
+      console.log('   3. El JOIN con cortesdecaja está filtrando todo');
+    }
 
     // Formatear respuesta
     const boletosFormateados = boletos.map(boleto => ({
-      // Campos originales del boleto
       id_boleto: boleto.id_boleto,
-      tipo_sorteo: boleto.tipo_sorteo,
+      tipo_sorteo: boleto.id_sorteo,
       boleto: boleto.boleto,
       comprador: boleto.comprador,
       id_vendedor: boleto.id_vendedor,
       colegio_id: boleto.colegio_id,
       precio: boleto.precio,
       estado_pago: boleto.estado_pago,
-      qr_code: boleto.qr_code,
-      created_at: boleto.created_at,
       fecha_venta: boleto.fecha_venta,
       
-      // Campos calculados/relacionados
-      Idsorteo: boleto.tipo_sorteo,
+      Idsorteo: boleto.id_sorteo,
       Idvendedor: boleto.id_vendedor,
       Boleto: boleto.boleto,
       Costo: boleto.precio,
-      Fecha: boleto.created_at || boleto.fecha_venta,
+      Fecha: boleto.fecha_venta,
       
-      // Datos del vendedor
       nombreVendedor: boleto.nombreVendedor,
-      comisiones: boleto.comisiones,
-      deuda: boleto.deuda || 0,
-      
-      // Datos del sorteo
-      leyenda1: boleto.leyenda1,
-      leyenda2: boleto.leyenda2,
-      FechaSorteo: boleto.FechaSorteo,
       nombreSorteo: boleto.nombreSorteo,
+      FechaSorteo: boleto.FechaSorteo,
       primer_premio: boleto.primer_premio,
       segundo_premio: boleto.segundo_premio,
       
-      // Estado
-      estado: 'pendiente',
-      cortado: boleto.cortado || false
+      estado: boleto.estado_pago,
+      cortado: false
     }));
 
     return NextResponse.json(boletosFormateados);
@@ -98,49 +137,10 @@ export async function POST(req) {
   } catch (error) {
     console.error("❌ Error obteniendo boletos:", error);
     
-    // Si hay error específico, intentar versión más simple
-    if (error.code === 'ER_BAD_FIELD_ERROR') {
-      console.log('⚠️ Error en campos, intentando consulta simplificada...');
-      
-      try {
-        // Consulta de emergencia - solo datos básicos
-        const sqlSimple = `
-            SELECT 
-                b.id_boleto,
-                b.tipo_sorteo as Idsorteo,
-                b.boleto as Boleto,
-                b.precio as Costo,
-                b.created_at as Fecha,
-                b.comprador,
-                b.estado_pago,
-                s.nombre as nombreSorteo,
-                s.fecha as FechaSorteo,
-                s.primer_premio,
-                s.segundo_premio,
-                v.Nombre as nombreVendedor
-            FROM boletos b
-            JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-            JOIN vendedores v ON b.id_vendedor = v.Idvendedor
-            WHERE b.id_vendedor = ?
-              AND b.estado_pago = 'pendiente'
-            ORDER BY b.created_at DESC;
-            `;
-        
-        const [boletos] = await pool.query(sqlSimple, [idVendedor]);
-        console.log(`✅ ${boletos.length} boletos (consulta simple)`);
-        
-        return NextResponse.json(boletos);
-      } catch (simpleError) {
-        console.error("❌ Error en consulta simple:", simpleError);
-      }
-    }
-    
     return NextResponse.json({ 
       success: false,
       error: "Error al obtener los boletos",
-      details: error.message,
-      sqlError: error.code,
-      sqlMessage: error.sqlMessage
+      details: error.message
     }, { status: 500 });
   }
 }
