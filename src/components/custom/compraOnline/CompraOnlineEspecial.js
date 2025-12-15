@@ -1,14 +1,16 @@
 // components/custom/compraOnline/CompraOnlineEspecial.js
 'use client'
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FaHome, FaDice } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { ErrorPrizes, loading, ValidateBox } from "../alerts/menu/Alerts";
 import EspecialPreviewModalOnline from "./EspecialPreviewModalOnline";
 import EspecialBoletosDisponiblesModalOnline from "./EspecialBoletosDisponiblesModalOnline";
 
-const CompraOnlineEspecial = ({ colegioId }) => {
+const CompraOnlineEspecial = () => {
+  const searchParams = useSearchParams();
+  const colegioId = searchParams.get('colegio');
   const [prizes, setPrizes] = useState(null);
   const [ticketNumber, setTicketNumber] = useState("");
   const [foundTope, setFoundTope] = useState(null);
