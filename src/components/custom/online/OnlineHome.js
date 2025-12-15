@@ -4,14 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ResultadosOnline from "@/components/custom/resultadosOnline/ResultadosOnline";
 
-const OnlineHome = ({ colegioId: propColegioId }) => {
-  // Si no recibe la prop, intentar obtener de searchParams
+const OnlineHome = () => {
   const searchParams = useSearchParams();
-  const queryColegioId = searchParams.get('colegio');
+  const colegioId = searchParams.get('colegio');
   
-  // Prioridad: prop > query param
-  const colegioId = propColegioId || queryColegioId;
-  
+  const [colegio, setColegio] = useState(null);
+  const [loadingColegio, setLoadingColegio] = useState(false);
   const [activeTab, setActiveTab] = useState("juegos");
   const [sorteos, setSorteos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,30 +17,49 @@ const OnlineHome = ({ colegioId: propColegioId }) => {
 
   // Cargar sorteos según si hay colegioId o no
   useEffect(() => {
+    const fetchColegio = async () => {
+      if (!colegioId) {
+        setColegio(null);
+        return;
+      }
+      
+      try {
+        setLoadingColegio(true);
+        const response = await fetch(`/api/colegios/${colegioId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setColegio(data);
+        }
+      } catch (error) {
+        console.error("Error cargando colegio:", error);
+        setColegio(null);
+      } finally {
+        setLoadingColegio(false);
+      }
+    };
+
+    fetchColegio();
+  }, [colegioId]);
+
+  // Cargar sorteos
+  useEffect(() => {
     const fetchSorteos = async () => {
       try {
         setLoading(true);
         
         if (colegioId) {
-          console.log("Cargando sorteos del colegio:", colegioId);
-          // ✅ USAR EL ENDPOINT QUE YA TIENES: sorteos por colegio
           const response = await fetch(`/api/sorteos/colegio/${colegioId}`);
           const data = await response.json();
           
           if (data.success) {
-            console.log("Sorteos recibidos:", data.sorteos.length);
             setSorteos(data.sorteos || []);
           } else {
-            console.error("Error en la respuesta:", data.error);
             setSorteos([]);
           }
         } else {
-          console.log("Cargando todos los sorteos");
-          // ⬅️ MODIFICADO: Solo un tipo de sorteo
           const response = await fetch("/api/ticketBuy", { method: "PUT" });
           const data = await response.json();
-          
-          // Ajustar según la estructura de respuesta
           setSorteos(data.result || data || []);
         }
       } catch (error) {
@@ -60,7 +77,7 @@ const OnlineHome = ({ colegioId: propColegioId }) => {
     // Guardar el sorteo seleccionado
     localStorage.setItem('sorteoSeleccionado', JSON.stringify(sorteo));
     
-    // MODIFICADO: Siempre va a CompraOnlineEspecial
+    // ✅ MODIFICADO: Siempre va a CompraOnlineEspecial
     const urlBase = "/CompraOnlineEspecial";
     
     // Mantener el colegioId en la navegación si existe
