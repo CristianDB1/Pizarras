@@ -20,28 +20,66 @@ const ViewTickets = () => {
   const fetchData = async () => {
     try {
       const userData = getUserData();
-      setUserData(userData);
-      idVendedor= userData.idVendedor;
-
+      console.log("🔍 userData completo:", userData);
+      console.log("🔍 Todos los campos:", Object.keys(userData));
+      console.log("🔍 userData stringificado:", JSON.stringify(userData, null, 2));
+      
+      // Buscar el ID del vendedor
+      const idVendedor = userData.id_vendedor || userData.idVendedor || userData.Idvendedor || userData.id;
+      console.log("🔍 idVendedor encontrado:", idVendedor);
+      console.log("🔍 Tipo de idVendedor:", typeof idVendedor);
+      
+      if (!idVendedor) {
+        console.error("❌ No se encontró el ID del vendedor en:", userData);
+        alert("No se pudo identificar el vendedor. Por favor, cierre sesión y vuelva a ingresar.");
+        return;
+      }
+      
+      // Verificar que sea un número
+      const idVendedorNum = parseInt(idVendedor);
+      if (isNaN(idVendedorNum)) {
+        console.error("❌ idVendedor no es un número válido:", idVendedor);
+        return;
+      }
+      
+      console.log("🔍 Enviando a API con id_vendedor:", idVendedorNum);
+      
       const response = await fetch("/api/viewTickects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify({ id_vendedor: idVendedorNum }),
       });
 
+      console.log("🔍 Response status:", response.status);
+      console.log("🔍 Response ok:", response.ok);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Error en la respuesta:", errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log("✅ Data recibida de API:", data);
+      console.log("✅ Tipo de data:", typeof data);
+      console.log("✅ Es array?:", Array.isArray(data));
+      console.log("✅ Longitud:", data.length);
+      
+      if (data.length === 0) {
+        console.warn("⚠️ La API devolvió un array vacío");
+        // Mostrar mensaje al usuario
+        alert("No se encontraron boletos pendientes. Puede que todos hayan sido cortados o estén pagados.");
+      }
+      
       setTickets(data);
       setTotalTickets(data.length);
-      const total = data.reduce((acc, ticket) => acc + ticket.Costo, 0);
+      const total = data.reduce((acc, ticket) => acc + (ticket.Costo || ticket.precio || 0), 0);
       setTotal(total);
     } catch (error) {
-      console.log(error);
+      console.error("❌ Error en fetchData:", error);
+      alert("Error al cargar los boletos: " + error.message);
     }
   };
 

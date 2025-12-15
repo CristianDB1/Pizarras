@@ -1,56 +1,78 @@
+// components/custom/online/OnlineHome.js
 'use client'
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ResultadosOnline from "@/components/custom/resultadosOnline/ResultadosOnline";
 
-const OnlineHome = () => {
+const OnlineHome = ({ colegioId: propColegioId }) => {
+  // Si no recibe la prop, intentar obtener de searchParams
+  const searchParams = useSearchParams();
+  const queryColegioId = searchParams.get('colegio');
+  
+  // Prioridad: prop > query param
+  const colegioId = propColegioId || queryColegioId;
+  
   const [activeTab, setActiveTab] = useState("juegos");
   const [sorteos, setSorteos] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Cargar sorteos normales Y especiales
+  // Cargar sorteos según si hay colegioId o no
   useEffect(() => {
     const fetchSorteos = async () => {
       try {
         setLoading(true);
         
-        const [normalesResponse, especialesResponse] = await Promise.all([
-          fetch("/api/ticketBuy", { method: "GET" }),
-          fetch("/api/ticketBuy", { method: "PUT" })
-        ]);
-
-        const normalesData = await normalesResponse.json();
-        const especialesData = await especialesResponse.json();
-
-        const todosSorteos = [
-          ...(normalesData.result || []),
-          ...(especialesData.result || [])
-        ];
-
-        setSorteos(todosSorteos);
+        if (colegioId) {
+          console.log("Cargando sorteos del colegio:", colegioId);
+          // ✅ USAR EL ENDPOINT QUE YA TIENES: sorteos por colegio
+          const response = await fetch(`/api/sorteos/colegio/${colegioId}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            console.log("Sorteos recibidos:", data.sorteos.length);
+            setSorteos(data.sorteos || []);
+          } else {
+            console.error("Error en la respuesta:", data.error);
+            setSorteos([]);
+          }
+        } else {
+          console.log("Cargando todos los sorteos");
+          // ⬅️ MODIFICADO: Solo un tipo de sorteo
+          const response = await fetch("/api/ticketBuy", { method: "PUT" });
+          const data = await response.json();
+          
+          // Ajustar según la estructura de respuesta
+          setSorteos(data.result || data || []);
+        }
       } catch (error) {
         console.error("Error cargando sorteos:", error);
+        setSorteos([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchSorteos();
-  }, []);
+  }, [colegioId]);
 
-    const handleJugar = (sorteo) => {
-        // Guardar el sorteo seleccionado en localStorage para que los componentes lo lean
-        localStorage.setItem('sorteoSeleccionado', JSON.stringify(sorteo));
-        
-        if (sorteo.Tipo_sorteo === "especial") {
-            router.push("/CompraOnlineEspecial");
-        } else {
-            router.push("/CompraOnline");
-        }
-    };
+  const handleJugar = (sorteo) => {
+    // Guardar el sorteo seleccionado
+    localStorage.setItem('sorteoSeleccionado', JSON.stringify(sorteo));
+    
+    // MODIFICADO: Siempre va a CompraOnlineEspecial
+    const urlBase = "/CompraOnlineEspecial";
+    
+    // Mantener el colegioId en la navegación si existe
+    const urlFinal = colegioId 
+      ? `${urlBase}?colegio=${colegioId}`
+      : urlBase;
+    
+    router.push(urlFinal);
+  };
 
   const formatFecha = (fechaString) => {
+    if (!fechaString) return "Fecha no definida";
     const fecha = new Date(fechaString);
     return fecha.toLocaleDateString('es-ES', { 
       weekday: 'long', 
@@ -100,54 +122,57 @@ const OnlineHome = () => {
       {/* Contenido de las pestañas */}
       <div className="p-6">
         {activeTab === "juegos" ? (
-          // ... (tu código existente de juegos)
           <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-              SORTEOS DISPONIBLES
+              {colegioId ? "SORTEOS DEL COLEGIO" : "SORTEOS DISPONIBLES"}
             </h1>
 
             <div className="text-center mb-6">
-                <p className="text-lg text-red-600 font-semibold">
-                    Hoy es {new Date().toLocaleDateString('es-ES', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long',
-                    year: 'numeric'
-                    })}
-                </p>
+              <p className="text-lg text-red-600 font-semibold">
+                Hoy es {new Date().toLocaleDateString('es-ES', { 
+                  weekday: 'long', 
+                  day: 'numeric', 
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sorteos.map((sorteo) => (
                 <div 
-                  key={sorteo.Idsorteo}
+                  key={sorteo.id_sorteo || sorteo.Idsorteo}
                   className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  {sorteo.Tipo_sorteo === "especial" && (
-                    <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 inline-block text-center w-full">
-                      ESPECIAL
-                    </div>
-                  )}
+                  {/* Etiqueta SORTEO */}
+                  <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 inline-block text-center w-full">
+                    SORTEO
+                  </div>
                   
                   <div className="text-center mb-4">
                     <h3 className="text-lg font-bold text-red-700 mb-2">
-                      {sorteo.leyenda2.split(' - ')[0]}
+                      {sorteo.nombre || sorteo.leyenda2?.split(' - ')[0] || `Sorteo ${sorteo.numero_sorteo}`}
                     </h3>
                     <p className="text-sm text-gray-600 mb-1">
-                      {formatFecha(sorteo.Fecha)}
+                      {formatFecha(sorteo.fecha || sorteo.Fecha)}
                     </p>
                     <div className="text-xs text-gray-500">
-                      <span className="font-semibold">1ro: </span>${sorteo.Primerpremio} |{" "}
-                      <span className="font-semibold">2do: </span>${sorteo.Segundopremio}
+                      <span className="font-semibold">1ro: </span>${sorteo.primer_premio || sorteo.Primerpremio} |{" "}
+                      <span className="font-semibold">2do: </span>${sorteo.segundo_premio || sorteo.Segundopremio}
                     </div>
+                    {sorteo.nombre_colegio && !colegioId && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Colegio: {sorteo.nombre_colegio}
+                      </p>
+                    )}
                   </div>
 
                   <button
                     onClick={() => handleJugar(sorteo)}
                     className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
-                    >
+                  >
                     JUGAR AHORA
-                </button>
+                  </button>
                 </div>
               ))}
             </div>
@@ -155,14 +180,16 @@ const OnlineHome = () => {
             {sorteos.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-gray-500 text-lg">
-                  No hay sorteos disponibles en este momento
+                  {colegioId 
+                    ? "No hay sorteos disponibles para este colegio" 
+                    : "No hay sorteos disponibles en este momento"}
                 </p>
               </div>
             )}
           </div>
         ) : (
           /* Pestaña de Resultados */
-          <ResultadosOnline />
+          <ResultadosOnline colegioId={colegioId} />
         )}
       </div>
     </div>

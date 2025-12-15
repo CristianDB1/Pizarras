@@ -267,7 +267,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(255, 0, 0);
-      doc.text("⚠️ COPIA DE RESPALDO ⚠️", 40, yPosition, { align: 'center' });
+      doc.text("COPIA DE RESPALDO", 40, yPosition, { align: 'center' });
       yPosition += 6;
     }
 
