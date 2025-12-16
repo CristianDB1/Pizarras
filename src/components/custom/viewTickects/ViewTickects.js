@@ -107,7 +107,7 @@ const ViewTickets = () => {
     const tickets = [];
     tickets.push(ticket); 
     console.log("tickets", tickets);    
-    let fechaSinHora = tickets[0].Fecha;
+    let fechaSinHora = tickets[0].FechaSorteo;
     if (isNaN(new Date(fechaSinHora).getTime())) {
       console.error("Invalid date:", fechaSinHora);
     } else {

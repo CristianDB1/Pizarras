@@ -11,7 +11,7 @@ import {
   Especial,
 } from "../alerts/menu/Alerts";
 import { useRouter } from "next/navigation";
-import { FaHome, FaDice } from "react-icons/fa";
+import { FaHome, FaDice, FaSchool } from "react-icons/fa";
 import EspecialPreviewModal from "./EspecialPreviewModal";
 import VailidationEstatus from "@/hook/validationEstatus";
 import updateInfo from "../validation/updateInfo";
@@ -32,6 +32,8 @@ const TickectBuyEspecial = () => {
   const [sorteoData, setSorteoData] = useState(null);
   const [colegioId, setColegioId] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [colegioInfo, setColegioInfo] = useState(null);
+  const [loadingColegio, setLoadingColegio] = useState(false);
 
   useEffect(() => {
     console.log('🎯 TickectBuyEspecial montado');
@@ -77,6 +79,9 @@ const TickectBuyEspecial = () => {
       
       if (storedUserData && storedUserData.colegio_id) {
         setColegioId(storedUserData.colegio_id);
+        
+        // Cargar información del colegio
+        cargarInformacionColegio(storedUserData.colegio_id);
       }
 
       // Establecer precio fijo desde datos del sorteo
@@ -114,6 +119,32 @@ const TickectBuyEspecial = () => {
       });
     }
   }, [router]);
+
+  // Función para cargar información del colegio
+  const cargarInformacionColegio = async (colegioId) => {
+    try {
+      setLoadingColegio(true);
+      console.log('🏫 Cargando información del colegio ID:', colegioId);
+      
+      const response = await fetch(`/api/colegios/${colegioId}`);
+      
+      if (!response.ok) {
+        console.error(`❌ Error ${response.status} cargando colegio`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('🏫 Datos del colegio cargados:', data);
+      
+      if (data && !data.error) {
+        setColegioInfo(data);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando información del colegio:', error);
+    } finally {
+      setLoadingColegio(false);
+    }
+  };
 
   // Agrega al principio del useEffect o en un useEffect separado
   useEffect(() => {
@@ -179,7 +210,7 @@ const TickectBuyEspecial = () => {
     }
   }, [colegioId, userData, prizes?.Fecha, sorteoData?.Fecha]);
 
-  // Función para obtener un número aleatorio disponible para boletos especiales
+  // Función para obtener un número aleatorio disponible para boletos especiales - MODIFICADA
   const getRandomNumberEspecial = async () => {
     try {
       setIsLoading(true);
@@ -191,6 +222,11 @@ const TickectBuyEspecial = () => {
           text: 'No se pudo cargar información del sorteo'
         });
         return;
+      }
+
+      // Si no tenemos información del colegio, intentar cargarla
+      if (!colegioInfo && userData?.colegio_id) {
+        await cargarInformacionColegio(userData.colegio_id);
       }
 
       console.log('🎲 Generando número aleatorio...');
@@ -228,8 +264,16 @@ const TickectBuyEspecial = () => {
       // Establecer el número encontrado
       setTicketNumber(numeroAleatorio);
       
-      // Establecer nombre por defecto
-      setName("Trébol de la Suerte");
+      // MODIFICACIÓN: Establecer nombre por defecto como el nombre del colegio
+      // SOLO si tenemos información del colegio
+      if (colegioInfo && colegioInfo.nombre) {
+        setName(colegioInfo.nombre);
+        console.log(`✅ Nombre por defecto (colegio): ${colegioInfo.nombre}`);
+      } else {
+        // Si no hay información del colegio, usar un valor por defecto genérico
+        setName("Comprador");
+        console.log('⚠️ Usando nombre por defecto genérico');
+      }
 
       // Limpiar validación de tope
       setFoundTope(null);
@@ -507,6 +551,7 @@ const TickectBuyEspecial = () => {
     } finally {
       setIsLoading(false);
       setTicketNumber("");
+      // LIMPIA el campo nombre después de la venta
       setName("");
     }
   };
@@ -568,6 +613,16 @@ const TickectBuyEspecial = () => {
           <label className="text-white text-sm flex justify-center items-center relative">
             Dígitos: {sorteoData.digitos_boleto} | Precio: ${sorteoData.precio_boleto}
           </label>
+          
+          {/* Información del colegio - solo para referencia */}
+          {colegioInfo && colegioInfo.nombre && (
+            <div className="flex items-center gap-2 mt-2 px-4 py-2 bg-gray-800 rounded-lg">
+              <FaSchool className="text-yellow-400" />
+              <span className="text-white text-sm">
+                Colegio: <span className="font-medium">{colegioInfo.nombre}</span>
+              </span>
+            </div>
+          )}
         </div>
 
         {foundTope !== null ? (
@@ -613,17 +668,16 @@ const TickectBuyEspecial = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="bg-neutral-300 border rounded w-[140px] outline-none h-9 pl-5"
-              placeholder="Comprador"
+              placeholder="Ingrese nombre"
             />
           </div>
-
-          {/* Fila de botones Azar*/}
+          {/* Fila de botones Azar */}
           <div className="flex flex-row gap-4 justify-center items-center pt-2">
             <button
               onClick={getRandomNumberEspecial}
-              disabled={isLoading}
-              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title="Generar número aleatorio"
+              disabled={isLoading || loadingColegio}
+              className={`bg-blue-700 text-white flex flex-col justify-center items-center rounded-lg h-[56px] w-[56px] text-xl ${isLoading || loadingColegio ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={loadingColegio ? "Cargando información del colegio..." : "Generar número aleatorio con nombre del colegio"}
             >
               <FaDice className={`${isLoading ? 'animate-spin' : ''} text-2xl`} />
               <span className="text-xs font-semibold mt-1">Azar</span>

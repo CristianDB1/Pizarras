@@ -249,7 +249,9 @@ export default function SuperAdminDashboard() {
                                             <div className="flex items-center gap-3">
                                                 {colegio.logo_url ? (
                                                     <Image 
-                                                        src={colegio.logo_url} 
+                                                        src={colegio.logo_url}
+                                                        width={120}
+                                                        height={120} 
                                                         alt={colegio.nombre}
                                                         className="w-10 h-10 rounded-full"
                                                         onError={(e) => {

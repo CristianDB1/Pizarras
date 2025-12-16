@@ -6,6 +6,8 @@ import useSession from "@/hook/useSession";
 import { useRouter } from 'next/navigation'
 import Swal from 'sweetalert2'
 import { useState } from "react";
+import { FaShieldAlt } from "react-icons/fa";
+import Image from 'next/image';
 
 const LoginForm = () => {
   const { login } = useSession();
@@ -15,6 +17,11 @@ const LoginForm = () => {
     register,
     handleSubmit,
   } = useForm();
+
+  // Función para redirigir al login de administración
+  const goToAdminLogin = () => {
+    router.push('/loginAdmin'); 
+  };
 
   const enviarDatos = async (dataUser) => {
     setLoading(true)
@@ -56,29 +63,26 @@ const LoginForm = () => {
         title: 'Error',
         text: 'Usuario o contraseña incorrectos',
         icon: 'error',
-        showConfirmButton: true, // Cambiado a true para debugging
+        showConfirmButton: true,
         confirmButtonText: 'OK'
       })
       setLoading(false)
       return;
     }
 
-    // Normalizar datos - manejar tanto array como objeto
     const userData = Array.isArray(data) ? data[0] : data;
     console.log('👤 Datos del usuario:', userData)
     
-    // CORRECCIÓN: Definir 'rol' aquí antes de usarlo
-    let rol = 'vendedor'; // Valor por defecto
+    let rol = 'vendedor';
     
     if (userData.rol) {
-      rol = userData.rol; // Si viene el campo rol en los datos
+      rol = userData.rol;
     } else if (userData.sucursal === "Loteria") {
-      rol = 'staff'; // Compatibilidad con sistema antiguo
+      rol = 'staff';
     }
     
     console.log('🎭 Rol determinado:', rol)
 
-    // Verificar estatus (ambas versiones por compatibilidad)
     const estatus = userData.Estatus || userData.estatus;
     
     if (estatus === 'baja' || estatus === 'inactivo') {
@@ -120,15 +124,14 @@ const LoginForm = () => {
       return;
     }
 
-    // Estructurar datos para el sistema
     const formattedUserData = {
       id_vendedor: userData.id_vendedor || userData.id,
       nombre: userData.Nombre || userData.nombre,
       usuario: userData.usuario,
-      rol: rol, // Usamos la variable 'rol' que definimos arriba
+      rol: rol,
       comision: userData.comision || 0,
       estatus: estatus,
-      Estatus: estatus, // Para compatibilidad
+      Estatus: estatus,
       colegio_id: userData.colegio_id,
       Puntos: userData.Puntos || 0,
       sucursal: userData.sucursal,
@@ -137,7 +140,6 @@ const LoginForm = () => {
 
     console.log('💾 Datos formateados:', formattedUserData)
 
-    // Guardar sesión y redirigir
     console.log('🔄 Ejecutando login()...')
     login(formattedUserData)
     
@@ -161,54 +163,67 @@ const LoginForm = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit(enviarDatos)} className="max-w-sm mx-auto w-full ">
-      <div className="flex flex-col items-center justify-center -mt-10 mb-6">
-        <div className="relative w-24 h-24 mb-4">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-purple-600 rounded-full"></div>
-          <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-            <span className="text-3xl font-bold bg-gradient-to-r from-red-600 to-purple-600 bg-clip-text text-transparent">
-              TS
-            </span>
+    <div className="max-w-sm mx-auto w-full">
+      <form onSubmit={handleSubmit(enviarDatos)} className="w-full">
+        <div className="flex flex-col items-center justify-center -mt-10 mb-6">
+          <div className="relative w-64 h-64 mb-1">
+                <Image
+                    src="/Logo_tu_sorteo_digital.png"
+                    alt="Logo TU SORTEO DIGITAL"
+                    fill
+                    className="object-contain"
+                    priority
+                />
+          </div>
+          <p className="text-gray-300 text-sm mt-1">Sistema de Gestión</p>
+        </div>
+        <div className="relative z-0 w-full px-8 mb-5 group">
+          <div className="relative">
+            <input 
+              {...register("user", { required: true })} 
+              className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 relative pl-12" 
+              placeholder="Usuario" 
+              required 
+            />
+            <FaUserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500" />
+          </div>
+          <div className="relative mt-6">
+            <input 
+              {...register("pass", { required: true })} 
+              type="password" 
+              className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 pl-12" 
+              placeholder="Contraseña" 
+              required 
+            />
+            <PiPasswordFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-white text-center">
-          <span className="bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
-            TU SORTEO
-          </span>
-        </h1>
-        <p className="text-gray-300 text-sm mt-2">Sistema de Gestión</p>
-      </div>
-      <div className="relative z-0 w-full px-8 mb-5 group">
-        <div className="relative">
-          <input 
-            {...register("user", { required: true })} 
-            className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 relative pl-12" 
-            placeholder="Usuario" 
-            required 
-          />
-          <FaUserCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500" />
+        <div className="relative z-0 px-8 mb-4">
+          <button 
+            type="submit" 
+            className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-full px-5 py-2.5 text-center transition duration-200"
+            disabled={isloading}
+          >
+            {isloading ? 'Ingresando...' : 'Ingresar'}
+          </button>
         </div>
-        <div className="relative mt-6">
-          <input 
-            {...register("pass", { required: true })} 
-            type="password" 
-            className="block py-2.5 px-0 w-full text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 pl-12" 
-            placeholder="Contraseña" 
-            required 
-          />
-          <PiPasswordFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 text-gray-500" />
-        </div>
-      </div>
-      <div className="relative z-0 px-8 ">
+      </form>
+
+      {/* Botón para login de administración */}
+      <div className="relative z-0 px-8">
         <button 
-          type="submit" 
-          className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-full px-5 py-2.5 text-center"
-          disabled={isloading}
+          type="button"
+          onClick={goToAdminLogin}
+          className="text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm w-full px-5 py-2.5 text-center transition duration-200 flex items-center justify-center gap-2"
         >
-          {isloading ? 'Ingresando...' : 'Ingresar'}
+          <FaShieldAlt className="h-4 w-4" />
+          <span>Acceso Administración</span>
         </button>
+        <p className="text-gray-400 text-xs text-center mt-2">
+          Solo para administradores del sistema
+        </p>
       </div>
-    </form>
+    </div>
   );
 }
 
