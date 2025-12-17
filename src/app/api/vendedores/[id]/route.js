@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
     try {
         const { id } = params;
         
-        console.log('👤 Obteniendo vendedor ID:', id);
+        //console.log('👤 Obteniendo vendedor ID:', id);
         
         // 1. Obtener datos del vendedor
         const [vendedor] = await pool.query(
@@ -51,7 +51,7 @@ export async function GET(request, { params }) {
                 deudaTotal = parseFloat(deudas[0].total_deuda);
             }
         } catch (error) {
-            console.log('ℹ️ No se pudo obtener deuda:', error.message);
+            //console.log('ℹ️ No se pudo obtener deuda:', error.message);
         }
         
         // 3. Obtener nombre del colegio
@@ -66,10 +66,10 @@ export async function GET(request, { params }) {
                 nombreColegio = colegio[0].nombre;
             }
         } catch (error) {
-            console.log('ℹ️ No se pudo obtener colegio:', error.message);
+            //console.log('ℹ️ No se pudo obtener colegio:', error.message);
         }
         
-        console.log('✅ Vendedor encontrado:', vendedorData.nombre, 'Deuda:', deudaTotal);
+        //console.log('✅ Vendedor encontrado:', vendedorData.nombre, 'Deuda:', deudaTotal);
         
         // 4. Preparar respuesta
         const normalizedVendedor = {
@@ -133,7 +133,7 @@ export async function PUT(request, { params }) {
             rol
         } = data;
         
-        console.log('✏️ Actualizando vendedor ID:', id, 'Datos:', data);
+        //console.log('✏️ Actualizando vendedor ID:', id, 'Datos:', data);
         
         connection = await pool.getConnection();
         await connection.beginTransaction();
@@ -195,7 +195,7 @@ export async function PUT(request, { params }) {
         
         await connection.commit();
         
-        console.log('✅ Vendedor actualizado:', id);
+        //console.log('✅ Vendedor actualizado:', id);
         
         return NextResponse.json({
             success: true,
@@ -232,7 +232,7 @@ export async function DELETE(request, { params }) {
     try {
         const { id } = params;
         
-        console.log('🗑️ Eliminando vendedor ID:', id);
+        //console.log('🗑️ Eliminando vendedor ID:', id);
         
         // Verificar que el vendedor existe
         const [vendedorExiste] = await pool.query(
@@ -250,7 +250,7 @@ export async function DELETE(request, { params }) {
             [id]
         );
         
-        console.log('✅ Vendedor eliminado:', id);
+        //console.log('✅ Vendedor eliminado:', id);
         
         return NextResponse.json({
             success: true,

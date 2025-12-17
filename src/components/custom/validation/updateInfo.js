@@ -1,5 +1,5 @@
 export default async function updateInfo(idVendedor) {
-    console.log('🔄 Actualizando información del vendedor:', idVendedor);
+    //console.log('🔄 Actualizando información del vendedor:', idVendedor);
     
     if (!idVendedor) {
         console.warn('⚠️ No hay idVendedor para updateInfo');
@@ -15,7 +15,7 @@ export default async function updateInfo(idVendedor) {
         }
         
         const data = await response.json();
-        console.log('📥 Datos recibidos para update:', data);
+        //console.log('📥 Datos recibidos para update:', data);
         
         if (data.success && data.vendedor) {
             const vendedor = data.vendedor;
@@ -32,7 +32,7 @@ export default async function updateInfo(idVendedor) {
             };
             
             localStorage.setItem("userData", JSON.stringify(updatedData));
-            console.log('✅ Información actualizada en localStorage');
+            //console.log('✅ Información actualizada en localStorage');
         }
         
     } catch (error) {

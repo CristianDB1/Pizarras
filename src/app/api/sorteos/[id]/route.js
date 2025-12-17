@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
     try {
         const { id } = params;
         
-        console.log('🎯 Obteniendo sorteo para venta, ID:', id);
+        //console.log('🎯 Obteniendo sorteo para venta, ID:', id);
         
         const [rows] = await pool.query(
             `SELECT 
@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
         );
         
         if (rows.length === 0) {
-            console.log('❌ Sorteo no encontrado:', id);
+            //console.log('❌ Sorteo no encontrado:', id);
             return NextResponse.json(
                 { 
                     success: false,
@@ -52,7 +52,7 @@ export async function GET(request, { params }) {
             );
         }
         
-        console.log('✅ Sorteo listo para venta:', sorteo.nombre);
+        //console.log('✅ Sorteo listo para venta:', sorteo.nombre);
         
         return NextResponse.json({
             success: true,

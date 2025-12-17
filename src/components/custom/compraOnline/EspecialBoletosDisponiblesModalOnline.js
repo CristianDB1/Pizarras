@@ -1,16 +1,16 @@
 // EspecialBoletosDisponiblesModalOnline.js - VERSIÓN MODIFICADA
 import React from "react";
 
-const EspecialBoletosDisponiblesModalOnline = ({ tickets, onClose, colegioId }) => { // ← Añadir colegioId como prop
-  const boletosVendidosNormal = tickets.boletosNormal || []; // Array de números (ej: [36, 123, 456])
-  const boletosVendidosOnline = tickets.boletosOnline || []; // Array de números (ej: [78, 234])
+const EspecialBoletosDisponiblesModalOnline = ({ tickets, onClose, colegioId }) => { 
+  const boletosVendidosNormal = tickets.boletosNormal || []; 
+  const boletosVendidosOnline = tickets.boletosOnline || []; 
   
   // Debug para verificar datos
-  console.log("🎫 Modal - Boletos recibidos:", {
+  /*console.log("🎫 Modal - Boletos recibidos:", {
     normales: boletosVendidosNormal,
     online: boletosVendidosOnline,
     colegioId
-  });
+  });*/
   
   // NORMALIZAR todos a strings de 3 dígitos para comparación consistente
   const todosBoletosVendidos = [

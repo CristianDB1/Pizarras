@@ -20,7 +20,7 @@ export async function GET(req, res) {
         }
         
     } catch (error) {
-        console.log("Error en API /leyenda3:", error);
+        //console.log("Error en API /leyenda3:", error);
         
         // 3. Siempre devuelve una respuesta
         return NextResponse.json(

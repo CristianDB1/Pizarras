@@ -87,9 +87,9 @@ const shareTicket = async (pdfBlob, fileName, ticketData) => {
 // Función principal mejorada
 const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
   try {
-    console.log("📄 Iniciando generación de PDF mejorado");
+    /*console.log("📄 Iniciando generación de PDF mejorado");
     console.log("🎫 Tickets recibidos:", tickets);
-    console.log("📅 Fecha sorteo:", fechaSorteo);
+    console.log("📅 Fecha sorteo:", fechaSorteo);*/
 
     // Verificación de datos
     if (!tickets || tickets.length === 0) {
@@ -108,16 +108,16 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
 
     if (colegioId) {
       try {
-        console.log(`🏫 Obteniendo datos del colegio ID: ${colegioId}`);
+        //console.log(`🏫 Obteniendo datos del colegio ID: ${colegioId}`);
         const response = await fetch(`/api/colegios/${colegioId}`);
         
         if (response.ok) {
           colegioData = await response.json();
-          console.log('✅ Datos del colegio:', colegioData);
+          //console.log('✅ Datos del colegio:', colegioData);
           
           // Convertir logo a base64 si existe
           if (colegioData.logo_url) {
-            console.log('🖼️ Convirtiendo logo a base64...');
+            //console.log('🖼️ Convirtiendo logo a base64...');
             logoBase64 = await imageUrlToBase64(colegioData.logo_url);
           }
         }
@@ -146,10 +146,10 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       }
     }
     
-    console.log(`🔢 Dígitos del boleto: ${digitosBoleto}`);
+    //console.log(`🔢 Dígitos del boleto: ${digitosBoleto}`);
 
     // ========== GENERAR QR CODES PARA CADA BOLETO ==========
-    console.log('🔳 Generando códigos QR para los boletos...');
+    //console.log('🔳 Generando códigos QR para los boletos...');
     const ticketsWithQR = await Promise.all(
       tickets.map(async (ticket) => {
         // Datos para el QR
@@ -214,7 +214,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       try {
         // Logo centrado
         doc.addImage(logoBase64, 'PNG', 30, yPosition, 20, 20);
-        console.log('✅ Logo agregado al PDF');
+        //console.log('✅ Logo agregado al PDF');
         yPosition += 25;
       } catch (error) {
         console.warn('⚠️ Error cargando logo en PDF:', error);
@@ -381,7 +381,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           
           // Agregar QR al PDF
           doc.addImage(ticket.qr_code, 'PNG', qrX, qrY, qrSize, qrSize);
-          console.log(`✅ QR agregado para boleto ${boletoNum}`);
+          //console.log(`✅ QR agregado para boleto ${boletoNum}`);
           
           yPosition += qrSize + 30;
         } catch (error) {
@@ -544,7 +544,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     // Manejar la opción seleccionada
     if (result.isConfirmed) {
       // DESCARGAR PDF
-      console.log('📥 Descargando PDF...');
+      //console.log('📥 Descargando PDF...');
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
@@ -563,7 +563,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       
     } else if (result.isDenied) {
       // COMPARTIR - Usar API nativa de compartir
-      console.log('📤 Intentando compartir...');
+      //console.log('📤 Intentando compartir...');
       try {
         const file = new File([blob], fileName, { type: 'application/pdf' });
         
@@ -705,7 +705,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       }
     } else {
       // CERRAR - No hacer nada, solo cerrar el modal
-      console.log('🚪 Cerrando modal sin acción adicional');
+      //console.log('🚪 Cerrando modal sin acción adicional');
     }
 
     // Agregar CSS para los botones

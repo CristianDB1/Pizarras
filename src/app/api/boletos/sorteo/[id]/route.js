@@ -7,7 +7,7 @@ export async function GET(request, { params }) {
         const { searchParams } = new URL(request.url);
         const colegioId = searchParams.get('colegio_id');
         
-        console.log('📡 Obteniendo boletos del sorteo:', id, 'colegio:', colegioId);
+        //console.log('📡 Obteniendo boletos del sorteo:', id, 'colegio:', colegioId);
         
         // Validar que el sorteo pertenezca al colegio (si se proporciona colegioId)
         if (colegioId) {

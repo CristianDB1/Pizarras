@@ -107,10 +107,10 @@ const AdminDashboard = () => {
         
         try {
             setIsLoading(true)
-            console.log('📊 Cargando datos del colegio:', colegioId)
+            //console.log('📊 Cargando datos del colegio:', colegioId)
             
             if (!colegioId) {
-                console.log('❌ No hay colegioId para cargar datos')
+                //console.log('❌ No hay colegioId para cargar datos')
                 return
             }
             
@@ -119,7 +119,7 @@ const AdminDashboard = () => {
             if (colegioResponse.ok) {
                 const data = await colegioResponse.json()
                 setColegioData(data)
-                console.log('✅ Datos del colegio cargados:', data.nombre)
+                //console.log('✅ Datos del colegio cargados:', data.nombre)
             }
 
         } catch (error) {
@@ -131,14 +131,14 @@ const AdminDashboard = () => {
     }
 
     useEffect(() => {
-        console.log('🔵 useEffect - Marcando como cliente')
+        //console.log('🔵 useEffect - Marcando como cliente')
         setIsClient(true)
     }, [])
 
     // Obtener colegioId de los parámetros de la ruta
     useEffect(() => {
         if (params && params.colegioId) {
-            console.log('📌 Colegio ID de la URL:', params.colegioId)
+            //console.log('📌 Colegio ID de la URL:', params.colegioId)
             setColegioId(params.colegioId)
         }
     }, [params])
@@ -146,36 +146,36 @@ const AdminDashboard = () => {
     // VERIFICACIÓN DE AUTENTICACIÓN Y CARGA DE DATOS
     useEffect(() => {
         if (!isClient) {
-            console.log('⏳ No es cliente aún, esperando...')
+            //console.log('⏳ No es cliente aún, esperando...')
             return
         }
 
-        console.log('🔍 Verificando autenticación...')
+        /*console.log('🔍 Verificando autenticación...')
         console.log('isLoggedIn:', session.isLoggedIn())
-        console.log('userType:', session.getUserType())
+        console.log('userType:', session.getUserType())*/
 
         const userData = session.getUserData()
         
         if (!session.isLoggedIn()) {
-            console.log('❌ No está logueado, redirigiendo a /loginAdmin')
+            //console.log('❌ No está logueado, redirigiendo a /loginAdmin')
             router.push('/loginAdmin')
             return
         }
 
         const userType = session.getUserType()
         if (userType !== 'admin_colegio' && userType !== 'superadmin') {
-            console.log(`❌ Tipo de usuario incorrecto: ${userType}, redirigiendo a /`)
+            //console.log(`❌ Tipo de usuario incorrecto: ${userType}, redirigiendo a /`)
             router.push('/')
             return
         }
 
         if (userType === 'admin_colegio' && !userData?.colegio_id) {
-            console.log('❌ Admin colegio sin colegio_id, redirigiendo a /loginAdmin')
+            //console.log('❌ Admin colegio sin colegio_id, redirigiendo a /loginAdmin')
             router.push('/loginAdmin')
             return
         }
 
-        console.log('✅ Autenticación OK')
+        //console.log('✅ Autenticación OK')
         
         // Determinar el colegioId a usar
         const idColegio = userData?.colegio_id || params.colegioId
@@ -184,7 +184,7 @@ const AdminDashboard = () => {
             setColegioId(idColegio)
             // Cargar datos solo una vez
             if (!hasLoaded.current) {
-                console.log('🚀 Iniciando carga de datos con colegioId:', idColegio)
+                //console.log('🚀 Iniciando carga de datos con colegioId:', idColegio)
                 loadColegioData(idColegio)
                 hasLoaded.current = true
             }
@@ -194,7 +194,7 @@ const AdminDashboard = () => {
 
     // Función para manejar el logout
     const handleLogout = () => {
-        console.log('🚪 Cerrando sesión...')
+        //onsole.log('🚪 Cerrando sesión...')
         session.logout()
         router.push('/loginAdmin')
     }

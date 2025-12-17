@@ -20,14 +20,14 @@ const ViewTickets = () => {
   const fetchData = async () => {
     try {
       const userData = getUserData();
-      console.log("🔍 userData completo:", userData);
-      console.log("🔍 Todos los campos:", Object.keys(userData));
-      console.log("🔍 userData stringificado:", JSON.stringify(userData, null, 2));
+      //console.log("🔍 userData completo:", userData);
+      //console.log("🔍 Todos los campos:", Object.keys(userData));
+      //console.log("🔍 userData stringificado:", JSON.stringify(userData, null, 2));
       
       // Buscar el ID del vendedor
       const idVendedor = userData.id_vendedor || userData.idVendedor || userData.Idvendedor || userData.id;
-      console.log("🔍 idVendedor encontrado:", idVendedor);
-      console.log("🔍 Tipo de idVendedor:", typeof idVendedor);
+      //console.log("🔍 idVendedor encontrado:", idVendedor);
+      //console.log("🔍 Tipo de idVendedor:", typeof idVendedor);
       
       if (!idVendedor) {
         console.error("❌ No se encontró el ID del vendedor en:", userData);
@@ -42,7 +42,7 @@ const ViewTickets = () => {
         return;
       }
       
-      console.log("🔍 Enviando a API con id_vendedor:", idVendedorNum);
+      //console.log("🔍 Enviando a API con id_vendedor:", idVendedorNum);
       
       const response = await fetch("/api/viewTickects", {
         method: "POST",
@@ -52,8 +52,8 @@ const ViewTickets = () => {
         body: JSON.stringify({ id_vendedor: idVendedorNum }),
       });
 
-      console.log("🔍 Response status:", response.status);
-      console.log("🔍 Response ok:", response.ok);
+      //console.log("🔍 Response status:", response.status);
+      //console.log("🔍 Response ok:", response.ok);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -62,10 +62,10 @@ const ViewTickets = () => {
       }
 
       const data = await response.json();
-      console.log("✅ Data recibida de API:", data);
-      console.log("✅ Tipo de data:", typeof data);
-      console.log("✅ Es array?:", Array.isArray(data));
-      console.log("✅ Longitud:", data.length);
+      //console.log("✅ Data recibida de API:", data);
+      //console.log("✅ Tipo de data:", typeof data);
+      //console.log("✅ Es array?:", Array.isArray(data));
+      //console.log("✅ Longitud:", data.length);
       
       if (data.length === 0) {
         console.warn("⚠️ La API devolvió un array vacío");
@@ -106,12 +106,12 @@ const ViewTickets = () => {
   const handlePrint = (ticket) => {
     const tickets = [];
     tickets.push(ticket); 
-    console.log("tickets", tickets);    
+    //console.log("tickets", tickets);    
     let fechaSinHora = tickets[0].FechaSorteo;
     if (isNaN(new Date(fechaSinHora).getTime())) {
       console.error("Invalid date:", fechaSinHora);
     } else {
-      console.log("fechaSinHora", fechaSinHora);
+      //console.log("fechaSinHora", fechaSinHora);
       generatePDF(tickets, fechaSinHora,true);
     }
   };

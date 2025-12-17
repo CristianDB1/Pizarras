@@ -46,7 +46,7 @@ export async function POST(request) {
         
         // 5. Verificar si existe el usuario
         if (rows.length === 0) {
-            console.log('❌ Credenciales incorrectas para:', user);
+            //console.log('❌ Credenciales incorrectas para:', user);
             return NextResponse.json([], { status: 200 });
         }
         
@@ -91,7 +91,7 @@ export async function POST(request) {
                 }
             }
             
-            console.log('📝 Mensaje encontrado:', mensaje.substring(0, 50) + '...');
+            //console.log('📝 Mensaje encontrado:', mensaje.substring(0, 50) + '...');
             
         } catch (mensajeError) {
             console.warn('⚠️ No se pudo obtener mensaje, usando mensaje por defecto:', mensajeError.message);
@@ -106,7 +106,7 @@ export async function POST(request) {
         
         // 9. Verificar estatus del usuario
         if (vendedor.estatus !== 'activo') {
-            console.log('⚠️ Usuario no activo:', vendedor.nombre, 'Estatus:', vendedor.estatus);
+            //console.log('⚠️ Usuario no activo:', vendedor.nombre, 'Estatus:', vendedor.estatus);
             
             return NextResponse.json([{
                 // Campos nuevos
@@ -135,13 +135,13 @@ export async function POST(request) {
         }
         
         // 10. LOGIN EXITOSO - Preparar respuesta
-        console.log('✅ Login exitoso:', {
+        /*console.log('Login exitoso:', {
             id: vendedor.id_vendedor,
             nombre: vendedor.nombre,
             rol: vendedor.rol,
             colegio: vendedor.colegio_id,
             mensaje: mensaje.substring(0, 30) + '...'
-        });
+        });*/
         
         const responseData = [{
             // ✅ CAMPOS NUEVOS (para el sistema actualizado)

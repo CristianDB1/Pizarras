@@ -6,7 +6,7 @@ export async function POST(req) {
         const datos = await req.json();
         const { user, pass } = datos;
 
-        console.log('🔐 Intentando login con:', { user });
+        //console.log('🔐 Intentando login con:', { user });
 
         // 1. Buscar en tabla USUARIOS
         const sql = `
@@ -24,7 +24,7 @@ export async function POST(req) {
 
         const [rows] = await pool.query(sql, [user, pass]);
 
-        console.log('📊 Resultado de la consulta:', rows);
+        //console.log('📊 Resultado de la consulta:', rows);
 
         if (rows.length === 0) {
             console.log('❌ Usuario no encontrado o credenciales incorrectas');
@@ -35,21 +35,21 @@ export async function POST(req) {
         }
 
         const usuario = rows[0];
-        console.log('✅ Usuario encontrado:', usuario);
+        //console.log('✅ Usuario encontrado:', usuario);
 
         // 2. Si es admin_colegio, obtener datos de su colegio
         let colegio = null;
         let sorteos = [];
         
         if (usuario.rol === 'admin_colegio' && usuario.colegio_id) {
-            console.log('🏫 Buscando colegio para admin_colegio:', usuario.colegio_id);
+            //console.log('🏫 Buscando colegio para admin_colegio:', usuario.colegio_id);
             const [colegioData] = await pool.query(
                 `SELECT id_colegio, nombre, logo_url, configuracion, estatus 
                  FROM colegios WHERE id_colegio = ?`,
                 [usuario.colegio_id]
             );
             colegio = colegioData[0] || null;
-            console.log('📁 Colegio encontrado:', colegio);
+            //console.log('📁 Colegio encontrado:', colegio);
 
             // Obtener sorteos activos del colegio
             const [sorteosData] = await pool.query(
@@ -65,7 +65,7 @@ export async function POST(req) {
         // 3. Si es superadmin, obtener lista de todos los colegios
         let todosColegios = [];
         if (usuario.rol === 'superadmin') {
-            console.log('👑 Es superadmin, obteniendo todos los colegios');
+            //console.log('👑 Es superadmin, obteniendo todos los colegios');
             const [colegiosData] = await pool.query(
                 `SELECT id_colegio, nombre, logo_url, estatus 
                  FROM colegios WHERE estatus = 'activo' ORDER BY nombre`
@@ -94,7 +94,7 @@ export async function POST(req) {
             todos_colegios: todosColegios
         };
 
-        console.log('📤 Enviando respuesta:', responseData);
+        //console.log('📤 Enviando respuesta:', responseData);
 
         return NextResponse.json([responseData]);
 

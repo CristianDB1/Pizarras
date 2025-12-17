@@ -14,7 +14,7 @@ export async function PUT(request, { params }) {
             estatus 
         } = data;
         
-        console.log('✏️ Editando colegio ID:', id, 'Datos:', data);
+        //console.log('✏️ Editando colegio ID:', id, 'Datos:', data);
         
         // Validar datos
         if (!nombre || !estatus) {
@@ -66,7 +66,7 @@ export async function PUT(request, { params }) {
         
         await connection.commit();
         
-        console.log('✅ Colegio actualizado correctamente');
+        //console.log('✅ Colegio actualizado correctamente');
         
         return NextResponse.json({
             success: true,

@@ -86,7 +86,7 @@ export async function POST(req) {
         parseInt(colegioIdABuscar)
       ]);
 
-      console.log("📝 Insertando boletos:", values); // Para debug
+      //console.log("📝 Insertando boletos:", values); // Para debug
 
       const [result] = await connection.query(sqlInsert, [values]);
       await connection.commit();

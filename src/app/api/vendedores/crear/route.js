@@ -18,7 +18,7 @@ export async function POST(request) {
             colegio_id
         } = data;
         
-        console.log('👥 Creando nuevo vendedor:', { nombre, usuario, colegio_id });
+        //console.log('👥 Creando nuevo vendedor:', { nombre, usuario, colegio_id });
         
         // Validaciones
         if (!nombre || !usuario || !colegio_id) {
@@ -85,7 +85,7 @@ export async function POST(request) {
         
         await connection.commit();
         
-        console.log('✅ Vendedor creado:', vendedorId);
+        //console.log('✅ Vendedor creado:', vendedorId);
         
         return NextResponse.json({
             success: true,

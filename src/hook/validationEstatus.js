@@ -2,7 +2,7 @@
 import Swal from 'sweetalert2';
 
 const VailidationEstatus = async () => {
-    console.log('🔍 Validando estatus del vendedor...');
+    //console.log('🔍 Validando estatus del vendedor...');
     
     try {
         // Obtener datos del usuario de localStorage
@@ -23,7 +23,7 @@ const VailidationEstatus = async () => {
             return true; // Permitir continuar
         }
         
-        console.log('👤 Validando vendedor ID:', idVendedor);
+        //console.log('👤 Validando vendedor ID:', idVendedor);
         
         // Llamar a la nueva API
         const response = await fetch(`/api/vendedores/${idVendedor}`);
@@ -34,7 +34,7 @@ const VailidationEstatus = async () => {
         }
         
         const data = await response.json();
-        console.log('📥 Respuesta de validación:', data);
+        //console.log('📥 Respuesta de validación:', data);
         
         if (data.success && data.vendedor) {
             const vendedor = data.vendedor;
@@ -53,7 +53,7 @@ const VailidationEstatus = async () => {
                 return false;
             }
             
-            console.log('✅ Vendedor validado correctamente');
+            //console.log('✅ Vendedor validado correctamente');
             return true;
         } else {
             console.warn('⚠️ No se pudo obtener datos del vendedor');

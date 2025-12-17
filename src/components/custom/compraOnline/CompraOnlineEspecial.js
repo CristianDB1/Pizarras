@@ -31,7 +31,7 @@ const CompraOnlineEspecial = () => {
         const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
         if (sorteoGuardado) {
           const sorteo = JSON.parse(sorteoGuardado);
-          console.log("📦 Sorteo cargado:", sorteo.Idsorteo || sorteo.id_sorteo);
+          //console.log("📦 Sorteo cargado:", sorteo.Idsorteo || sorteo.id_sorteo);
           setPrizes(sorteo);
           setPrecioFijo(sorteo.precio_boleto || sorteo.PrecioBoleto || sorteo.precio || "");
         } else {
@@ -51,14 +51,14 @@ const CompraOnlineEspecial = () => {
   // 2. CARGAR BOLETOS CUANDO TENEMOS EL SORTEO
   const cargarBoletos = useCallback(async () => {
     if (!prizes) {
-      console.log("⏳ Esperando sorteo...");
+      //console.log("⏳ Esperando sorteo...");
       return;
     }
 
     try {
       setCargandoDatos(true);
       const sorteoId = prizes.Idsorteo || prizes.id_sorteo;
-      console.log("📡 Cargando boletos para sorteo:", sorteoId);
+      //console.log("📡 Cargando boletos para sorteo:", sorteoId);
 
       // Cargar boletos NORMALES
       let urlBoletosNormales = `/api/boletos/sorteo/${sorteoId}`;
@@ -66,14 +66,14 @@ const CompraOnlineEspecial = () => {
         urlBoletosNormales += `?colegio_id=${colegioId}`;
       }
       
-      console.log("🔗 URL boletos normales:", urlBoletosNormales);
+      //console.log("🔗 URL boletos normales:", urlBoletosNormales);
       const responseBoletos = await fetch(urlBoletosNormales);
       const dataBoletos = await responseBoletos.json();
       
       if (dataBoletos.success) {
         const numerosVendidos = dataBoletos.datos?.map(b => b.numero_boleto) || [];
         setBoletosNormales(numerosVendidos);
-        console.log(`✅ ${numerosVendidos.length} boletos normales cargados`);
+        //console.log(`✅ ${numerosVendidos.length} boletos normales cargados`);
       } else {
         console.error("❌ Error boletos normales:", dataBoletos.error);
       }
@@ -84,14 +84,14 @@ const CompraOnlineEspecial = () => {
         urlBoletosOnline += `&colegio=${colegioId}`;
       }
       
-      console.log("🔗 URL boletos online:", urlBoletosOnline);
+      //console.log("🔗 URL boletos online:", urlBoletosOnline);
       const responseOnline = await fetch(urlBoletosOnline);
       const dataOnline = await responseOnline.json();
       
       if (dataOnline.success) {
         const numerosOnline = dataOnline.boletos?.map(b => b.numero_boleto) || [];
         setBoletosOnline(numerosOnline);
-        console.log(`✅ ${numerosOnline.length} boletos online cargados`);
+        //console.log(`✅ ${numerosOnline.length} boletos online cargados`);
       } else {
         console.error("❌ Error boletos online:", dataOnline.error);
       }
@@ -107,7 +107,7 @@ const CompraOnlineEspecial = () => {
   // 3. Ejecutar carga de boletos cuando prizes esté listo
   useEffect(() => {
     if (prizes) {
-      console.log("🎯 Iniciando carga de boletos...");
+      //console.log("🎯 Iniciando carga de boletos...");
       cargarBoletos();
     }
   }, [prizes, cargarBoletos]);
@@ -236,22 +236,22 @@ const handleTicketNumberChange = (e) => {
     num.toString().padStart(3, '0')
   );
   
-  console.log("🔍 Validando boleto:", {
+  /*console.log("🔍 Validando boleto:", {
     boletoBuscado,
     enNormales: boletosNormalesFormateados.includes(boletoBuscado),
     enOnline: boletosOnlineFormateados.includes(boletoBuscado),
     listaNormales: boletosNormalesFormateados,
     listaOnline: boletosOnlineFormateados
-  });
+  });*/
   
   const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
   const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
   
   if (enNormales || enOnline) {
-    console.log(`❌ Boleto ${boletoBuscado} NO disponible`);
+    //console.log(`❌ Boleto ${boletoBuscado} NO disponible`);
     setFoundTope(true);
   } else {
-    console.log(`✅ Boleto ${boletoBuscado} DISPONIBLE`);
+    //console.log(`✅ Boleto ${boletoBuscado} DISPONIBLE`);
     setFoundTope(null);
   }
 };

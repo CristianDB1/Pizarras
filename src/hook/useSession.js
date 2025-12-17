@@ -11,15 +11,15 @@ const useSession = () => {
     const isBrowser = typeof window !== 'undefined'
 
     const login = useCallback((userData) => {
-        console.log('🔄 useSession.login() ejecutándose con:', userData);
+        //console.log('🔄 useSession.login() ejecutándose con:', userData);
         
         if (isBrowser) {
             // CORRECCIÓN: Verificar estatus (ambas versiones por compatibilidad)
             const estatus = userData.estatus || userData.Estatus;
-            console.log('📋 Estatus del usuario:', estatus);
+            //console.log('📋 Estatus del usuario:', estatus);
             
             if (estatus === 'activo') {
-                console.log('✅ Usuario activo, guardando sesión...');
+                //console.log('✅ Usuario activo, guardando sesión...');
                 localStorage.setItem('logged', 'true');
                 
                 // Determinar userType basado en rol
@@ -33,13 +33,13 @@ const useSession = () => {
                 localStorage.setItem('userType', userType);
                 localStorage.setItem('userData', JSON.stringify(userData));
                 
-                console.log('💾 Sesión guardada:', {
+                /*console.log('💾 Sesión guardada:', {
                     logged: 'true',
                     userType: userType,
                     userData: userData
-                });
+                });*/
             } else {
-                console.log('❌ Usuario no activo, limpiando sesión...');
+                //console.log('❌ Usuario no activo, limpiando sesión...');
                 localStorage.setItem('logged', 'false');
                 localStorage.removeItem('userData');
                 localStorage.removeItem('userType');
@@ -48,7 +48,7 @@ const useSession = () => {
     }, [isBrowser])
 
     const loginAdmin = useCallback((userData) => {
-        console.log('🔄 useSession.loginAdmin() ejecutándose');
+        //console.log('🔄 useSession.loginAdmin() ejecutándose');
         if (isBrowser) {
             localStorage.setItem('logged', 'true');
             localStorage.setItem('userType', userData.rol || 'admin');
@@ -58,7 +58,7 @@ const useSession = () => {
     }, [isBrowser])
 
     const loginWinner = useCallback((userData) => {
-        console.log('🔄 useSession.loginWinner() ejecutándose');
+        //console.log('🔄 useSession.loginWinner() ejecutándose');
         if (isBrowser) {
             localStorage.setItem('logged', 'true');
             localStorage.setItem('userType', 'winner');
@@ -68,10 +68,10 @@ const useSession = () => {
     }, [isBrowser])
 
     const logout = useCallback(() => {
-        console.log('🔄 useSession.logout() ejecutándose');
+        //console.log('🔄 useSession.logout() ejecutándose');
         if (isBrowser) {
             localStorage.clear();
-            console.log('✅ Sesión limpiada');
+            //console.log('✅ Sesión limpiada');
         }
     }, [isBrowser])
 
@@ -79,7 +79,7 @@ const useSession = () => {
         if (isBrowser) {
             const userData = localStorage.getItem('userData');
             const parsed = userData ? JSON.parse(userData) : null;
-            console.log('📋 getUserData():', parsed);
+            //console.log('📋 getUserData():', parsed);
             return parsed;
         }
         return null;
@@ -96,7 +96,7 @@ const useSession = () => {
     const getUserType = useCallback(() => {
         if (isBrowser) {
             const userType = localStorage.getItem('userType');
-            console.log('📋 getUserType():', userType);
+            //console.log('📋 getUserType():', userType);
             return userType;
         }
         return null;
@@ -105,7 +105,7 @@ const useSession = () => {
     const isLoggedIn = useCallback(() => {
         if (isBrowser) {
             const logged = localStorage.getItem('logged') === 'true';
-            console.log('📋 isLoggedIn():', logged);
+            //console.log('📋 isLoggedIn():', logged);
             return logged;
         }
         return false;

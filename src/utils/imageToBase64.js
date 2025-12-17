@@ -22,7 +22,7 @@ export const imageUrlToBase64 = async (imageUrl) => {
       fullUrl = `${window.location.origin}/${imageUrl}`;
     }
 
-    console.log(`📤 Convirtiendo imagen: ${fullUrl}`);
+    //console.log(`📤 Convirtiendo imagen: ${fullUrl}`);
     
     // Hacer la petición con timeout
     const controller = new AbortController();
@@ -53,7 +53,7 @@ export const imageUrlToBase64 = async (imageUrl) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (reader.result) {
-          console.log('✅ Imagen convertida a base64 exitosamente');
+          //console.log('✅ Imagen convertida a base64 exitosamente');
           resolve(reader.result);
         } else {
           reject(new Error('Error leyendo imagen'));

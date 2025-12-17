@@ -14,7 +14,7 @@ class FileUpload {
         try {
             await fs.mkdir(this.logosDir, { recursive: true });
             await fs.mkdir(this.tempDir, { recursive: true });
-            console.log('✅ Directorios de upload creados');
+            //console.log('✅ Directorios de upload creados');
         } catch (error) {
             console.error('❌ Error creando directorios:', error);
         }
@@ -106,7 +106,7 @@ class FileUpload {
             // Guardar archivo
             await fs.writeFile(filePath, buffer);
 
-            console.log(`✅ Imagen guardada: ${safeFilename}`);
+            //console.log(`✅ Imagen guardada: ${safeFilename}`);
 
             return {
                 success: true,
@@ -131,7 +131,7 @@ class FileUpload {
         try {
             const filePath = path.join(this.logosDir, filename);
             await fs.unlink(filePath);
-            console.log(`🗑️ Imagen eliminada: ${filename}`);
+            //console.log(`🗑️ Imagen eliminada: ${filename}`);
             return { success: true };
         } catch (error) {
             console.error('❌ Error eliminando imagen:', error);

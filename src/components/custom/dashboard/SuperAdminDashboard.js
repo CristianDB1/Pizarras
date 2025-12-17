@@ -16,81 +16,81 @@ export default function SuperAdminDashboard() {
     const authChecked = useRef(false)
 
     useEffect(() => {
-        console.log('🔄 useEffect - Marcando como cliente')
+        //console.log('🔄 useEffect - Marcando como cliente')
         setIsClient(true)
     }, [])
 
     // VERIFICACIÓN DE AUTENTICACIÓN - CORREGIDA para evitar bucles
     useEffect(() => {
         if (!isClient) {
-            console.log('⏳ No es cliente aún, esperando...')
+            //console.log('⏳ No es cliente aún, esperando...')
             return
         }
 
         // Evitar múltiples verificaciones
         if (authChecked.current) {
-            console.log('✅ Autenticación ya verificada (skip)')
+            //console.log('✅ Autenticación ya verificada (skip)')
             return
         }
 
-        console.log('🔍 Verificando autenticación...')
+        /*console.log('🔍 Verificando autenticación...')
         console.log('isLoggedIn:', session.isLoggedIn())
         console.log('userType:', session.getUserType())
-        console.log('userData:', session.getUserData())
+        console.log('userData:', session.getUserData())*/
 
         const userData = session.getUserData()
         
         if (!session.isLoggedIn()) {
-            console.log('❌ No está logueado, redirigiendo a /loginAdmin')
+            //console.log('❌ No está logueado, redirigiendo a /loginAdmin')
             router.push('/loginAdmin')
             return
         }
 
         const userType = session.getUserType()
         if (userType !== 'admin_colegio' && userType !== 'superadmin') {
-            console.log(`❌ Tipo de usuario incorrecto: ${userType}, redirigiendo a /`)
+            //console.log(`❌ Tipo de usuario incorrecto: ${userType}, redirigiendo a /`)
             router.push('/')
             return
         }
 
-        console.log('✅ Autenticación OK, marcando como verificada')
+        //console.log('✅ Autenticación OK, marcando como verificada')
         authChecked.current = true
         
         // Cargar colegios solo una vez
         if (!hasLoaded.current) {
-            console.log('📊 Cargando colegios por primera vez')
+            //console.log('📊 Cargando colegios por primera vez')
             loadColegios()
             hasLoaded.current = true
         }
         
-    }, [isClient, router, session]); // IMPORTANTE: Solo dependencia de isClient
+    }, [isClient, router, session]);
 
     const loadColegios = async () => {
         try {
-            console.log('📡 Haciendo fetch a /api/colegios...')
+            //console.log('📡 Haciendo fetch a /api/colegios...')
             setLoading(true)
             const response = await fetch('/api/colegios')
-            console.log('📥 Respuesta recibida, status:', response.status)
+            //console.log('📥 Respuesta recibida, status:', response.status)
             
             if (response.ok) {
                 const data = await response.json()
-                console.log(`✅ Colegios cargados: ${data.length} registros`)
+                //console.log(`✅ Colegios cargados: ${data.length} registros`)
                 setColegios(data)
             } else {
-                console.log('❌ Error en respuesta de API:', response.status)
+                //console.log('❌ Error en respuesta de API:', response.status)
                 setColegios([])
             }
         } catch (error) {
-            console.error('❌ Error cargando colegios:', error)
+            //console.error('❌ Error cargando colegios:', error)
             setColegios([])
         } finally {
-            console.log('🏁 Carga de colegios finalizada')
+            //console.log('🏁 Carga de colegios finalizada')
             setLoading(false)
         }
     }
 
     const handleLogout = () => {
-        console.log('🚪 Cerrando sesión...')
+        //console.log('🚪 Cerrando sesión...')
         session.logout()
         router.push('/loginAdmin')
     }
@@ -119,7 +119,7 @@ export default function SuperAdminDashboard() {
         )
     }
 
-    console.log('🎨 Renderizando dashboard...')
+    //console.log('🎨 Renderizando dashboard...')
     
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">

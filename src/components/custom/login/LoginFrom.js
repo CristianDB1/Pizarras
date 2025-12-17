@@ -55,10 +55,10 @@ const LoginForm = () => {
   }
 
   const processData = (data) => {
-    console.log('🔧 Procesando datos del login...', data)
+    //console.log('🔧 Procesando datos del login...', data)
     
     if (!data || (Array.isArray(data) && data.length === 0)) {
-      console.log('❌ No hay datos o array vacío')
+      //console.log('❌ No hay datos o array vacío')
       Swal.fire({
         title: 'Error',
         text: 'Usuario o contraseña incorrectos',
@@ -71,7 +71,7 @@ const LoginForm = () => {
     }
 
     const userData = Array.isArray(data) ? data[0] : data;
-    console.log('👤 Datos del usuario:', userData)
+    //console.log('👤 Datos del usuario:', userData)
     
     let rol = 'vendedor';
     
@@ -81,12 +81,12 @@ const LoginForm = () => {
       rol = 'staff';
     }
     
-    console.log('🎭 Rol determinado:', rol)
+    //console.log('🎭 Rol determinado:', rol)
 
     const estatus = userData.Estatus || userData.estatus;
     
     if (estatus === 'baja' || estatus === 'inactivo') {
-      console.log('❌ Usuario inactivo')
+      //console.log('❌ Usuario inactivo')
       Swal.fire({
         title: 'Error',
         text: 'Usuario bloqueado por el administrador',
@@ -99,7 +99,7 @@ const LoginForm = () => {
     }
 
     if (estatus === 'suspendido') {
-      console.log('❌ Usuario suspendido')
+      //console.log('❌ Usuario suspendido')
       Swal.fire({
         title: 'Cuenta suspendida',
         html: `
@@ -138,12 +138,12 @@ const LoginForm = () => {
       mensaje: userData.mensaje
     };
 
-    console.log('💾 Datos formateados:', formattedUserData)
+    //console.log('💾 Datos formateados:', formattedUserData)
 
-    console.log('🔄 Ejecutando login()...')
+    //console.log('🔄 Ejecutando login()...')
     login(formattedUserData)
     
-    console.log('🔄 Redirigiendo a /menu...')
+    //console.log('🔄 Redirigiendo a /menu...')
     router.push('/menu')
     
     setLoading(false)

@@ -26,7 +26,7 @@ const LoginAdmin = () => {
         setLoading(true)
         
         try {
-            console.log('🚀 Enviando datos de login:', dataUser)
+            //console.log('🚀 Enviando datos de login:', dataUser)
             const options = {
                 method: 'POST',
                 headers: {
@@ -38,7 +38,7 @@ const LoginAdmin = () => {
             const response = await fetch("/api/login/admin", options)
             const data = await response.json()
             
-            console.log('📥 Respuesta del servidor:', data)
+            //console.log('📥 Respuesta del servidor:', data)
             
             if (!response.ok) {
                 throw new Error(data.error || 'Error en la autenticación')
@@ -46,7 +46,7 @@ const LoginAdmin = () => {
             
             // PASO 1: Verificar datos recibidos
             if (!data || data.length === 0) {
-                console.log('❌ No hay datos en la respuesta')
+                //console.log('❌ No hay datos en la respuesta')
                 Swal.fire({
                     position: 'top-center',
                     title: 'Error',
@@ -60,7 +60,7 @@ const LoginAdmin = () => {
             }
 
             const usuario = data[0]
-            console.log('📋 Usuario recibido:', usuario)
+            //console.log('📋 Usuario recibido:', usuario)
             
             // Validar que tenga los campos necesarios
             if (!usuario.rol) {
@@ -75,14 +75,14 @@ const LoginAdmin = () => {
             }
             
             // PASO 2: Guardar sesión INMEDIATAMENTE
-            console.log('💾 Guardando sesión con loginAdmin...')
+            //console.log('💾 Guardando sesión con loginAdmin...')
             loginAdmin(usuario)
             
             // PASO 3: Verificar que se guardó correctamente
-            console.log('🔍 Verificando localStorage:')
+            /*console.log('🔍 Verificando localStorage:')
             console.log('logged:', localStorage.getItem('logged'))
             console.log('userType:', localStorage.getItem('userType'))
-            console.log('userData:', localStorage.getItem('userData'))
+            console.log('userData:', localStorage.getItem('userData'))*/
             
             // PASO 4: Pequeño delay para asegurar persistencia
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -96,18 +96,18 @@ const LoginAdmin = () => {
             const verificarHora = false // Cambia a true si necesitas verificar hora
 
             if (!verificarHora || (hour < 18 && hour >= 0)) {
-                console.log('✅ Autenticación exitosa, redirigiendo...')
+                //console.log('✅ Autenticación exitosa, redirigiendo...')
                 
                 // PASO 6: Redirigir según rol - CORREGIDO
                 if (usuario.rol === 'superadmin') {
-                    console.log('👑 Redirigiendo a superadmin dashboard')
+                    //console.log('👑 Redirigiendo a superadmin dashboard')
                     router.push('/superadmin/dashboard')
                 } else if (usuario.rol === 'admin_colegio') {
                     if (usuario.colegio_id) {
-                        console.log('🏫 Redirigiendo a dashboard del colegio:', usuario.colegio_id)
+                        //console.log('🏫 Redirigiendo a dashboard del colegio:', usuario.colegio_id)
                         router.push(`/colegio/${usuario.colegio_id}/admin/dashboard`)
                     } else {
-                        console.log('⚠️ Admin colegio sin colegio_id')
+                        //console.log('⚠️ Admin colegio sin colegio_id')
                         Swal.fire({
                             title: 'Error',
                             text: 'No tienes un colegio asignado',
@@ -116,11 +116,11 @@ const LoginAdmin = () => {
                     }
                 } else {
                     // Si llega aquí, es un rol no reconocido
-                    console.log(`❌ Rol no reconocido: ${usuario.rol}, redirigiendo a home`)
+                    //console.log(`❌ Rol no reconocido: ${usuario.rol}, redirigiendo a home`)
                     router.push('/')
                 }
             } else {
-                console.log('⏰ Hora no permitida')
+                //console.log('⏰ Hora no permitida')
                 error()
             }
             

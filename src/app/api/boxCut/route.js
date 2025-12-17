@@ -116,7 +116,7 @@ export async function POST(req, res) {
       boletosNormales: boletosNormales,
     });
   } catch (error) {
-    console.log(error);
+    //console.log(error);
     return NextResponse.json({ error: "Error al ejecutar la consulta" });
   }
 }

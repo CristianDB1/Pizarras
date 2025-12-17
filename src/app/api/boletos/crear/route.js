@@ -15,7 +15,7 @@ export async function POST(request) {
             colegio_id
         } = data;
         
-        console.log('🔄 Creando boleto:', { id_sorteo, id_vendedor, numero_boleto, colegio_id });
+        //console.log('🔄 Creando boleto:', { id_sorteo, id_vendedor, numero_boleto, colegio_id });
         
         // Validaciones básicas
         if (!id_sorteo || !id_vendedor || !numero_boleto || !colegio_id) {
@@ -143,7 +143,7 @@ export async function POST(request) {
         await connection.commit();
         connection.release();
         
-        console.log('✅ Boleto creado exitosamente:', idBoleto);
+        //console.log('✅ Boleto creado exitosamente:', idBoleto);
         
         // 9. Preparar respuesta completa para el frontend
         const boletoCompleto = boletoCreado[0];

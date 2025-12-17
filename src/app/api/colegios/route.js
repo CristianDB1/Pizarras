@@ -3,7 +3,7 @@ import pool from "@/db/MysqlConection";
 
 export async function GET() {
     try {
-        console.log('📡 API /api/colegios llamada')
+        //console.log('📡 API /api/colegios llamada')
         
         const [rows] = await pool.query(
             `SELECT id_colegio, nombre, logo_url, estatus, created_at 
@@ -12,7 +12,7 @@ export async function GET() {
              ORDER BY nombre`
         );
         
-        console.log(`✅ Retornando ${rows.length} colegios`)
+        //console.log(`✅ Retornando ${rows.length} colegios`)
         
         const response = NextResponse.json(rows);
         

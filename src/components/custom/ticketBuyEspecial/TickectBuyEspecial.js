@@ -36,7 +36,7 @@ const TickectBuyEspecial = () => {
   const [loadingColegio, setLoadingColegio] = useState(false);
 
   useEffect(() => {
-    console.log('🎯 TickectBuyEspecial montado');
+    //console.log('🎯 TickectBuyEspecial montado');
     
     // Obtener datos del sorteo desde localStorage
     const ticket = localStorage.getItem("TickectEspecial");
@@ -55,7 +55,7 @@ const TickectBuyEspecial = () => {
 
     try {
       const parsedTicket = JSON.parse(ticket);
-      console.log('✅ Datos del sorteo cargados:', parsedTicket);
+      //console.log('✅ Datos del sorteo cargados:', parsedTicket);
       
       // Verificar que el sorteo esté activo
       if (parsedTicket.estatus !== 'activo') {
@@ -74,7 +74,7 @@ const TickectBuyEspecial = () => {
       
       // Obtener datos del usuario
       const storedUserData = JSON.parse(localStorage.getItem("userData"));
-      console.log('👤 Datos de usuario:', storedUserData);
+      //console.log('👤 Datos de usuario:', storedUserData);
       setUserData(storedUserData);
       
       if (storedUserData && storedUserData.colegio_id) {
@@ -86,10 +86,10 @@ const TickectBuyEspecial = () => {
 
       // Establecer precio fijo desde datos del sorteo
       if (parsedTicket.precio_boleto) {
-        console.log('💰 Precio del boleto:', parsedTicket.precio_boleto);
+        //console.log('💰 Precio del boleto:', parsedTicket.precio_boleto);
         setPrecioFijo(parsedTicket.precio_boleto);
       } else {
-        console.log('⚠️ No hay precio, cargando desde API alternativa');
+        //console.log('⚠️ No hay precio, cargando desde API alternativa');
         fetch(`/api/leyenda3?t=${Date.now()}`)
           .then((res) => res.json())
           .then((data) => {
@@ -104,7 +104,7 @@ const TickectBuyEspecial = () => {
       // Cargar boletos vendidos
       const sorteoId = parsedTicket.Idsorteo || parsedTicket.id_sorteo;
       if (sorteoId) {
-        console.log('📥 Cargando boletos vendidos para sorteo:', sorteoId);
+        //console.log('📥 Cargando boletos vendidos para sorteo:', sorteoId);
         fetchBoletosVendidos(sorteoId);
       }
       
@@ -124,7 +124,7 @@ const TickectBuyEspecial = () => {
   const cargarInformacionColegio = async (colegioId) => {
     try {
       setLoadingColegio(true);
-      console.log('🏫 Cargando información del colegio ID:', colegioId);
+      //console.log('🏫 Cargando información del colegio ID:', colegioId);
       
       const response = await fetch(`/api/colegios/${colegioId}`);
       
@@ -134,7 +134,7 @@ const TickectBuyEspecial = () => {
       }
       
       const data = await response.json();
-      console.log('🏫 Datos del colegio cargados:', data);
+      //console.log('🏫 Datos del colegio cargados:', data);
       
       if (data && !data.error) {
         setColegioInfo(data);
@@ -148,16 +148,16 @@ const TickectBuyEspecial = () => {
 
   // Agrega al principio del useEffect o en un useEffect separado
   useEffect(() => {
-      console.log('🔍 DEBUG - localStorage completo:');
-      console.log('🔍 TickectEspecial:', localStorage.getItem("TickectEspecial"));
+      /*console.log('🔍 DEBUG - localStorage completo:');
+      console.log('🔍 TickectEspecial:', localStorage.getItem("TickectEspecial"));*/
       
       const userDataStr = localStorage.getItem("userData");
-      console.log('🔍 userData raw:', userDataStr);
+      //console.log('🔍 userData raw:', userDataStr);
       
       if (userDataStr) {
           try {
               const userDataParsed = JSON.parse(userDataStr);
-              console.log('🔍 userData parsed:', userDataParsed);
+              /*console.log('🔍 userData parsed:', userDataParsed);
               console.log('🔍 Todas las claves de userData:', Object.keys(userDataParsed));
               console.log('🔍 Valores importantes:', {
                   Idvendedor: userDataParsed.Idvendedor,
@@ -166,7 +166,7 @@ const TickectBuyEspecial = () => {
                   id_vendedor: userDataParsed.id_vendedor,
                   colegio_id: userDataParsed.colegio_id,
                   colegioId: userDataParsed.colegioId
-              });
+              });*/
           } catch (e) {
               console.error('❌ Error parseando userData:', e);
           }
@@ -184,7 +184,7 @@ const TickectBuyEspecial = () => {
         ? `/api/boletos/sorteo/${sorteoId}?colegio_id=${colegioIdParam}`
         : `/api/boletos/sorteo/${sorteoId}`;
       
-      console.log('📤 Fetching boletos vendidos from:', url);
+      //console.log('📤 Fetching boletos vendidos from:', url);
       
       const response = await fetch(url);
       
@@ -194,7 +194,7 @@ const TickectBuyEspecial = () => {
       }
       
       const data = await response.json();
-      console.log('📥 Respuesta de boletos vendidos:', data);
+      //console.log('📥 Respuesta de boletos vendidos:', data);
       
       if (data.success) {
         // Mapear datos a formato compatible
@@ -203,7 +203,7 @@ const TickectBuyEspecial = () => {
           fecha_sorteo: prizes?.Fecha || sorteoData?.Fecha,
         }));
         setBoletosVendidos(mappedBoletos);
-        console.log(`✅ ${mappedBoletos.length} boletos vendidos cargados`);
+        //console.log(`✅ ${mappedBoletos.length} boletos vendidos cargados`);
       }
     } catch (error) {
       console.error("❌ Error al obtener boletos vendidos:", error);
@@ -229,7 +229,7 @@ const TickectBuyEspecial = () => {
         await cargarInformacionColegio(userData.colegio_id);
       }
 
-      console.log('🎲 Generando número aleatorio...');
+      //console.log('🎲 Generando número aleatorio...');
       
       // Generar números hasta encontrar uno disponible
       let numeroAleatorio;
@@ -238,7 +238,7 @@ const TickectBuyEspecial = () => {
       
       // Obtener boletos ya vendidos
       const boletosVendidosNumeros = boletosVendidos.map(b => b.Boleto);
-      console.log(`🎯 Boletos ya vendidos: ${boletosVendidosNumeros.length} números`);
+      //console.log(`🎯 Boletos ya vendidos: ${boletosVendidosNumeros.length} números`);
 
       do {
         // Generar número con la cantidad de dígitos correcta
@@ -268,17 +268,17 @@ const TickectBuyEspecial = () => {
       // SOLO si tenemos información del colegio
       if (colegioInfo && colegioInfo.nombre) {
         setName(colegioInfo.nombre);
-        console.log(`✅ Nombre por defecto (colegio): ${colegioInfo.nombre}`);
+        //console.log(`✅ Nombre por defecto (colegio): ${colegioInfo.nombre}`);
       } else {
         // Si no hay información del colegio, usar un valor por defecto genérico
         setName("Comprador");
-        console.log('⚠️ Usando nombre por defecto genérico');
+        //console.log('⚠️ Usando nombre por defecto genérico');
       }
 
       // Limpiar validación de tope
       setFoundTope(null);
 
-      console.log(`✅ Número generado: ${numeroAleatorio} (en ${intentos} intentos)`);
+      //console.log(`✅ Número generado: ${numeroAleatorio} (en ${intentos} intentos)`);
       
       Swal.fire({
         icon: 'success',
@@ -313,10 +313,10 @@ const TickectBuyEspecial = () => {
       );
 
       if (boletoExistente) {
-        console.log(`❌ Boleto ${value} ya está vendido`);
+        //console.log(`❌ Boleto ${value} ya está vendido`);
         setFoundTope(true);
       } else {
-        console.log(`✅ Boleto ${value} disponible`);
+        //console.log(`✅ Boleto ${value} disponible`);
         setFoundTope(null);
       }
     }
@@ -333,12 +333,12 @@ const TickectBuyEspecial = () => {
   };
 
   const enviarDatosNormal = async () => {
-    console.log('🔄 Iniciando venta de boleto...');
+    //console.log('🔄 Iniciando venta de boleto...');
     
     let user;
     try {
         const userDataStr = localStorage.getItem("userData");
-        console.log('🔍 userData de localStorage:', userDataStr);
+        //console.log('🔍 userData de localStorage:', userDataStr);
         
         if (!userDataStr) {
             Swal.fire({
@@ -352,7 +352,7 @@ const TickectBuyEspecial = () => {
         }
         
         user = JSON.parse(userDataStr);
-        console.log('👤 Usuario parseado:', user);
+        //console.log('👤 Usuario parseado:', user);
         
         // BUSCAR id_vendedor en TODOS los campos posibles
         const posiblesIds = ['Idvendedor', 'idVendedor', 'IdVendedor', 'id_vendedor', 'vendedor_id', 'vendedorId'];
@@ -415,7 +415,7 @@ const TickectBuyEspecial = () => {
 
     // 3. Obtener colegio_id
     const colegioIdParam = colegioId || user.colegio_id || user.colegioId || sorteoData.colegio_id;
-    console.log('🏫 Colegio ID:', colegioIdParam);
+    //console.log('🏫 Colegio ID:', colegioIdParam);
     
     if (!colegioIdParam) {
         console.error('❌ No hay colegio_id');
@@ -427,13 +427,13 @@ const TickectBuyEspecial = () => {
         return;
     }
 
-    console.log('📤 Datos para venta:', {
+    /*console.log('📤 Datos para venta:', {
       idVendedor,
       colegioIdParam,
       sorteoId: sorteoData.id_sorteo || sorteoData.Idsorteo,
       ticketNumber,
       name
-    });
+    });*/
 
     setIsLoading(true);
 
@@ -447,9 +447,9 @@ const TickectBuyEspecial = () => {
           colegio_id: colegioIdParam
       };
 
-      console.log('📤 Enviando datos de boleto:', boletoData);
+      //console.log('📤 Enviando datos de boleto:', boletoData);
 
-      // ✅ CORRECCIÓN: Usar la ruta correcta /api/boletos/crear
+      // CORRECCIÓN: Usar la ruta correcta /api/boletos/crear
       const response = await fetch('/api/boletos/crear', {
             method: 'POST',
             headers: {
@@ -457,14 +457,14 @@ const TickectBuyEspecial = () => {
             },
             body: JSON.stringify(boletoData),
         });
-      console.log('📥 Status:', response.status);
-      console.log('📥 Headers:', Object.fromEntries(response.headers.entries()));
+      /*console.log('📥 Status:', response.status);
+      console.log('📥 Headers:', Object.fromEntries(response.headers.entries()));*/
         
       const result = await response.json();
-      console.log('📥 Respuesta completa:', result);
+      //console.log('📥 Respuesta completa:', result);
 
       if (result.success) {
-        console.log('✅ Éxito:', result.message);
+        //console.log('✅ Éxito:', result.message);
         const boletoVendido = result.boleto;
         
         // Registrar en el contexto de ventas
@@ -502,13 +502,13 @@ const TickectBuyEspecial = () => {
                 ).toLocaleDateString();
                 
                 generatePDF(pdfData, fecha);
-                console.log('✅ PDF generado');
+                //console.log('✅ PDF generado');
             } catch (pdfError) {
                 console.warn('⚠️ Error al generar PDF (continuando):', pdfError);
             }
         
         // Actualizar lista de boletos
-        console.log('🔄 Actualizando lista de boletos...');
+        //console.log('🔄 Actualizando lista de boletos...');
         fetchBoletosVendidos(sorteoData.id_sorteo || sorteoData.Idsorteo)
                 .catch(err => console.warn('⚠️ Error actualizando boletos:', err));
         
@@ -531,7 +531,7 @@ const TickectBuyEspecial = () => {
                 allowEscapeKey: false
             });
             
-            console.log('✅ Venta completada exitosamente');
+            //console.log('✅ Venta completada exitosamente');
 
       } else {
         console.error('❌ Error en la respuesta:', result.error);

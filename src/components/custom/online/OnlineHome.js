@@ -77,7 +77,7 @@ const OnlineHome = () => {
     // Guardar el sorteo seleccionado
     localStorage.setItem('sorteoSeleccionado', JSON.stringify(sorteo));
     
-    // ✅ MODIFICADO: Siempre va a CompraOnlineEspecial
+    // MODIFICADO: Siempre va a CompraOnlineEspecial
     const urlBase = "/CompraOnlineEspecial";
     
     // Mantener el colegioId en la navegación si existe

@@ -40,14 +40,14 @@ const ViewMenu = () => {
                 setErrorColegio(null);
                 setColegioInfo(null);
                 
-                console.log('🔄 Cargando información del colegio con ID:', userData.colegio_id);
+                //console.log('🔄 Cargando información del colegio con ID:', userData.colegio_id);
                 
                 const response = await fetch(`/api/colegios/${userData.colegio_id}`);
                 
-                console.log('📊 Respuesta del servidor:', {
+                /*console.log('📊 Respuesta del servidor:', {
                     status: response.status,
                     ok: response.ok
-                });
+                });*/
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -62,7 +62,7 @@ const ViewMenu = () => {
                 }
                 
                 const data = await response.json();
-                console.log('📦 Datos recibidos del colegio:', data);
+                //console.log('📦 Datos recibidos del colegio:', data);
                 
                 // IMPORTANTE: Tu endpoint devuelve directamente el objeto del colegio
                 // NO devuelve { success: true, colegio: {...} }
@@ -133,10 +133,10 @@ const ViewMenu = () => {
 
     // Mostrar información de debug
     if (process.env.NODE_ENV === 'development') {
-        console.log('👤 UserData:', userData);
+        /*console.log('👤 UserData:', userData);
         console.log('🏫 ColegioInfo:', colegioInfo);
         console.log('⏳ LoadingColegio:', loadingColegio);
-        console.log('❌ ErrorColegio:', errorColegio);
+        console.log('❌ ErrorColegio:', errorColegio);*/
     }
 
     if (!userData) {
@@ -212,7 +212,7 @@ const ViewMenu = () => {
                                         console.error('❌ Error cargando logo:', e);
                                         e.target.style.display = 'none';
                                     }}
-                                    onLoad={() => console.log('✅ Logo cargado correctamente')}
+                                    onLoad={() => {/*console.log('✅ Logo cargado correctamente')*/}}
                                 />
                             </div>
                         )}

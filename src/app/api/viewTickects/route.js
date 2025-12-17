@@ -13,8 +13,8 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
-    console.log('🔍 DEBUG: Obteniendo boletos para vendedor:', idVendedor);
-    console.log('🔍 DEBUG: Datos recibidos:', data);
+    //console.log('🔍 DEBUG: Obteniendo boletos para vendedor:', idVendedor);
+    //console.log('🔍 DEBUG: Datos recibidos:', data);
 
     // PRIMERO: Verificar si hay boletos en general para este vendedor
     const checkSql = `
@@ -26,7 +26,7 @@ export async function POST(req) {
     `;
     
     const [countResult] = await pool.query(checkSql, [idVendedor]);
-    console.log('🔍 DEBUG: Estadísticas de boletos:', countResult[0]);
+    //console.log('🔍 DEBUG: Estadísticas de boletos:', countResult[0]);
 
     // SEGUNDO: Consulta SIMPLE sin joins complejos ni filtros de corte
     const simpleSql = `
@@ -52,9 +52,9 @@ export async function POST(req) {
     `;
 
     const [simpleBoletos] = await pool.query(simpleSql, [idVendedor]);
-    console.log('🔍 DEBUG: Boletos encontrados (simple query):', simpleBoletos.length);
+    //console.log('🔍 DEBUG: Boletos encontrados (simple query):', simpleBoletos.length);
     if (simpleBoletos.length > 0) {
-      console.log('🔍 DEBUG: Primer boleto ejemplo:', simpleBoletos[0]);
+      //console.log('🔍 DEBUG: Primer boleto ejemplo:', simpleBoletos[0]);
     }
 
     // TERCERO: Verificar si hay cortes para este vendedor
@@ -65,9 +65,9 @@ export async function POST(req) {
     `;
     
     const [cortes] = await pool.query(cortesSql, [idVendedor]);
-    console.log('🔍 DEBUG: Cortes encontrados:', cortes.length);
+    //console.log('🔍 DEBUG: Cortes encontrados:', cortes.length);
     if (cortes.length > 0) {
-      console.log('🔍 DEBUG: Primer corte ejemplo:', cortes[0]);
+      //console.log('🔍 DEBUG: Primer corte ejemplo:', cortes[0]);
     }
 
     // CUARTO: Consulta final pero simplificando el filtro de corte
@@ -94,15 +94,15 @@ export async function POST(req) {
     `;
 
     const [boletos] = await pool.query(finalSql, [idVendedor]);
-    console.log(`✅ ${boletos.length} boletos pendientes (no cortados) para vendedor ${idVendedor}`);
+    //console.log(`✅ ${boletos.length} boletos pendientes (no cortados) para vendedor ${idVendedor}`);
 
-    if (boletos.length === 0 && simpleBoletos.length > 0) {
+    /*if (boletos.length === 0 && simpleBoletos.length > 0) {
       console.log('⚠️ ADVERTENCIA: Hay boletos pero la consulta filtrada devuelve 0.');
       console.log('   Posibles causas:');
       console.log('   1. Los boletos tienen estado_pago diferente a "pendiente"');
       console.log('   2. Ya están incluidos en cortes de caja');
       console.log('   3. El JOIN con cortesdecaja está filtrando todo');
-    }
+    }*/
 
     // Formatear respuesta
     const boletosFormateados = boletos.map(boleto => ({

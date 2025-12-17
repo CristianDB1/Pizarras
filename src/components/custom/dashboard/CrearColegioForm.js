@@ -188,7 +188,7 @@ export default function CrearColegioForm() {
                 colegioData.logo_filename = logoFile?.name || 'logo-colegio'
             }
 
-            console.log('📤 Enviando datos del colegio con sorteo:', colegioData)
+            //console.log('📤 Enviando datos del colegio con sorteo:', colegioData)
 
             const response = await fetch('/api/colegios/crear', {
                 method: 'POST',

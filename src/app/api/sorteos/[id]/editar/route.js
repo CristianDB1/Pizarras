@@ -18,7 +18,7 @@ export async function PUT(request, { params }) {
             digitos_boleto
         } = data;
         
-        console.log('✏️ Editando sorteo ID:', id, 'Datos:', data);
+        //console.log('✏️ Editando sorteo ID:', id, 'Datos:', data);
         
         connection = await pool.getConnection();
         await connection.beginTransaction();
@@ -97,7 +97,7 @@ export async function PUT(request, { params }) {
         
         await connection.commit();
         
-        console.log('✅ Sorteo actualizado correctamente');
+        //console.log('✅ Sorteo actualizado correctamente');
         
         return NextResponse.json({
             success: true,

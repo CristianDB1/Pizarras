@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
     try {
         const { colegioId } = params;
         
-        console.log('👥 Obteniendo vendedores del colegio:', colegioId);
+        //console.log('👥 Obteniendo vendedores del colegio:', colegioId);
         
         // Validar que el colegio existe
         const [colegioExiste] = await pool.query(

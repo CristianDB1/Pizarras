@@ -15,7 +15,7 @@ export async function POST(request) {
             digitos_boleto = 5
         } = data;
         
-        console.log('🎟️ Creando nuevo sorteo:', data);
+        //console.log('🎟️ Creando nuevo sorteo:', data);
         
         // Validaciones
         if (!colegio_id || !nombre || !fecha) {
@@ -99,7 +99,7 @@ export async function POST(request) {
         
         await connection.commit();
         
-        console.log('✅ Sorteo creado:', numeroSorteoGlobal);
+        //console.log('✅ Sorteo creado:', numeroSorteoGlobal);
         
         return NextResponse.json({
             success: true,

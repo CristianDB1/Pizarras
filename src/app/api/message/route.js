@@ -43,7 +43,7 @@ export async function GET(request) {
             LIMIT 1`;
         }
         
-        console.log('📝 Buscando mensaje para colegio_id:', colegioId || 'general');
+        //console.log('📝 Buscando mensaje para colegio_id:', colegioId || 'general');
         
         const [rows] = await pool.query(sql, params);
         
@@ -61,11 +61,11 @@ export async function GET(request) {
         }
         
         const mensaje = rows[0];
-        console.log('✅ Mensaje encontrado:', {
+        /*console.log('✅ Mensaje encontrado:', {
             id: mensaje.id_mensaje,
             colegio: mensaje.colegio_id,
             mensaje: mensaje.mensaje.substring(0, 50) + '...'
-        });
+        });*/
         
         return NextResponse.json(mensaje);
         

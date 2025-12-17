@@ -23,7 +23,7 @@ const TypeDraw = () => {
             setLoading(true);
             setError(null);
             
-            console.log('Cargando sorteos para colegio:', userData.colegio_id);
+            //console.log('Cargando sorteos para colegio:', userData.colegio_id);
             const response = await fetch(`/api/sorteos/colegio/${userData.colegio_id}`);
             
             if (!response.ok) {
@@ -85,7 +85,7 @@ const TypeDraw = () => {
             colegio_id: sorteo.colegio_id
         };
         
-        console.log('Guardando sorteo en localStorage:', sorteoData);
+        //console.log('Guardando sorteo en localStorage:', sorteoData);
         
         // Guardar en localStorage
         localStorage.setItem('TickectEspecial', JSON.stringify(sorteoData));
