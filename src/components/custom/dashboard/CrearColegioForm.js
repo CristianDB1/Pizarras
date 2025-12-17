@@ -31,12 +31,20 @@ export default function CrearColegioForm() {
         return twoYearsLater.toISOString().split('T')[0]
     }
 
-    // Formatear fecha para enviar al backend (datetime completo)
+    // Formatear fecha para enviar al backend (datetime completo) EN UTC
     const formatDateTime = (dateString) => {
-        const date = new Date(dateString)
-        // Establecer hora al final del día (23:59:59)
-        date.setHours(23, 59, 59, 0)
-        return date.toISOString() // Devuelve formato ISO para el backend
+        // Parsear la fecha como si fuera UTC para evitar problemas de zona horaria
+        const [year, month, day] = dateString.split('-')
+        
+        // Crear fecha en UTC explícitamente (23:59:59 UTC)
+        const date = new Date(Date.UTC(
+            parseInt(year),
+            parseInt(month) - 1, // Los meses son 0-indexados
+            parseInt(day),
+            23, 59, 59, 0
+        ))
+        
+        return date.toISOString()
     }
     
     const {
@@ -132,9 +140,11 @@ export default function CrearColegioForm() {
         }
 
         // Validar que la fecha sea futura
-        const selectedDate = new Date(data.fecha_sorteo)
         const today = new Date()
         today.setHours(0, 0, 0, 0)
+        
+        const selectedDate = new Date(data.fecha_sorteo)
+        selectedDate.setHours(0, 0, 0, 0)
         
         if (selectedDate <= today) {
             Swal.fire({
@@ -199,13 +209,7 @@ export default function CrearColegioForm() {
                             <h3 class="text-lg font-semibold mb-2">Colegio creado exitosamente</h3>
                             <div class="text-left bg-yellow-50 p-4 rounded-lg mt-4 border-l-4 border-yellow-400">
                                 <p class="font-medium">⚠️ Configuración INICIAL del sorteo:</p>
-                                <p class="mt-2"><strong>Fecha límite:</strong> ${new Date(data.fecha_sorteo).toLocaleDateString('es-ES', { 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}</p>
+                                <p class="mt-2"><strong>Fecha límite:</strong> ${formatDateForDisplay(formatDateTime(data.fecha_sorteo))}</p>
                                 <p class="mt-1"><strong>Cifras del boleto:</strong> ${data.cifras_sorteo}</p>
                                 <p class="text-sm text-gray-600 mt-2">Estos parámetros NO podrán ser modificados por el administrador del colegio</p>
                             </div>

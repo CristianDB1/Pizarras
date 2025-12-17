@@ -1,20 +1,23 @@
-// src/components/custom/menu/ViewMenu.js (MODIFICADO)
+// src/components/custom/menu/ViewMenu.js (CORREGIDO)
 'use client'
 import { IoTicketSharp } from "react-icons/io5";
 import { ImStatsDots } from "react-icons/im";
-import { FaCashRegister} from "react-icons/fa";
+import { FaCashRegister } from "react-icons/fa";
 import { RiLogoutBoxFill } from "react-icons/ri";
 import useSession from "@/hook/useSession";
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from "react";
 import { GiPodiumWinner } from "react-icons/gi";
-import { FaLeaf } from "react-icons/fa";
+import { FaSchool } from "react-icons/fa";
 
 const ViewMenu = () => {
     const router = useRouter();
     const { logout } = useSession();
     const [userData, setUserData] = useState(null);
     const [cerrarSession, setCerrarSession] = useState(false);
+    const [colegioInfo, setColegioInfo] = useState(null);
+    const [loadingColegio, setLoadingColegio] = useState(false);
+    const [errorColegio, setErrorColegio] = useState(null);
 
     useEffect(() => {
         // Obtener datos del usuario desde localStorage
@@ -23,6 +26,74 @@ const ViewMenu = () => {
             setUserData(data);
         }
     }, []);
+
+    // Efecto para cargar información del colegio cuando tenemos userData
+    useEffect(() => {
+        const cargarInformacionColegio = async () => {
+            if (!userData || !userData.colegio_id) {
+                setErrorColegio('No hay ID de colegio disponible');
+                return;
+            }
+            
+            try {
+                setLoadingColegio(true);
+                setErrorColegio(null);
+                setColegioInfo(null);
+                
+                console.log('🔄 Cargando información del colegio con ID:', userData.colegio_id);
+                
+                const response = await fetch(`/api/colegios/${userData.colegio_id}`);
+                
+                console.log('📊 Respuesta del servidor:', {
+                    status: response.status,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Error en la respuesta:', errorText);
+                    
+                    if (response.status === 404) {
+                        setErrorColegio('Colegio no encontrado');
+                    } else {
+                        setErrorColegio(`Error ${response.status}: ${errorText}`);
+                    }
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('📦 Datos recibidos del colegio:', data);
+                
+                // IMPORTANTE: Tu endpoint devuelve directamente el objeto del colegio
+                // NO devuelve { success: true, colegio: {...} }
+                // Simplemente devuelve el objeto colegio directamente
+                
+                if (data) {
+                    // Si el endpoint devuelve un objeto de error
+                    if (data.error) {
+                        setErrorColegio(data.error);
+                        return;
+                    }
+                    
+                    // Si todo está bien, establecer la información del colegio
+                    setColegioInfo(data);
+                    console.log('✅ Colegio cargado correctamente:', data.nombre);
+                } else {
+                    setErrorColegio('No se recibieron datos del colegio');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error cargando información del colegio:', error);
+                setErrorColegio(`Error de conexión: ${error.message}`);
+            } finally {
+                setLoadingColegio(false);
+            }
+        };
+
+        if (userData?.colegio_id) {
+            cargarInformacionColegio();
+        }
+    }, [userData]);
 
     const session = () => {
         setCerrarSession(true);
@@ -60,6 +131,14 @@ const ViewMenu = () => {
     const isStaff = userData && userData.rol === 'staff';
     const isVendedor = userData && userData.rol === 'vendedor';
 
+    // Mostrar información de debug
+    if (process.env.NODE_ENV === 'development') {
+        console.log('👤 UserData:', userData);
+        console.log('🏫 ColegioInfo:', colegioInfo);
+        console.log('⏳ LoadingColegio:', loadingColegio);
+        console.log('❌ ErrorColegio:', errorColegio);
+    }
+
     if (!userData) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -77,7 +156,7 @@ const ViewMenu = () => {
         <div className="relative min-h-screen w-full bg-[rgb(38,38,38)]">
             <div className="w-full flex flex-col items-center text-center pt-6 pb-2">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 to-purple-600 bg-clip-text text-transparent">
-                    TU SORTEO
+                    TU SORTEO DIGITAL
                 </h1>
                 <p className="text-gray-300 text-sm mt-1">Sistema de Gestión</p>
             </div>
@@ -87,8 +166,57 @@ const ViewMenu = () => {
                 <label className="text-white text-xl">
                     {isStaff ? "Rol: Staff" : isVendedor ? "Rol: Vendedor" : "Rol: No definido"}
                 </label>
+                
+                {/* Mostrar información del colegio */}
                 {userData.colegio_id && (
-                    <label className="text-white text-sm">Colegio ID: {userData.colegio_id}</label>
+                    <div className="flex flex-col items-center mt-2 px-4">
+                        <div className="flex items-center gap-2">
+                            <FaSchool className="text-yellow-400" />
+                            {loadingColegio ? (
+                                <span className="text-white text-sm animate-pulse">Cargando información del colegio...</span>
+                            ) : colegioInfo ? (
+                                <div className="flex flex-col items-center">
+                                    <span className="text-white text-sm font-medium">
+                                        {colegioInfo.nombre || 'Sin nombre'}
+                                    </span>
+                                </div>
+                            ) : errorColegio ? (
+                                <div className="flex flex-col items-center">
+                                    <span className="text-yellow-400 text-sm font-medium">
+                                        Colegio ID: {userData.colegio_id}
+                                    </span>
+                                    <span className="text-red-300 text-xs mt-1">
+                                        {errorColegio}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center">
+                                    <span className="text-white text-sm font-medium">
+                                        Colegio ID: {userData.colegio_id}
+                                    </span>
+                                    <span className="text-gray-400 text-xs mt-1">
+                                        (Información no disponible)
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Mostrar logo si existe */}
+                        {colegioInfo?.logo_url && !loadingColegio && (
+                            <div className="mt-3">
+                                <img 
+                                    src={colegioInfo.logo_url} 
+                                    alt={`Logo ${colegioInfo.nombre || 'del colegio'}`}
+                                    className="h-12 w-auto object-contain max-w-[200px] rounded-lg border border-gray-600"
+                                    onError={(e) => {
+                                        console.error('❌ Error cargando logo:', e);
+                                        e.target.style.display = 'none';
+                                    }}
+                                    onLoad={() => console.log('✅ Logo cargado correctamente')}
+                                />
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 
@@ -158,13 +286,6 @@ const ViewMenu = () => {
                         Cerrar sesión
                         <RiLogoutBoxFill className="absolute left-3 top-1/2 transform -translate-y-1/2 h-10" />
                     </button>
-                </div>
-            </div>
-
-            {/* Puntos - Visible para ambos roles */}
-            <div className="fixed bottom-4 right-4 bg-green-700 flex items-center justify-center text-white h-[60px] w-[160px] rounded-full">
-                <div className="flex flex-row">
-                    Puntos: {userData.Puntos || 0}
                 </div>
             </div>
         </div>

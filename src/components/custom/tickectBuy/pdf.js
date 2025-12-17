@@ -126,6 +126,28 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       }
     }
 
+    // ========== OBTENER DIGITOS DEL SORTEO ==========
+    // IMPORTANTE: Obtener el número de dígitos desde los datos del sorteo
+    let digitosBoleto = 3; // Valor por defecto
+    
+    // Buscar dígitos en varias posibles ubicaciones
+    if (firstTicket.digitos_boleto) {
+      digitosBoleto = parseInt(firstTicket.digitos_boleto);
+    } else if (firstTicket.digitos) {
+      digitosBoleto = parseInt(firstTicket.digitos);
+    } else if (colegioData?.configuracion) {
+      try {
+        const config = JSON.parse(colegioData.configuracion);
+        if (config.cifras_sorteo) {
+          digitosBoleto = parseInt(config.cifras_sorteo);
+        }
+      } catch (e) {
+        console.warn('⚠️ Error parseando configuración:', e);
+      }
+    }
+    
+    console.log(`🔢 Dígitos del boleto: ${digitosBoleto}`);
+
     // ========== GENERAR QR CODES PARA CADA BOLETO ==========
     console.log('🔳 Generando códigos QR para los boletos...');
     const ticketsWithQR = await Promise.all(
@@ -325,9 +347,11 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 150);
       
-      const boletoNum = ticket.Boleto?.toString().padStart(3, '0') || 
-                       ticket.boleto?.toString().padStart(3, '0') || 
-                       '000';
+      // CORRECCIÓN: Usar el número correcto de dígitos
+      // IMPORTANTE: Usar el valor de digitosBoleto que obtuvimos antes
+      const boletoNum = ticket.Boleto?.toString().padStart(digitosBoleto, '0') || 
+                       ticket.boleto?.toString().padStart(digitosBoleto, '0') || 
+                       '0'.repeat(digitosBoleto);
       
       doc.text(`BOLETO ${boletoNum}`, 40, yPosition + 5, { align: 'center' });
 
@@ -340,13 +364,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       const precio = ticket.Costo || ticket.precio || 0;
       totalVenta += parseFloat(precio);
       doc.text(`Precio: $${parseFloat(precio).toFixed(2)}`, 40, yPosition + 12, { align: 'center' });
-      
-      // ID único
-      if (ticket.id_boleto) {
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`ID: ${ticket.id_boleto}`, 40, yPosition + 17, { align: 'center' });
-      }
+
 
       // ========== QR CODE OBLIGATORIO ==========
       if (ticket.qr_code) {
@@ -387,21 +405,24 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       }
     });
 
-    // ========== TOTAL ==========
+    // ========== TOTAL - CORREGIDO ==========
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.3);
     doc.line(5, yPosition, 75, yPosition);
-    yPosition += 5;
+    yPosition += 8; // Aumentar espacio antes del total
     
-    // Total centrado y destacado
+    // Total con mejor separación
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    doc.text("TOTAL:", 25, yPosition + 3);
     
+    // "TOTAL:" más a la izquierda
+    doc.text("TOTAL:", 15, yPosition + 3);
+    
+    // Valor del total más a la derecha, con buen espacio
     doc.setFontSize(14);
     doc.setTextColor(255, 0, 0);
-    doc.text(`$${totalVenta.toFixed(2)}`, 55, yPosition + 3, { align: 'right' });
+    doc.text(`$${totalVenta.toFixed(2)}`, 65, yPosition + 3, { align: 'right' });
     
     yPosition += 10;
 
@@ -431,6 +452,11 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     doc.setFontSize(6);
     doc.setTextColor(100, 100, 100);
     
+    // Información sobre dígitos del sorteo
+    const infoDigitos = `Este sorteo utiliza boletos de ${digitosBoleto} dígitos (${'0'.repeat(digitosBoleto)} al ${'9'.repeat(digitosBoleto)})`;
+    doc.text(infoDigitos, 40, yPosition, { align: 'center' });
+    yPosition += 4;
+    
     // Leyenda obligatoria para sorteo
     const leyendaSorteo = "PRESENTE ESTE TICKET PARA RECLAMAR PREMIOS. VÁLIDO CON IDENTIFICACIÓN DEL COMPRADOR.";
     const leyendaLines = doc.splitTextToSize(leyendaSorteo, 70);
@@ -457,10 +483,12 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       sorteoNum: firstTicket.numero_sorteo || firstTicket.Idsorteo,
       fechaSorteo,
       totalVenta,
-      verificationCode
+      verificationCode,
+      digitosBoleto // Agregar dígitos a los datos del ticket
     };
 
     // ========== MOSTRAR SWEETALERT CON OPCIONES ==========
+    // MODIFICACIÓN: Mejorar la visualización del total en el modal
     const result = await Swal.fire({
       title: '🎫 Ticket Listo',
       html: `
@@ -468,42 +496,74 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
             <p style="margin: 0; font-size: 16px; font-weight: bold;">${colegioNombre}</p>
             <p style="margin: 5px 0; font-size: 12px;">Sorteo #${firstTicket.numero_sorteo || firstTicket.Idsorteo || '000'}</p>
+            <p style="margin: 5px 0; font-size: 10px; opacity: 0.9;">Boletos de ${digitosBoleto} dígitos</p>
           </div>
           
           <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: left; margin: 10px 0;">
             <p style="margin: 8px 0;"><strong>👤 Comprador:</strong> ${firstTicket.comprador || 'Consumidor final'}</p>
             <p style="margin: 8px 0;"><strong>📅 Fecha sorteo:</strong> ${formatDate(fechaSorteo)}</p>
             <p style="margin: 8px 0;"><strong>🎫 Boletos adquiridos:</strong> ${ticketsWithQR.length}</p>
-            <p style="margin: 8px 0; color: #e74c3c; font-weight: bold;"><strong>💰 Total pagado:</strong> $${totalVenta.toFixed(2)}</p>
+            
+            <!-- CORRECCIÓN: Mejor separación para el total -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0; padding: 12px; background: #fff3f3; border-radius: 6px; border-left: 4px solid #e74c3c;">
+              <div style="font-weight: bold; font-size: 14px; color: #333;">💰 Total pagado:</div>
+              <div style="font-weight: bold; font-size: 18px; color: #e74c3c;">$${totalVenta.toFixed(2)}</div>
+            </div>
           </div>
           
           <div style="margin-top: 15px; padding: 10px; background: #e8f4f8; border-radius: 5px;">
             <p style="margin: 5px 0; font-size: 11px; color: #2c3e50;">
               <strong>📱 CADA BOLETO INCLUYE QR PARA VERIFICACIÓN</strong>
             </p>
+            <p style="margin: 5px 0; font-size: 10px; color: #666;">
+              ⚠️ Verifique que los boletos tengan ${digitosBoleto} dígitos
+            </p>
           </div>
         </div>
       `,
       icon: 'success',
       showCancelButton: true,
+      showConfirmButton: true,
       showDenyButton: true,
-      confirmButtonText: '<i class="fas fa-share-alt"></i> Compartir',
-      denyButtonText: '<i class="fas fa-eye"></i> Ver PDF',
-      cancelButtonText: '<i class="fas fa-download"></i> Descargar',
+      confirmButtonText: '<i class="fas fa-download"></i> Descargar',
+      denyButtonText: '<i class="fas fa-share-alt"></i> Compartir',
+      cancelButtonText: '<i class="fas fa-times"></i> Cerrar',
       customClass: {
         popup: 'swal-ticket-popup',
-        confirmButton: 'btn-share',
-        denyButton: 'btn-view',
-        cancelButton: 'btn-download'
+        confirmButton: 'btn-download',
+        denyButton: 'btn-share',
+        cancelButton: 'btn-close'
       },
       buttonsStyling: true,
-      reverseButtons: true,
-      allowOutsideClick: false
+      reverseButtons: false,
+      allowOutsideClick: false,
+      focusCancel: false,
+      width: 420 // Un poco más ancho para mejor visualización
     });
 
     // Manejar la opción seleccionada
     if (result.isConfirmed) {
+      // DESCARGAR PDF
+      console.log('📥 Descargando PDF...');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Mensaje de confirmación
+      Swal.fire({
+        title: '✅ Descargado',
+        text: 'El ticket se ha descargado correctamente',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      
+    } else if (result.isDenied) {
       // COMPARTIR - Usar API nativa de compartir
+      console.log('📤 Intentando compartir...');
       try {
         const file = new File([blob], fileName, { type: 'application/pdf' });
         
@@ -514,48 +574,138 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
             title: `Ticket de Sorteo - ${colegioNombre}`,
             text: `Ticket para el sorteo #${firstTicket.numero_sorteo || firstTicket.Idsorteo} del ${formatDate(fechaSorteo)}`
           });
-        } else {
-          // Si no hay API de compartir, abrir el PDF para que el usuario lo comparta manualmente
-          window.open(url, '_blank');
           
-          // Mostrar mensaje instructivo
+          // Mensaje de éxito
+          Swal.fire({
+            title: '✅ Compartido',
+            text: 'El ticket se ha compartido correctamente',
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+          });
+          
+        } else {
+          // Si no hay API de compartir, mostrar opciones
           Swal.fire({
             title: '📤 Compartir Ticket',
             html: `
               <div style="text-align: center; padding: 15px;">
-                <p>El PDF se ha abierto en una nueva ventana.</p>
-                <p><strong>Para compartir:</strong></p>
-                <ol style="text-align: left; margin: 15px auto; max-width: 300px;">
-                  <li>En la ventana del PDF, busca el botón de compartir</li>
-                  <li>Selecciona la aplicación (WhatsApp, correo, etc.)</li>
-                  <li>Envía el ticket al comprador</li>
-                </ol>
+                <p style="margin-bottom: 20px;">Selecciona cómo quieres compartir el ticket:</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0;">
+                  <button id="open-pdf" style="background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-external-link-alt"></i> Abrir PDF
+                  </button>
+                  <button id="download-again" style="background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                  <button id="copy-link" style="background: #9b59b6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-copy"></i> Copiar enlace
+                  </button>
+                  <button id="whatsapp-share" style="background: #25D366; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                  </button>
+                </div>
+                
                 <p style="font-size: 12px; color: #666; margin-top: 15px;">
-                  ⚠️ <strong>Importante:</strong> Cada boleto tiene código QR para verificación
+                  ⚠️ <strong>Nota:</strong> El PDF contiene códigos QR para verificación
+                </p>
+                <p style="font-size: 11px; color: #666;">
+                  Boletos de ${digitosBoleto} dígitos
                 </p>
               </div>
             `,
-            icon: 'info',
-            confirmButtonText: 'Entendido'
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            willOpen: () => {
+              // Agregar event listeners a los botones personalizados
+              document.getElementById('open-pdf')?.addEventListener('click', () => {
+                window.open(url, '_blank');
+                Swal.close();
+              });
+              
+              document.getElementById('download-again')?.addEventListener('click', () => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                Swal.close();
+                
+                Swal.fire({
+                  title: '✅ Descargado',
+                  text: 'El ticket se ha descargado',
+                  icon: 'success',
+                  timer: 1500,
+                  showConfirmButton: false
+                });
+              });
+              
+              document.getElementById('copy-link')?.addEventListener('click', async () => {
+                try {
+                  // Crear un enlace temporal
+                  const tempLink = document.createElement('a');
+                  tempLink.href = url;
+                  await navigator.clipboard.writeText(tempLink.href);
+                  
+                  Swal.fire({
+                    title: '✅ Copiado',
+                    text: 'Enlace copiado al portapapeles',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                  }).then(() => {
+                    Swal.close();
+                  });
+                } catch (copyError) {
+                  console.error('Error al copiar:', copyError);
+                  Swal.fire({
+                    title: '❌ Error',
+                    text: 'No se pudo copiar el enlace',
+                    icon: 'error',
+                    timer: 1500
+                  });
+                }
+              });
+              
+              document.getElementById('whatsapp-share')?.addEventListener('click', () => {
+                const message = `Ticket de Sorteo\nColegio: ${colegioNombre}\nSorteo: #${firstTicket.numero_sorteo || firstTicket.Idsorteo}\nFecha: ${formatDate(fechaSorteo)}\nTotal: $${totalVenta.toFixed(2)}\n\nDescarga el ticket aquí: ${url}`;
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+                Swal.close();
+              });
+            }
           });
         }
       } catch (shareError) {
-        console.log('Error al compartir:', shareError);
-        // Fallback: abrir PDF
-        window.open(url, '_blank');
+        console.error('Error al compartir:', shareError);
+        
+        // Fallback: descargar PDF
+        Swal.fire({
+          title: '⚠️ Error al compartir',
+          html: `
+            <div style="text-align: center; padding: 10px;">
+              <p>No se pudo compartir directamente.</p>
+              <p style="margin-top: 15px;">Se ha descargado el PDF para que lo puedas compartir manualmente.</p>
+            </div>
+          `,
+          icon: 'warning',
+          confirmButtonText: 'Entendido'
+        });
+        
+        // Descargar automáticamente como fallback
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-      
-    } else if (result.isDenied) {
-      // VER PDF
-      window.open(url, '_blank');
     } else {
-      // DESCARGAR PDF
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // CERRAR - No hacer nada, solo cerrar el modal
+      console.log('🚪 Cerrando modal sin acción adicional');
     }
 
     // Agregar CSS para los botones
@@ -563,32 +713,41 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     style.textContent = `
       .swal-ticket-popup {
         border-radius: 15px;
-        max-width: 400px;
+        max-width: 420px;
+      }
+      .btn-download {
+        background-color: #2ecc71 !important;
+        color: white !important;
+        border: none !important;
+        padding: 10px 24px !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 14px !important;
       }
       .btn-share {
         background-color: #3498db !important;
         color: white !important;
         border: none !important;
-        padding: 10px 20px !important;
-        border-radius: 5px !important;
+        padding: 10px 24px !important;
+        border-radius: 8px !important;
         font-weight: bold !important;
+        font-size: 14px !important;
       }
-      .btn-view {
-        background-color: #2ecc71 !important;
+      .btn-close {
+        background-color: #e74c3c !important;
         color: white !important;
         border: none !important;
-        padding: 10px 20px !important;
-        border-radius: 5px !important;
-      }
-      .btn-download {
-        background-color: #95a5a6 !important;
-        color: white !important;
-        border: none !important;
-        padding: 10px 20px !important;
-        border-radius: 5px !important;
+        padding: 10px 24px !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 14px !important;
       }
       .swal-ticket-popup .swal2-actions {
         margin-top: 20px;
+        gap: 10px;
+      }
+      .swal-ticket-popup .swal2-cancel {
+        margin-left: 0 !important;
       }
     `;
     document.head.appendChild(style);

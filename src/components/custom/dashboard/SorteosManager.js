@@ -1,9 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { 
-    Pencil, 
-    Save, 
-    X, 
     Trophy, 
     Tag, 
     Percent, 
@@ -11,7 +8,9 @@ import {
     Award,
     DollarSign,
     Hash,
-    Lock
+    Lock,
+    Eye,
+    RefreshCw
 } from 'lucide-react'
 
 export default function SorteosManager({ colegioId }) {
@@ -19,8 +18,6 @@ export default function SorteosManager({ colegioId }) {
     const [estadisticas, setEstadisticas] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
-    const [editandoId, setEditandoId] = useState(null)
-    const [formData, setFormData] = useState({})
     const [mensaje, setMensaje] = useState('')
 
     // Cargar sorteos del colegio
@@ -55,116 +52,13 @@ export default function SorteosManager({ colegioId }) {
         } finally {
             setLoading(false)
         }
-    }, [colegioId]); // ← IMPORTANTE: Dependencias de useCallback
+    }, [colegioId])
 
-    // 2. useEffect con la función estable
     useEffect(() => {
         if (colegioId) {
             cargarSorteos();
         }
     }, [colegioId, cargarSorteos]);
-
-    // Iniciar edición
-    const iniciarEdicion = (sorteo) => {
-        setEditandoId(sorteo.id_sorteo)
-        setFormData({
-            nombre: sorteo.nombre || '',
-            precio_boleto: sorteo.precio_boleto || 0,
-            comision_vendedor: sorteo.comision_vendedor || 0,
-            primer_premio: sorteo.primer_premio || '',
-            segundo_premio: sorteo.segundo_premio || '',
-            // NO incluimos digitos_boleto - solo superadmin puede editarlo
-        })
-    }
-
-    // Cancelar edición
-    const cancelarEdicion = () => {
-        setEditandoId(null)
-        setFormData({})
-        setMensaje('')
-    }
-
-    // Guardar cambios
-    const guardarCambios = async (sorteoId) => {
-        try {
-            setMensaje('Guardando cambios...')
-            
-            // Validar datos
-            if (!formData.nombre || formData.nombre.trim() === '') {
-                throw new Error('El nombre del sorteo es requerido')
-            }
-            
-            if (formData.precio_boleto <= 0) {
-                throw new Error('El precio del boleto debe ser mayor a 0')
-            }
-            
-            if (formData.comision_vendedor < 0 || formData.comision_vendedor > 100) {
-                throw new Error('La comisión debe estar entre 0% y 100%')
-            }
-            
-            // PREPARAR DATOS PARA ENVIAR (solo los campos editables)
-            const datosEnviar = {
-                nombre: formData.nombre.trim(),
-                precio_boleto: parseFloat(formData.precio_boleto) || 0,
-                comision_vendedor: parseFloat(formData.comision_vendedor) || 0,
-                primer_premio: formData.primer_premio?.trim() || '',
-                segundo_premio: formData.segundo_premio?.trim() || '',
-                // NO enviamos digitos_boleto - no editable desde aquí
-            }
-            
-            console.log('Enviando datos para editar:', datosEnviar)
-            
-            const response = await fetch(`/api/sorteos/${sorteoId}/editar`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(datosEnviar)
-            })
-            
-            const responseData = await response.json()
-            
-            if (!response.ok) {
-                throw new Error(responseData.details || responseData.error || `Error ${response.status}`)
-            }
-            
-            if (!responseData.success) {
-                throw new Error(responseData.error || 'Error al guardar')
-            }
-            
-            // Obtener el sorteo actualizado para mantener todos los campos
-            setSorteos(prev => prev.map(s => {
-                if (s.id_sorteo === sorteoId) {
-                    return { 
-                        ...s, 
-                        ...datosEnviar,
-                        // Mantener el campo digitos_boleto original
-                        digitos_boleto: s.digitos_boleto,
-                        id_sorteo: sorteoId
-                    }
-                }
-                return s
-            }))
-            
-            setEditandoId(null)
-            setFormData({})
-            setMensaje('✅ Cambios guardados correctamente')
-            
-            setTimeout(() => setMensaje(''), 3000)
-            
-        } catch (err) {
-            console.error('Error guardando cambios:', err)
-            setMensaje(`❌ ${err.message}`)
-        }
-    }
-
-    // Manejar cambio en inputs
-    const handleChange = (field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }))
-    }
 
     // Formatear precio
     const formatPrecio = (precio) => {
@@ -187,9 +81,126 @@ export default function SorteosManager({ colegioId }) {
         })
     }
 
-    // Verificar si se puede editar
-    const puedeEditar = (sorteo) => {
-        return sorteo.estatus === 'activo';
+    // Ver estado del sorteo
+    const getEstadoBadge = (estatus, fecha) => {
+        const now = new Date()
+        const fechaSorteo = new Date(fecha)
+        
+        if (estatus === 'cerrado') {
+            return {
+                text: 'Cerrado',
+                color: 'bg-gray-100 text-gray-800',
+                icon: '🔒'
+            }
+        }
+        
+        if (fechaSorteo < now) {
+            return {
+                text: 'Expirado',
+                color: 'bg-red-100 text-red-800',
+                icon: '⏰'
+            }
+        }
+        
+        // Calcular días restantes
+        const diffTime = fechaSorteo - now
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        
+        if (diffDays <= 7) {
+            return {
+                text: `Finaliza en ${diffDays} día${diffDays !== 1 ? 's' : ''}`,
+                color: 'bg-yellow-100 text-yellow-800',
+                icon: '⚠️'
+            }
+        }
+        
+        return {
+            text: 'Activo',
+            color: 'bg-green-100 text-green-800',
+            icon: '✅'
+        }
+    }
+
+    // Ver detalles del sorteo
+    const verDetallesSorteo = (sorteo) => {
+        Swal.fire({
+            title: `📊 Detalles del Sorteo: ${sorteo.nombre}`,
+            html: `
+                <div class="text-left space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-700 mb-2">📋 Información General</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-sm text-gray-500">Número de sorteo</p>
+                                <p class="font-medium">${sorteo.numero_sorteo || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Estado</p>
+                                <p><span class="px-2 py-1 text-xs rounded-full ${getEstadoBadge(sorteo.estatus, sorteo.fecha).color}">
+                                    ${getEstadoBadge(sorteo.estatus, sorteo.fecha).text}
+                                </span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-700 mb-2">💰 Configuración</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-sm text-gray-500">Precio del boleto</p>
+                                <p class="font-medium">${formatPrecio(sorteo.precio_boleto)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Comisión vendedor</p>
+                                <p class="font-medium">${sorteo.comision_vendedor}%</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-700 mb-2">🔢 Detalles Técnicos</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-sm text-gray-500">Dígitos del boleto</p>
+                                <p class="font-medium">${sorteo.digitos_boleto} dígitos</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Fecha límite</p>
+                                <p class="font-medium">${formatFecha(sorteo.fecha)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${sorteo.descripcion ? `
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-700 mb-2">📝 Descripción</h4>
+                        <p class="text-gray-600">${sorteo.descripcion}</p>
+                    </div>
+                    ` : ''}
+                    
+                    ${(sorteo.primer_premio || sorteo.segundo_premio) ? `
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-700 mb-2">🏆 Premios</h4>
+                        ${sorteo.primer_premio ? `
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Primer premio</p>
+                            <p class="font-medium">${sorteo.primer_premio}</p>
+                        </div>
+                        ` : ''}
+                        ${sorteo.segundo_premio ? `
+                        <div>
+                            <p class="text-sm text-gray-500">Segundo premio</p>
+                            <p class="font-medium">${sorteo.segundo_premio}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            `,
+            showCloseButton: true,
+            showConfirmButton: false,
+            width: 600
+        })
     }
 
     if (loading) {
@@ -198,8 +209,8 @@ export default function SorteosManager({ colegioId }) {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                     <div className="flex justify-between items-center">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">🎟️ Gestión de Sorteos</h1>
-                            <p className="text-gray-600">Cargando sorteos del colegio...</p>
+                            <h1 className="text-2xl font-bold text-gray-900">🎟️ Sorteos del Colegio</h1>
+                            <p className="text-gray-600">Cargando sorteos...</p>
                         </div>
                     </div>
                 </div>
@@ -221,23 +232,24 @@ export default function SorteosManager({ colegioId }) {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                             <Trophy className="text-yellow-500" />
-                            Gestión de Sorteos
+                            Sorteos del Colegio
                         </h1>
-                        <p className="text-gray-600">Administra los sorteos del colegio</p>
+                        <p className="text-gray-600">Consulta los sorteos activos y sus detalles</p>
                     </div>
                     <div className="flex items-center gap-4">
                         <button
                             onClick={cargarSorteos}
-                            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
+                            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium flex items-center gap-2"
                         >
-                            Actualizar Lista
+                            <RefreshCw className="w-4 h-4" />
+                            Actualizar
                         </button>
                     </div>
                 </div>
                 
                 {/* Estadísticas */}
                 {estadisticas && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -255,6 +267,16 @@ export default function SorteosManager({ colegioId }) {
                                     <p className="text-2xl font-bold text-green-900">{estadisticas.sorteos_activos}</p>
                                 </div>
                                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            </div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-yellow-700 font-medium">Próximos a Finalizar</p>
+                                    <p className="text-2xl font-bold text-yellow-900">{estadisticas.proximos_finalizar || 0}</p>
+                                </div>
+                                <span className="text-2xl">⏰</span>
                             </div>
                         </div>
                         
@@ -298,7 +320,7 @@ export default function SorteosManager({ colegioId }) {
                 )}
             </div>
 
-            {/* Lista de Sorteos */}
+            {/* Lista de Sorteos - SOLO LECTURA */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -311,10 +333,10 @@ export default function SorteosManager({ colegioId }) {
                                     Premios
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Fecha
+                                    Fecha Límite
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Precio
+                                    Precio Boleto
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Comisión
@@ -331,25 +353,12 @@ export default function SorteosManager({ colegioId }) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {sorteos.map((sorteo) => (
-                                <tr key={sorteo.id_sorteo} className="hover:bg-gray-50">
-                                    {/* Nombre del Sorteo */}
-                                    <td className="px-6 py-4">
-                                        {editandoId === sorteo.id_sorteo ? (
-                                            <div>
-                                                <input
-                                                    type="text"
-                                                    value={formData.nombre || ''}
-                                                    onChange={(e) => handleChange('nombre', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                                    placeholder="Nombre del sorteo"
-                                                    required
-                                                />
-                                                <div className="text-xs text-gray-500 mt-1">
-                                                    {sorteo.numero_sorteo}
-                                                </div>
-                                            </div>
-                                        ) : (
+                            {sorteos.map((sorteo) => {
+                                const estado = getEstadoBadge(sorteo.estatus, sorteo.fecha)
+                                return (
+                                    <tr key={sorteo.id_sorteo} className="hover:bg-gray-50">
+                                        {/* Nombre del Sorteo */}
+                                        <td className="px-6 py-4">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <Tag className="w-4 h-4 text-gray-400" />
@@ -359,35 +368,10 @@ export default function SorteosManager({ colegioId }) {
                                                     {sorteo.numero_sorteo}
                                                 </div>
                                             </div>
-                                        )}
-                                    </td>
+                                        </td>
 
-                                    {/* Premios */}
-                                    <td className="px-6 py-4">
-                                        {editandoId === sorteo.id_sorteo ? (
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <Award className="w-4 h-4 text-yellow-500" />
-                                                    <input
-                                                        type="text"
-                                                        value={formData.primer_premio || ''}
-                                                        onChange={(e) => handleChange('primer_premio', e.target.value)}
-                                                        className="flex-1 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
-                                                        placeholder="1er premio"
-                                                    />
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Award className="w-4 h-4 text-gray-400" />
-                                                    <input
-                                                        type="text"
-                                                        value={formData.segundo_premio || ''}
-                                                        onChange={(e) => handleChange('segundo_premio', e.target.value)}
-                                                        className="flex-1 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
-                                                        placeholder="2do premio"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
+                                        {/* Premios */}
+                                        <td className="px-6 py-4">
                                             <div className="space-y-1">
                                                 {sorteo.primer_premio && (
                                                     <div className="flex items-center gap-2">
@@ -405,58 +389,35 @@ export default function SorteosManager({ colegioId }) {
                                                     <span className="text-gray-400 text-sm">Sin premios definidos</span>
                                                 )}
                                             </div>
-                                        )}
-                                    </td>
+                                        </td>
 
-                                    {/* Fecha del Sorteo */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-400" />
-                                            <span className="text-gray-700 text-sm">{formatFecha(sorteo.fecha)}</span>
-                                        </div>
-                                    </td>
-
-                                    {/* Precio Boleto */}
-                                    <td className="px-6 py-4">
-                                        {editandoId === sorteo.id_sorteo ? (
-                                            <div className="flex items-center">
-                                                <DollarSign className="w-4 h-4 text-gray-500 mr-1" />
-                                                <input
-                                                    type="number"
-                                                    step="50"
-                                                    min="0"
-                                                    value={formData.precio_boleto || ''}
-                                                    onChange={(e) => handleChange('precio_boleto', e.target.value)}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                                    required
-                                                />
+                                        {/* Fecha del Sorteo */}
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-gray-400" />
+                                                <div>
+                                                    <span className="text-gray-700 text-sm block">
+                                                        {formatFecha(sorteo.fecha)}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {estado.icon} {estado.text}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        ) : (
+                                        </td>
+
+                                        {/* Precio Boleto */}
+                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <DollarSign className="w-4 h-4 text-green-500" />
                                                 <span className="font-medium text-gray-900">
                                                     {formatPrecio(sorteo.precio_boleto)}
                                                 </span>
                                             </div>
-                                        )}
-                                    </td>
+                                        </td>
 
-                                    {/* Comisión Vendedor */}
-                                    <td className="px-6 py-4">
-                                        {editandoId === sorteo.id_sorteo ? (
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="number"
-                                                    step="0.5"
-                                                    min="0"
-                                                    max="100"
-                                                    value={formData.comision_vendedor || ''}
-                                                    onChange={(e) => handleChange('comision_vendedor', e.target.value)}
-                                                    className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                                />
-                                                <span className="ml-1 text-gray-500">%</span>
-                                            </div>
-                                        ) : (
+                                        {/* Comisión Vendedor */}
+                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <Percent className="w-4 h-4 text-blue-500" />
                                                 <span className={`font-medium ${
@@ -465,73 +426,39 @@ export default function SorteosManager({ colegioId }) {
                                                     {sorteo.comision_vendedor}%
                                                 </span>
                                             </div>
-                                        )}
-                                    </td>
+                                        </td>
 
-                                    {/* Dígitos Boleto - SOLO LECTURA */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2 group relative">
-                                            <Hash className="w-4 h-4 text-purple-500" />
-                                            <span className="font-mono font-medium text-gray-900">
-                                                {sorteo.digitos_boleto} dígitos
+                                        {/* Dígitos Boleto */}
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <Hash className="w-4 h-4 text-purple-500" />
+                                                <span className="font-mono font-medium text-gray-900">
+                                                    {sorteo.digitos_boleto} dígitos
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        {/* Estado */}
+                                        <td className="px-6 py-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${estado.color}`}>
+                                                {estado.text}
                                             </span>
-                                            <div className="absolute -top-8 left-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                                <div className="flex items-center gap-1">
-                                                    <Lock className="w-3 h-3" />
-                                                    Solo superadmin puede editar
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
+                                        </td>
 
-                                    {/* Estado */}
-                                    <td className="px-6 py-4">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                            sorteo.estatus === 'activo' 
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                        }`}>
-                                            {sorteo.estatus === 'activo' ? 'Activo' : 'Cerrado'}
-                                        </span>
-                                    </td>
-
-                                    {/* Acciones */}
-                                    <td className="px-6 py-4">
-                                        {editandoId === sorteo.id_sorteo ? (
-                                            <div className="flex flex-col gap-2">
-                                                <button
-                                                    onClick={() => guardarCambios(sorteo.id_sorteo)}
-                                                    className="flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
-                                                >
-                                                    <Save className="w-4 h-4" />
-                                                    Guardar
-                                                </button>
-                                                <button
-                                                    onClick={cancelarEdicion}
-                                                    className="flex items-center justify-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                    Cancelar
-                                                </button>
-                                            </div>
-                                        ) : (
+                                        {/* Acciones - SOLO VER DETALLES */}
+                                        <td className="px-6 py-4">
                                             <button
-                                                onClick={() => iniciarEdicion(sorteo)}
-                                                className={`flex items-center gap-1 px-3 py-2 rounded-md transition-colors text-sm ${
-                                                    puedeEditar(sorteo)
-                                                        ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                }`}
-                                                disabled={!puedeEditar(sorteo)}
-                                                title={puedeEditar(sorteo) ? 'Editar sorteo' : 'Sorteo no editable'}
+                                                onClick={() => verDetallesSorteo(sorteo)}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                                title="Ver detalles completos del sorteo"
                                             >
-                                                <Pencil className="w-4 h-4" />
-                                                Editar
+                                                <Eye className="w-4 h-4" />
+                                                Ver Detalles
                                             </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -552,18 +479,23 @@ export default function SorteosManager({ colegioId }) {
                 )}
             </div>
 
-            {/* Nota sobre campos editables */}
+            {/* Nota informativa sobre permisos */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <h3 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
-                    <Lock className="w-4 h-4" />
-                    Permisos de edición
+                    <Eye className="w-4 h-4" />
+                    Información de Solo Lectura
                 </h3>
                 <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• ✅ <strong>Campos editables:</strong> Nombre, Precio, Comisión, Premios</li>
-                    <li>• 🔒 <strong>No editable desde aquí:</strong> Dígitos del boleto (solo superadmin)</li>
-                    <li>• ⚠️ Solo puedes editar sorteos con estado &quot;Activo&quot;</li>
-                    <li>• 📅 La fecha del sorteo no es editable</li>
+                    <li>• 👁️ <strong>Solo visualización:</strong> Los administradores de colegio pueden ver los datos del sorteo pero no modificarlos</li>
+                    <li>• 🔒 <strong>Configuración fija:</strong> La configuración inicial (dígitos, fecha límite) solo puede ser modificada por el superadmin</li>
+                    <li>• 📊 <strong>Detalles completos:</strong> Haz clic en "Ver Detalles" para ver toda la información del sorteo</li>
+                    <li>• ⚠️ <strong>Estado:</strong> Los sorteos se cierran automáticamente al alcanzar la fecha límite</li>
                 </ul>
+                <div className="mt-3 p-2 bg-white rounded border border-blue-300">
+                    <p className="text-xs text-blue-800">
+                        <strong>Nota:</strong> Si necesitas modificar algún dato del sorteo, contacta con el administrador del sistema (superadmin).
+                    </p>
+                </div>
             </div>
         </div>
     )

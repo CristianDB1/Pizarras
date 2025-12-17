@@ -170,10 +170,6 @@ const TypeDraw = () => {
                                     <span className="text-gray-400">Dígitos:</span>
                                     <span className="text-white">{sorteo.digitos_boleto}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-400">Tu comisión:</span>
-                                    <span className="text-green-400">{sorteo.comision_vendedor}%</span>
-                                </div>
                             </div>
                             
                             <div className="flex gap-2">
