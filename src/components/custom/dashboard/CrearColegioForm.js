@@ -105,6 +105,15 @@ export default function CrearColegioForm() {
     return data.url
     }
 
+    const formatDateForDisplay = (isoDate) => {
+        const date = new Date(isoDate)
+
+        return date.toLocaleDateString('es-CO', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        })
+    }
 
 
     const handleLogoChange = (e) => {
@@ -118,7 +127,7 @@ export default function CrearColegioForm() {
                     icon: 'error',
                     confirmButtonText: 'Entendido'
                 })
-                e.target.value = '' // Limpiar input
+                e.target.value = ''
                 return
             }
 
@@ -184,9 +193,12 @@ export default function CrearColegioForm() {
         setLoading(true)
         
         try {
+            let logoUrlFinal = data.logo_url || null
+
             if (logoFile) {
-            logoUrlFinal = await uploadLogo()
+                logoUrlFinal = await uploadLogo()
             }
+            
             const colegioData = {
                 nombre: data.nombre,
                 logo_url: logoUrlFinal, 

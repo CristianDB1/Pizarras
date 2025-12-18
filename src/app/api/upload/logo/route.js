@@ -19,14 +19,14 @@ export async function POST(req) {
     const fileName = `logo-${Date.now()}-${file.name.replace(/\s+/g, "")}`;
 
     const client = new Client();
-    client.ftp.verbose = true; // 👈 deja esto activo ahora
+    client.ftp.verbose = true;
 
     await client.access({
       host: process.env.FTP_HOST,
       user: process.env.FTP_USER,
       password: process.env.FTP_PASS,
       port: Number(process.env.FTP_PORT),
-      secure: false // 👈 FTP normal (puerto 21)
+      secure: false 
     });
 
     const remotePath = path.posix.join(
@@ -41,7 +41,7 @@ export async function POST(req) {
 
     client.close();
 
-    const publicUrl = `https://www.tusorteodigital.com/uploads/logos/${fileName}`;
+    const publicUrl = `${process.env.NEXT_PUBLIC_HOSTING_URL}/uploads/logos/${fileName}`;
 
     return NextResponse.json({
       success: true,
