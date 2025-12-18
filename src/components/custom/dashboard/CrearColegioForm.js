@@ -12,8 +12,7 @@ export default function CrearColegioForm() {
     const [isClient, setIsClient] = useState(false)
     const [loading, setLoading] = useState(false)
     const [logoPreview, setLogoPreview] = useState(null)
-    const [logoFile, setLogoFile] = useState(null) 
-    const [logoBase64, setLogoBase64] = useState(null) 
+    const [logoFile, setLogoFile] = useState(null)  
     
     // Calcular fecha mínima (mañana a las 23:59:59) y fecha máxima (2 años desde hoy)
     const getMinDate = () => {
@@ -81,6 +80,42 @@ export default function CrearColegioForm() {
         }
     }, [isClient, session, router])
 
+    const uploadLogo = async () => {
+    if (!logoFile) return null
+
+    const formData = new FormData()
+    formData.append('logo', logoFile)
+
+    const res = await fetch('/api/upload/logo', {
+        method: 'POST',
+        body: formData
+    })
+
+    let data
+    try {
+        data = await res.json()
+    } catch {
+        throw new Error('Respuesta inválida del servidor al subir el logo')
+    }
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Error subiendo el logo')
+    }
+
+    return data.url
+    }
+
+    const formatDateForDisplay = (isoDate) => {
+        const date = new Date(isoDate)
+
+        return date.toLocaleDateString('es-CO', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        })
+    }
+
+
     const handleLogoChange = (e) => {
         const file = e.target.files[0]
         if (file) {
@@ -92,7 +127,7 @@ export default function CrearColegioForm() {
                     icon: 'error',
                     confirmButtonText: 'Entendido'
                 })
-                e.target.value = '' // Limpiar input
+                e.target.value = ''
                 return
             }
 
@@ -116,7 +151,6 @@ export default function CrearColegioForm() {
             const reader = new FileReader()
             reader.onloadend = () => {
                 setLogoPreview(reader.result)
-                setLogoBase64(reader.result) // Guardar como Base64
             }
             reader.readAsDataURL(file)
         } else {
@@ -159,9 +193,15 @@ export default function CrearColegioForm() {
         setLoading(true)
         
         try {
+            let logoUrlFinal = data.logo_url || null
+
+            if (logoFile) {
+                logoUrlFinal = await uploadLogo()
+            }
+            
             const colegioData = {
                 nombre: data.nombre,
-                logo_url: data.logo_url, 
+                logo_url: logoUrlFinal, 
                 configuracion: JSON.stringify({
                     cifras_sorteo: parseInt(data.cifras_sorteo),
                     precio_boleto: parseFloat(data.precio_boleto),
@@ -181,11 +221,6 @@ export default function CrearColegioForm() {
                     precio_boleto: parseFloat(data.precio_boleto),
                     comision_vendedor: parseFloat(data.comision_vendedor)
                 }
-            }
-
-            if (logoBase64) {
-                colegioData.logo_base64 = logoBase64
-                colegioData.logo_filename = logoFile?.name || 'logo-colegio'
             }
 
             //console.log('📤 Enviando datos del colegio con sorteo:', colegioData)
@@ -352,9 +387,9 @@ export default function CrearColegioForm() {
                                             <Image 
                                             src={logoPreview} 
                                             alt="Preview" 
-                                            width={100} // Especificar width
-                                            height={100} // Especificar height
-                                            priority={false} // Opcional
+                                            width={100} 
+                                            height={100} 
+                                            priority={false} 
                                             />
                                         </div>
                                     </div>

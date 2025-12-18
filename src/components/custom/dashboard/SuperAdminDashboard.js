@@ -118,8 +118,6 @@ export default function SuperAdminDashboard() {
             </div>
         )
     }
-
-    //console.log('🎨 Renderizando dashboard...')
     
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
