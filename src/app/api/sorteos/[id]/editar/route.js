@@ -51,13 +51,21 @@ export async function PUT(request, { params }) {
         }
         
         // Validar fecha si se está cambiando
-        if (fecha) {
-            const fechaSorteo = new Date(fecha);
+        let fechaNormalizada = fecha;
+
+        if (fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+            fechaNormalizada = `${fecha}T12:00:00`;
+        }
+
+        if (fechaNormalizada) {
+            const fechaSorteo = new Date(fechaNormalizada);
             const hoy = new Date();
+
             if (fechaSorteo <= hoy) {
                 throw new Error('La fecha del sorteo debe ser futura');
             }
         }
+
         
         // Validar estatus permitido
         if (estatus && !['activo', 'cerrado'].includes(estatus)) {
@@ -78,7 +86,7 @@ export async function PUT(request, { params }) {
             WHERE id_sorteo = ?`,
             [
                 nombre,
-                fecha,
+                fechaNormalizada,
                 primer_premio,
                 segundo_premio,
                 estatus,
