@@ -121,7 +121,7 @@ export async function PUT(request, { params }) {
     try {
         const { id } = params;
         const data = await request.json();
-        
+
         const { 
             nombre,
             usuario,
@@ -132,100 +132,140 @@ export async function PUT(request, { params }) {
             estatus,
             rol
         } = data;
-        
-        //console.log('✏️ Actualizando vendedor ID:', id, 'Datos:', data);
-        
+
         connection = await pool.getConnection();
         await connection.beginTransaction();
-        
-        // Verificar que el vendedor existe
+
+        // 1️⃣ Verificar vendedor
         const [vendedorExiste] = await connection.query(
-            `SELECT * FROM vendedores WHERE id_vendedor = ?`,
+            `SELECT id_vendedor, usuario, colegio_id 
+             FROM vendedores 
+             WHERE id_vendedor = ?`,
             [id]
         );
-        
+
         if (vendedorExiste.length === 0) {
-            throw new Error('Vendedor no encontrado');
-        }
-        
-        // Si se cambia el usuario, verificar que no exista en el mismo colegio
-        if (usuario && usuario !== vendedorExiste[0].usuario) {
-            const [usuarioExiste] = await connection.query(
-                `SELECT id_vendedor FROM vendedores 
-                 WHERE usuario = ? AND colegio_id = ? AND id_vendedor != ?`,
-                [usuario, vendedorExiste[0].colegio_id, id]
+            return NextResponse.json(
+                { success: false, error: 'Vendedor no encontrado' },
+                { status: 404 }
             );
-            
+        }
+
+        const vendedorActual = vendedorExiste[0];
+
+        // 2️⃣ Validar usuario duplicado (solo si cambia)
+        if (usuario && usuario.trim() !== vendedorActual.usuario) {
+            const [usuarioExiste] = await connection.query(
+                `SELECT id_vendedor 
+                 FROM vendedores 
+                 WHERE usuario = ? 
+                   AND colegio_id = ? 
+                   AND id_vendedor != ?`,
+                [usuario.trim(), vendedorActual.colegio_id, id]
+            );
+
             if (usuarioExiste.length > 0) {
-                throw new Error('El usuario ya existe en este colegio');
+                return NextResponse.json(
+                    { success: false, error: 'El nombre de usuario ya está en uso' },
+                    { status: 409 }
+                );
             }
         }
-        
-        // Actualizar vendedor
+
+        // 3️⃣ Construir update dinámico
         const updateFields = [];
         const updateValues = [];
-        
-        if (nombre) { updateFields.push('nombre = ?'); updateValues.push(nombre); }
-        if (usuario) { updateFields.push('usuario = ?'); updateValues.push(usuario); }
-        if (contrasena && contrasena.trim() !== '') { 
-            updateFields.push('contrasena = ?'); 
-            updateValues.push(contrasena); // En producción: encriptar
+
+        if (nombre?.trim()) {
+            updateFields.push('nombre = ?');
+            updateValues.push(nombre.trim());
         }
-        if (domicilio !== undefined) { updateFields.push('domicilio = ?'); updateValues.push(domicilio || null); }
-        if (telefono !== undefined) { updateFields.push('telefono = ?'); updateValues.push(telefono || null); }
-        if (comision !== undefined) { updateFields.push('comision = ?'); updateValues.push(comision); }
-        if (estatus) { updateFields.push('estatus = ?'); updateValues.push(estatus); }
-        if (rol) { updateFields.push('rol = ?'); updateValues.push(rol); }
-        
+
+        if (usuario?.trim()) {
+            updateFields.push('usuario = ?');
+            updateValues.push(usuario.trim());
+        }
+
+        if (contrasena?.trim()) {
+            if (contrasena.length < 6) {
+                return NextResponse.json(
+                    { success: false, error: 'La contraseña debe tener al menos 6 caracteres' },
+                    { status: 400 }
+                );
+            }
+            updateFields.push('contrasena = ?');
+            updateValues.push(contrasena); // 🔐 encriptar luego
+        }
+
+        if (domicilio !== undefined) {
+            updateFields.push('domicilio = ?');
+            updateValues.push(domicilio || null);
+        }
+
+        if (telefono !== undefined) {
+            updateFields.push('telefono = ?');
+            updateValues.push(telefono || null);
+        }
+
+        if (comision !== undefined) {
+            updateFields.push('comision = ?');
+            updateValues.push(comision);
+        }
+
+        if (estatus) {
+            updateFields.push('estatus = ?');
+            updateValues.push(estatus);
+        }
+
+        if (rol) {
+            updateFields.push('rol = ?');
+            updateValues.push(rol);
+        }
+
         if (updateFields.length === 0) {
-            throw new Error('No hay campos para actualizar');
+            return NextResponse.json(
+                { success: false, error: 'No hay campos para actualizar' },
+                { status: 400 }
+            );
         }
-        
+
         updateValues.push(id);
-        
-        const query = `UPDATE vendedores SET ${updateFields.join(', ')} WHERE id_vendedor = ?`;
-        
-        const [result] = await connection.query(query, updateValues);
-        
-        // Obtener vendedor actualizado
+
+        // 4️⃣ Ejecutar update
+        await connection.query(
+            `UPDATE vendedores 
+             SET ${updateFields.join(', ')} 
+             WHERE id_vendedor = ?`,
+            updateValues
+        );
+
         const [vendedorActualizado] = await connection.query(
             `SELECT * FROM vendedores WHERE id_vendedor = ?`,
             [id]
         );
-        
+
         await connection.commit();
-        
-        //console.log('✅ Vendedor actualizado:', id);
-        
+
         return NextResponse.json({
             success: true,
             message: 'Vendedor actualizado exitosamente',
-            vendedor: vendedorActualizado[0],
-            cambios: result.affectedRows
+            vendedor: vendedorActualizado[0]
         });
-        
+
     } catch (error) {
         console.error('❌ Error actualizando vendedor:', error);
-        
-        if (connection) {
-            await connection.rollback();
-            connection.release();
-        }
-        
+
+        if (connection) await connection.rollback();
+
         return NextResponse.json(
-            { 
-                success: false,
-                error: 'Error al actualizar el vendedor',
-                details: error.message 
-            },
+            { success: false, error: 'Error interno al actualizar vendedor' },
             { status: 500 }
         );
     } finally {
-        if (connection) {
-            connection.release();
-        }
+        if (connection) connection.release();
     }
 }
+
 
 // También para DELETE
 export async function DELETE(request, { params }) {
