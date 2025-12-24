@@ -5,42 +5,15 @@ import useSession from '@/hook/useSession'
 import Image from 'next/image'
 
 // Importaremos estos componentes después
-//import DashboardInicio from './DashboardInicio'
+import DashboardInicio from './DashboardInicio'
 import VendedoresManager from './VendedoresManager'
 import SorteosManager from './SorteosManager'
-//import ResultadosManager from './ResultadosManager'
+import ResultadosManager from './ResultadosManager'
 //import CorteCajaManager from './CorteCajaManager'
 //import TerminalesManager from './TerminalesManager'
 //import ReportesManager from './ReportesManager'
 
 // Placeholders para los otros componentes
-const DashboardInicio = ({ colegioId }) => (
-    <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-gray-900">📊 Dashboard Principal</h1>
-            <p className="text-gray-600">Estadísticas y resumen general del colegio</p>
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <p className="text-blue-700">Esta sección mostrará estadísticas en tiempo real, gráficos y resumen de actividades.</p>
-            </div>
-        </div>
-        {/* Aquí irán las estadísticas reales */}
-    </div>
-);
-
-
-
-const ResultadosManager = ({ colegioId }) => (
-    <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-gray-900">🏆 Resultados de Sorteos</h1>
-            <p className="text-gray-600">Consulta y publica resultados</p>
-            <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                <p className="text-green-700">Próximamente: Publicación de resultados, ganadores y verificación de boletos.</p>
-            </div>
-        </div>
-    </div>
-);
-
 const CorteCajaManager = ({ colegioId }) => (
     <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-lg p-6">
