@@ -9,34 +9,9 @@ import DashboardInicio from './DashboardInicio'
 import VendedoresManager from './VendedoresManager'
 import SorteosManager from './SorteosManager'
 import ResultadosManager from './ResultadosManager'
-//import CorteCajaManager from './CorteCajaManager'
-//import TerminalesManager from './TerminalesManager'
+import CorteCajaManager from './CorteCajaManager'
+import TerminalesManager from './TerminalesManager'
 //import ReportesManager from './ReportesManager'
-
-// Placeholders para los otros componentes
-const CorteCajaManager = ({ colegioId }) => (
-    <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-gray-900">💰 Corte de Caja</h1>
-            <p className="text-gray-600">Control de ingresos y egresos</p>
-            <div className="mt-4 p-4 bg-purple-50 rounded-lg">
-                <p className="text-purple-700">Próximamente: Registro de ventas, cierre de caja y reportes financieros.</p>
-            </div>
-        </div>
-    </div>
-);
-
-const TerminalesManager = ({ colegioId }) => (
-    <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-gray-900">🖥️ Terminales y Equipos</h1>
-            <p className="text-gray-600">Gestiona dispositivos de venta</p>
-            <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
-                <p className="text-indigo-700">Próximamente: Configuración de terminales, asignación a vendedores y monitoreo.</p>
-            </div>
-        </div>
-    </div>
-);
 
 const ReportesManager = ({ colegioId }) => (
     <div className="space-y-6">
@@ -49,7 +24,6 @@ const ReportesManager = ({ colegioId }) => (
         </div>
     </div>
 );
-
 
 const AdminDashboard = () => {
     const session = useSession()
