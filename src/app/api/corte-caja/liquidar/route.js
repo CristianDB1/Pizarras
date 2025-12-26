@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   const connection = await pool.getConnection();
   
