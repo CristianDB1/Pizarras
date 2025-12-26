@@ -367,6 +367,8 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                                 <Image 
                                     src={colegio.logo_url} 
                                     alt={colegio.nombre}
+                                    width={120}
+                                    height={120}
                                     className="w-12 h-12 rounded-full border"
                                     onError={(e) => {
                                         e.target.style.display = 'none'

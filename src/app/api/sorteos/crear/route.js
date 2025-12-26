@@ -32,12 +32,21 @@ export async function POST(request) {
             throw new Error('Colegio no encontrado o inactivo');
         }
         
+        // Normalizar fecha
+        let fechaNormalizada = fecha;
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+            fechaNormalizada = `${fecha}T12:00:00`;
+        }
+
         // Validar fecha futura
-        const fechaSorteo = new Date(fecha);
+        const fechaSorteo = new Date(fechaNormalizada);
         const hoy = new Date();
+
         if (fechaSorteo <= hoy) {
             throw new Error('La fecha del sorteo debe ser futura');
         }
+
         
         // Validar dígitos
         if (digitos_boleto < 1 || digitos_boleto > 10) {
@@ -78,9 +87,9 @@ export async function POST(request) {
             [
                 colegio_id,
                 nombre,
-                fecha,
-                '', // primer_premio vacío
-                '', // segundo_premio vacío
+                fechaNormalizada,
+                '', 
+                '', 
                 'activo',
                 numeroSorteoGlobal,
                 precio_boleto,
