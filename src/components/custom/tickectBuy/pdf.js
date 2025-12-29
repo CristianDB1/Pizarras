@@ -49,47 +49,217 @@ const generateQRCode = async (data) => {
   }
 };
 
-// Función para usar la API de compartir nativa
-const shareTicket = async (pdfBlob, fileName, ticketData) => {
+// SOLUCIÓN ALTERNATIVA PARA EL LOGO (sin CORS issues)
+const obtenerLogoBase64 = async (logoUrl, nombreColegio) => {
+  // Si no hay logoUrl, crear placeholder
+  if (!logoUrl) {
+    return crearLogoPlaceholder(nombreColegio);
+  }
+  
   try {
-    // Crear archivo para compartir
-    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    // SOLUCIÓN 1: Usar Image de HTML5 que no tiene problemas CORS para dibujar en canvas
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      
+      // Permitir origen cruzado para la imagen
+      img.crossOrigin = 'Anonymous';
+      
+      img.onload = () => {
+        try {
+          // Crear un canvas para convertir la imagen
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          
+          // Dibujar la imagen en el canvas
+          ctx.drawImage(img, 0, 0);
+          
+          // Convertir a base64
+          const base64 = canvas.toDataURL('image/png');
+          console.log('✅ Logo cargado exitosamente usando canvas');
+          resolve(base64);
+        } catch (canvasError) {
+          console.warn('⚠️ Error en canvas, usando placeholder:', canvasError);
+          resolve(crearLogoPlaceholder(nombreColegio));
+        }
+      };
+      
+      img.onerror = (error) => {
+        console.warn('⚠️ Error cargando imagen, usando placeholder:', error);
+        resolve(crearLogoPlaceholder(nombreColegio));
+      };
+      
+      // Agregar timestamp para evitar cache
+      const urlConTimestamp = `${logoUrl}${logoUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      img.src = urlConTimestamp;
+      
+      // Timeout por si la imagen no carga
+      setTimeout(() => {
+        if (!img.complete) {
+          console.warn('⚠️ Timeout cargando imagen, usando placeholder');
+          resolve(crearLogoPlaceholder(nombreColegio));
+        }
+      }, 3000);
+    });
+  } catch (error) {
+    console.warn('⚠️ Error general obteniendo logo:', error);
+    return crearLogoPlaceholder(nombreColegio);
+  }
+};
+
+// Función para crear placeholder de logo
+const crearLogoPlaceholder = (nombreColegio) => {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 120;
+    canvas.height = 120;
+    const ctx = canvas.getContext('2d');
     
-    // Verificar si la API de compartir está disponible
-    if (navigator.share && navigator.canShare) {
+    // Fondo circular con color basado en el nombre
+    ctx.beginPath();
+    ctx.arc(60, 60, 50, 0, Math.PI * 2);
+    
+    // Generar color consistente del nombre
+    let hash = 0;
+    for (let i = 0; i < nombreColegio.length; i++) {
+      hash = nombreColegio.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash % 360);
+    ctx.fillStyle = `hsl(${hue}, 70%, 45%)`;
+    ctx.fill();
+    
+    // Borde blanco
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'white';
+    ctx.stroke();
+    
+    // Obtener iniciales
+    const palabras = (nombreColegio || 'COLEGIO').split(' ').filter(p => p.length > 0);
+    let iniciales = '';
+    
+    if (palabras.length >= 2) {
+      iniciales = palabras[0].charAt(0) + palabras[palabras.length - 1].charAt(0);
+    } else if (palabras.length === 1) {
+      iniciales = palabras[0].substring(0, 2);
+    } else {
+      iniciales = 'CO';
+    }
+    
+    // Texto de iniciales
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(iniciales.toUpperCase(), 60, 55);
+    
+    // Texto "SORTEO"
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText('SORTEO', 60, 80);
+    
+    return canvas.toDataURL('image/png');
+  } catch (error) {
+    console.warn('⚠️ Error creando placeholder:', error);
+    return null;
+  }
+};
+
+// MEJORADA: Función para obtener número de sorteo que funcione en original y copia
+const obtenerNumeroSorteo = async (ticketsData, esCopia = false) => {
+  try {
+    if (!ticketsData || ticketsData.length === 0) {
+      return 'N/A';
+    }
+    
+    const firstTicket = ticketsData[0];
+    
+    console.log('🔍 Buscando número de sorteo (esCopia:', esCopia, '):', firstTicket);
+    
+    // Estrategia 1: Buscar en los datos del ticket primero
+    // Para copias, asegurarnos de buscar en todas las posibles propiedades
+    if (esCopia) {
+      // Buscar en múltiples posibles propiedades para copias
+      const posiblesPropiedades = [
+        'numero_sorteo',
+        'numeroSorteo',
+        'sorteo_numero',
+        'sorteoNumero',
+        'num_sorteo',
+        'numSorteo'
+      ];
+      
+      for (const prop of posiblesPropiedades) {
+        if (firstTicket[prop]) {
+          console.log('✅ Número de sorteo encontrado en propiedad:', prop, ':', firstTicket[prop]);
+          return firstTicket[prop];
+        }
+      }
+    } else {
+      // Para original, usar la propiedad normal
+      if (firstTicket.numero_sorteo) {
+        console.log('✅ Número de sorteo encontrado en firstTicket.numero_sorteo:', firstTicket.numero_sorteo);
+        return firstTicket.numero_sorteo;
+      }
+    }
+    
+    // Estrategia 2: Si no está en los datos, intentar obtenerlo del servidor
+    const sorteoId = firstTicket.Idsorteo || firstTicket.id_sorteo;
+    if (sorteoId) {
+      console.log('🔍 Intentando obtener número de sorteo desde servidor para ID:', sorteoId);
+      
       try {
-        // Para móviles: usar Web Share API
-        await navigator.share({
-          files: [file],
-          title: `Ticket de Sorteo - ${ticketData.colegioNombre}`,
-          text: `Ticket para el sorteo ${ticketData.sorteoNum} del ${formatDate(ticketData.fechaSorteo)}. Total: $${ticketData.totalVenta.toFixed(2)}`
-        });
-        return true;
-      } catch (shareError) {
-        if (shareError.name !== 'AbortError') {
-          console.log('Web Share API no funcionó, usando método alternativo');
-          // Continuar con el método alternativo
+        // Usar un endpoint que seguro devuelva el número de sorteo
+        const response = await fetch(`/api/getNumeroSorteo/${sorteoId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.numero_sorteo) {
+            console.log('✅ Número de sorteo obtenido del servidor:', data.numero_sorteo);
+            return data.numero_sorteo;
+          }
+        }
+      } catch (apiError) {
+        console.warn('⚠️ Error usando API específica:', apiError);
+        
+        // Intentar con la API general de sorteos
+        try {
+          const response = await fetch(`/api/sorteos/${sorteoId}`);
+          if (response.ok) {
+            const sorteoData = await response.json();
+            if (sorteoData.numero_sorteo) {
+              console.log('✅ Número de sorteo obtenido de API sorteos:', sorteoData.numero_sorteo);
+              return sorteoData.numero_sorteo;
+            }
+          }
+        } catch (secondApiError) {
+          console.warn('⚠️ Error usando API general de sorteos:', secondApiError);
         }
       }
     }
     
-    // Método alternativo: crear URL y abrir en nueva pestaña
-    const url = URL.createObjectURL(pdfBlob);
-    window.open(url, '_blank');
+    // Estrategia 3: Usar el nombre del sorteo si tiene número
+    if (firstTicket.nombreSorteo) {
+      const match = firstTicket.nombreSorteo.match(/SORTEO[-\s]*(\d+)/i);
+      if (match && match[1]) {
+        console.log('✅ Número extraído del nombre del sorteo:', match[1]);
+        return `SORTEO-${match[1]}`;
+      }
+    }
     
-    return false;
+    // Estrategia 4: Último recurso - usar el ID
+    console.log('⚠️ Usando ID como número de sorteo:', sorteoId);
+    return sorteoId ? `SORTEO-${sorteoId}` : 'N/A';
+    
   } catch (error) {
-    console.error('Error compartiendo:', error);
-    return false;
+    console.error('❌ Error obteniendo número de sorteo:', error);
+    return ticketsData[0]?.Idsorteo || ticketsData[0]?.id_sorteo || 'N/A';
   }
 };
 
 // Función principal mejorada
 const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
   try {
-    /*console.log("📄 Iniciando generación de PDF mejorado");
+    console.log("📄 Iniciando generación de PDF", esCopia ? "(COPIA)" : "(ORIGINAL)");
     console.log("🎫 Tickets recibidos:", tickets);
-    console.log("📅 Fecha sorteo:", fechaSorteo);*/
 
     // Verificación de datos
     if (!tickets || tickets.length === 0) {
@@ -108,55 +278,69 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
 
     if (colegioId) {
       try {
-        //console.log(`🏫 Obteniendo datos del colegio ID: ${colegioId}`);
+        console.log(`🏫 Obteniendo datos del colegio ID: ${colegioId}`);
         const response = await fetch(`/api/colegios/${colegioId}`);
         
         if (response.ok) {
           colegioData = await response.json();
-          //console.log('✅ Datos del colegio:', colegioData);
+          console.log('✅ Datos del colegio:', colegioData);
           
-          // Convertir logo a base64 si existe
-          if (colegioData.logo_url) {
-            //console.log('🖼️ Convirtiendo logo a base64...');
-            logoBase64 = await imageUrlToBase64(colegioData.logo_url);
-          }
+          // USAR LA NUEVA FUNCIÓN PARA EL LOGO (sin problemas CORS)
+          logoBase64 = await obtenerLogoBase64(
+            colegioData?.logo_url, 
+            colegioData?.nombre || 'COLEGIO'
+          );
         }
       } catch (error) {
         console.warn('⚠️ Error obteniendo datos del colegio:', error);
       }
     }
 
+    // ========== OBTENER EL NÚMERO DE SORTEO CORRECTO (funciona para original y copia) ==========
+    console.log('🔍 Obteniendo número de sorteo...');
+    const numeroSorteo = await obtenerNumeroSorteo(tickets, esCopia);
+    console.log('✅ Número de sorteo obtenido:', numeroSorteo);
+
     // ========== OBTENER DIGITOS DEL SORTEO ==========
-    // IMPORTANTE: Obtener el número de dígitos desde los datos del sorteo
     let digitosBoleto = 3; // Valor por defecto
     
-    // Buscar dígitos en varias posibles ubicaciones
+    // Buscar dígitos en múltiples fuentes
     if (firstTicket.digitos_boleto) {
       digitosBoleto = parseInt(firstTicket.digitos_boleto);
     } else if (firstTicket.digitos) {
       digitosBoleto = parseInt(firstTicket.digitos);
     } else if (colegioData?.configuracion) {
       try {
-        const config = JSON.parse(colegioData.configuracion);
-        if (config.cifras_sorteo) {
+        let config;
+        
+        // Manejar configuración que puede ser string JSON o ya objeto
+        if (typeof colegioData.configuracion === 'string') {
+          config = JSON.parse(colegioData.configuracion);
+        } else if (typeof colegioData.configuracion === 'object') {
+          config = colegioData.configuracion;
+        }
+        
+        if (config && config.cifras_sorteo) {
           digitosBoleto = parseInt(config.cifras_sorteo);
         }
       } catch (e) {
         console.warn('⚠️ Error parseando configuración:', e);
       }
     }
-    
-    //console.log(`🔢 Dígitos del boleto: ${digitosBoleto}`);
+
+    console.log('🔢 Dígitos del boleto configurados:', digitosBoleto);
 
     // ========== GENERAR QR CODES PARA CADA BOLETO ==========
-    //console.log('🔳 Generando códigos QR para los boletos...');
+    console.log('🔳 Generando códigos QR...');
     const ticketsWithQR = await Promise.all(
       tickets.map(async (ticket) => {
         // Datos para el QR
         const qrData = {
           colegioId: colegioId,
           colegioNombre: colegioData?.nombre,
-          sorteoId: firstTicket.numero_sorteo || firstTicket.Idsorteo,
+          sorteoId: firstTicket.Idsorteo || firstTicket.id_sorteo,
+          sorteoNumero: numeroSorteo, // Usar el número corregido
+          sorteoNombre: firstTicket.nombreSorteo,
           sorteoFecha: fechaSorteo,
           boletoId: ticket.id_boleto || ticket.id,
           boletoNumero: ticket.Boleto || ticket.boleto,
@@ -164,6 +348,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           vendedor: ticket.nombreVendedor,
           precio: ticket.Costo || ticket.precio,
           fechaVenta: ticket.fecha_venta || ticket.created_at,
+          esCopia: esCopia,
           timestamp: new Date().toISOString()
         };
         
@@ -180,11 +365,10 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
 
     // ========== CALCULAR DIMENSIONES DEL PDF ==========
     const ticketsCount = ticketsWithQR.length;
-    const baseHeight = 150;
-    const ticketHeight = 70; // Aumentado para incluir QR
+    const baseHeight = 160;
+    const ticketHeight = 70;
     const totalHeight = baseHeight + (ticketsCount * ticketHeight);
     
-    // Asegurar altura mínima
     const docHeight = Math.max(totalHeight, 200);
     
     // Crear documento
@@ -198,29 +382,30 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     // ========== ENCABEZADO MEJORADO ==========
     let yPosition = 5;
 
-    // 1. NOMBRE DEL COLEGIO ENCIMA DEL LOGO
+    // 1. NOMBRE DEL COLEGIO
     const colegioNombre = colegioData?.nombre || "SORTEO COLEGIO COLOMBIANO";
     
-    // Nombre del colegio centrado y arriba
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.text(colegioNombre.toUpperCase(), 40, yPosition + 5, { align: 'center' });
     
-    yPosition += 12;
+    yPosition += 10;
 
-    // 2. Logo del colegio (si existe)
+    // 2. Logo del colegio ABAJO del nombre
     if (logoBase64) {
       try {
-        // Logo centrado
-        doc.addImage(logoBase64, 'PNG', 30, yPosition, 20, 20);
-        //console.log('✅ Logo agregado al PDF');
-        yPosition += 25;
+        console.log('🖼️ Agregando logo al PDF...');
+        // Logo centrado y más pequeño
+        doc.addImage(logoBase64, 'PNG', 33, yPosition, 14, 14);
+        yPosition += 18;
+        console.log('✅ Logo agregado exitosamente');
       } catch (error) {
         console.warn('⚠️ Error cargando logo en PDF:', error);
         yPosition += 10;
       }
     } else {
+      console.log('⚠️ No se pudo cargar el logo');
       yPosition += 10;
     }
 
@@ -235,16 +420,23 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(255, 0, 0);
-    doc.text("TICKET DE SORTEO", 40, yPosition, { align: 'center' });
+    
+    // Si es copia, indicarlo en el título
+    const titulo = esCopia ? "COPIA DE TICKET DE SORTEO" : "TICKET DE SORTEO";
+    doc.text(titulo, 40, yPosition, { align: 'center' });
     yPosition += 7;
 
-    // Número de sorteo
-    if (firstTicket.numero_sorteo || firstTicket.Idsorteo) {
+    // NOMBRE DEL SORTEO
+    if (firstTicket.nombreSorteo) {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setTextColor(0, 0, 150);
-      const numSorteo = firstTicket.numero_sorteo || firstTicket.Idsorteo;
-      doc.text(`SORTEO #${numSorteo}`, 40, yPosition, { align: 'center' });
+      
+      const nombreSorteo = firstTicket.nombreSorteo.length > 25 
+        ? firstTicket.nombreSorteo.substring(0, 25) + "..."
+        : firstTicket.nombreSorteo;
+      
+      doc.text(nombreSorteo.toUpperCase(), 40, yPosition, { align: 'center' });
       yPosition += 6;
     }
 
@@ -259,24 +451,35 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
     doc.text(`Fecha del sorteo: ${formatDate(fechaSorteo)}`, 40, yPosition, { align: 'center' });
-    yPosition += 6;
+    yPosition += 5;
 
     // Premios
     if (firstTicket.primer_premio || firstTicket.segundo_premio) {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(0, 100, 0);
       
       if (firstTicket.primer_premio) {
         doc.text(`1º Premio: $${firstTicket.primer_premio}`, 40, yPosition, { align: 'center' });
-        yPosition += 5;
+        yPosition += 4;
       }
       
       if (firstTicket.segundo_premio) {
         doc.text(`2º Premio: $${firstTicket.segundo_premio}`, 40, yPosition, { align: 'center' });
-        yPosition += 5;
+        yPosition += 4;
       }
     }
+
+    // CORRECCIÓN: Mostrar el NÚMERO de sorteo real (funciona para original y copia)
+    yPosition += 1;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    
+    console.log('📝 Escribiendo en PDF - Número de sorteo:', numeroSorteo);
+    doc.text(`Sorteo: ${numeroSorteo} de lotería nacional`, 40, yPosition, { align: 'center' });
+    yPosition += 5;
 
     // Línea separadora
     doc.setDrawColor(0, 0, 0);
@@ -347,8 +550,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 150);
       
-      // CORRECCIÓN: Usar el número correcto de dígitos
-      // IMPORTANTE: Usar el valor de digitosBoleto que obtuvimos antes
       const boletoNum = ticket.Boleto?.toString().padStart(digitosBoleto, '0') || 
                        ticket.boleto?.toString().padStart(digitosBoleto, '0') || 
                        '0'.repeat(digitosBoleto);
@@ -365,8 +566,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       totalVenta += parseFloat(precio);
       doc.text(`Precio: $${parseFloat(precio).toFixed(2)}`, 40, yPosition + 12, { align: 'center' });
 
-
-      // ========== QR CODE OBLIGATORIO ==========
+      // ========== QR CODE ==========
       if (ticket.qr_code) {
         try {
           // Texto sobre el QR
@@ -381,7 +581,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           
           // Agregar QR al PDF
           doc.addImage(ticket.qr_code, 'PNG', qrX, qrY, qrSize, qrSize);
-          //console.log(`✅ QR agregado para boleto ${boletoNum}`);
           
           yPosition += qrSize + 30;
         } catch (error) {
@@ -389,7 +588,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           yPosition += 30;
         }
       } else {
-        // Espacio para QR (aunque no se generó)
         doc.setFontSize(7);
         doc.setTextColor(255, 0, 0);
         doc.text("QR NO DISPONIBLE", 40, yPosition + 25, { align: 'center' });
@@ -405,21 +603,19 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       }
     });
 
-    // ========== TOTAL - CORREGIDO ==========
+    // ========== TOTAL ==========
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.3);
     doc.line(5, yPosition, 75, yPosition);
-    yPosition += 8; // Aumentar espacio antes del total
+    yPosition += 8;
     
-    // Total con mejor separación
+    // Total
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     
-    // "TOTAL:" más a la izquierda
     doc.text("TOTAL:", 15, yPosition + 3);
     
-    // Valor del total más a la derecha, con buen espacio
     doc.setFontSize(14);
     doc.setTextColor(255, 0, 0);
     doc.text(`$${totalVenta.toFixed(2)}`, 65, yPosition + 3, { align: 'right' });
@@ -458,7 +654,10 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     yPosition += 4;
     
     // Leyenda obligatoria para sorteo
-    const leyendaSorteo = "PRESENTE ESTE TICKET PARA RECLAMAR PREMIOS. VÁLIDO CON IDENTIFICACIÓN DEL COMPRADOR.";
+    const leyendaSorteo = esCopia 
+      ? "COPIA DE RESPALDO - VÁLIDA SOLO PARA CONTROL INTERNO. NO ES VÁLIDA PARA RECLAMAR PREMIOS."
+      : "PRESENTE ESTE TICKET PARA RECLAMAR PREMIOS. VÁLIDO CON IDENTIFICACIÓN DEL COMPRADOR.";
+    
     const leyendaLines = doc.splitTextToSize(leyendaSorteo, 70);
     leyendaLines.forEach((line, i) => {
       doc.text(line, 40, yPosition + (i * 2.5), { align: 'center' });
@@ -466,37 +665,42 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     yPosition += (leyendaLines.length * 2.5) + 3;
 
     // ========== GENERAR Y MOSTRAR PDF ==========
-    // Configurar para impresión automática
     doc.autoPrint({ variant: 'non-conform' });
 
-    // Crear blob para compartir
     const blob = doc.output('blob');
     
     // Nombre del archivo
     const compradorNombre = (firstTicket.comprador || "boleto").replace(/[^a-z0-9]/gi, '_');
-    const fileName = `Ticket_${colegioNombre.substring(0,10)}_${compradorNombre}_${new Date().toISOString().slice(0,10)}.pdf`;
+    const fileName = esCopia 
+      ? `Copia_Ticket_${colegioNombre.substring(0,10)}_${compradorNombre}_${new Date().toISOString().slice(0,10)}.pdf`
+      : `Ticket_${colegioNombre.substring(0,10)}_${compradorNombre}_${new Date().toISOString().slice(0,10)}.pdf`;
+    
     const url = URL.createObjectURL(blob);
 
-    // Datos para compartir
     const ticketData = {
       colegioNombre,
-      sorteoNum: firstTicket.numero_sorteo || firstTicket.Idsorteo,
+      sorteoNum: numeroSorteo, // Usar el número corregido
+      sorteoNombre: firstTicket.nombreSorteo,
       fechaSorteo,
       totalVenta,
       verificationCode,
-      digitosBoleto // Agregar dígitos a los datos del ticket
+      digitosBoleto,
+      esCopia
     };
 
-    // ========== MOSTRAR SWEETALERT CON OPCIONES ==========
-    // MODIFICACIÓN: Mejorar la visualización del total en el modal
+    console.log('✅ PDF generado exitosamente', esCopia ? '(COPIA)' : '(ORIGINAL)');
+    console.log('📊 Datos del ticket:', ticketData);
+
+    // ========== MOSTRAR SWEETALERT ==========
     const result = await Swal.fire({
-      title: '🎫 Ticket Listo',
+      title: esCopia ? '📄 Copia de Ticket Lista' : '🎫 Ticket Listo',
       html: `
         <div style="text-align: center; padding: 10px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
             <p style="margin: 0; font-size: 16px; font-weight: bold;">${colegioNombre}</p>
-            <p style="margin: 5px 0; font-size: 12px;">Sorteo #${firstTicket.numero_sorteo || firstTicket.Idsorteo || '000'}</p>
-            <p style="margin: 5px 0; font-size: 10px; opacity: 0.9;">Boletos de ${digitosBoleto} dígitos</p>
+            <p style="margin: 5px 0; font-size: 12px;">${firstTicket.nombreSorteo || 'Sorteo'}</p>
+            <p style="margin: 5px 0; font-size: 10px; opacity: 0.9;">Sorteo: ${numeroSorteo}</p>
+            ${esCopia ? '<p style="margin: 5px 0; font-size: 10px; background: rgba(255,255,255,0.2); padding: 3px; border-radius: 3px;">📄 COPIA DE RESPALDO</p>' : ''}
           </div>
           
           <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: left; margin: 10px 0;">
@@ -504,7 +708,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
             <p style="margin: 8px 0;"><strong>📅 Fecha sorteo:</strong> ${formatDate(fechaSorteo)}</p>
             <p style="margin: 8px 0;"><strong>🎫 Boletos adquiridos:</strong> ${ticketsWithQR.length}</p>
             
-            <!-- CORRECCIÓN: Mejor separación para el total -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0; padding: 12px; background: #fff3f3; border-radius: 6px; border-left: 4px solid #e74c3c;">
               <div style="font-weight: bold; font-size: 14px; color: #333;">💰 Total pagado:</div>
               <div style="font-weight: bold; font-size: 18px; color: #e74c3c;">$${totalVenta.toFixed(2)}</div>
@@ -516,7 +719,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
               <strong>📱 CADA BOLETO INCLUYE QR PARA VERIFICACIÓN</strong>
             </p>
             <p style="margin: 5px 0; font-size: 10px; color: #666;">
-              ⚠️ Verifique que los boletos tengan ${digitosBoleto} dígitos
+              ⚠️ Boletos de ${digitosBoleto} dígitos
             </p>
           </div>
         </div>
@@ -538,13 +741,12 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       reverseButtons: false,
       allowOutsideClick: false,
       focusCancel: false,
-      width: 420 // Un poco más ancho para mejor visualización
+      width: 420
     });
 
     // Manejar la opción seleccionada
     if (result.isConfirmed) {
       // DESCARGAR PDF
-      //console.log('📥 Descargando PDF...');
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
@@ -552,33 +754,29 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       link.click();
       document.body.removeChild(link);
       
-      // Mensaje de confirmación
       Swal.fire({
         title: '✅ Descargado',
-        text: 'El ticket se ha descargado correctamente',
+        text: `El ${esCopia ? 'copia del ticket' : 'ticket'} se ha descargado correctamente`,
         icon: 'success',
         timer: 2000,
         showConfirmButton: false
       });
       
     } else if (result.isDenied) {
-      // COMPARTIR - Usar API nativa de compartir
-      //console.log('📤 Intentando compartir...');
+      // COMPARTIR
       try {
         const file = new File([blob], fileName, { type: 'application/pdf' });
         
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          // API de compartir disponible
           await navigator.share({
             files: [file],
-            title: `Ticket de Sorteo - ${colegioNombre}`,
-            text: `Ticket para el sorteo #${firstTicket.numero_sorteo || firstTicket.Idsorteo} del ${formatDate(fechaSorteo)}`
+            title: `${esCopia ? 'Copia de ' : ''}Ticket de Sorteo - ${colegioNombre}`,
+            text: `${esCopia ? 'Copia de ' : ''}Ticket para el sorteo ${firstTicket.nombreSorteo || 'Sorteo'} (${numeroSorteo}) del ${formatDate(fechaSorteo)}`
           });
           
-          // Mensaje de éxito
           Swal.fire({
             title: '✅ Compartido',
-            text: 'El ticket se ha compartido correctamente',
+            text: `El ${esCopia ? 'copia del ticket' : 'ticket'} se ha compartido correctamente`,
             icon: 'success',
             timer: 2000,
             showConfirmButton: false
@@ -587,7 +785,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
         } else {
           // Si no hay API de compartir, mostrar opciones
           Swal.fire({
-            title: '📤 Compartir Ticket',
+            title: `📤 Compartir ${esCopia ? 'Copia de ' : ''}Ticket`,
             html: `
               <div style="text-align: center; padding: 15px;">
                 <p style="margin-bottom: 20px;">Selecciona cómo quieres compartir el ticket:</p>
@@ -608,10 +806,10 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
                 </div>
                 
                 <p style="font-size: 12px; color: #666; margin-top: 15px;">
-                  ⚠️ <strong>Nota:</strong> El PDF contiene códigos QR para verificación
+                  ${esCopia ? '⚠️ <strong>COPIA DE RESPALDO:</strong> Solo para control interno' : '⚠️ <strong>Nota:</strong> El PDF contiene códigos QR para verificación'}
                 </p>
                 <p style="font-size: 11px; color: #666;">
-                  Boletos de ${digitosBoleto} dígitos
+                  Sorteo: ${numeroSorteo} - Boletos de ${digitosBoleto} dígitos
                 </p>
               </div>
             `,
@@ -619,7 +817,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
             showCancelButton: true,
             cancelButtonText: 'Cancelar',
             willOpen: () => {
-              // Agregar event listeners a los botones personalizados
               document.getElementById('open-pdf')?.addEventListener('click', () => {
                 window.open(url, '_blank');
                 Swal.close();
@@ -636,7 +833,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
                 
                 Swal.fire({
                   title: '✅ Descargado',
-                  text: 'El ticket se ha descargado',
+                  text: `El ${esCopia ? 'copia del ticket' : 'ticket'} se ha descargado`,
                   icon: 'success',
                   timer: 1500,
                   showConfirmButton: false
@@ -645,7 +842,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
               
               document.getElementById('copy-link')?.addEventListener('click', async () => {
                 try {
-                  // Crear un enlace temporal
                   const tempLink = document.createElement('a');
                   tempLink.href = url;
                   await navigator.clipboard.writeText(tempLink.href);
@@ -671,7 +867,8 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
               });
               
               document.getElementById('whatsapp-share')?.addEventListener('click', () => {
-                const message = `Ticket de Sorteo\nColegio: ${colegioNombre}\nSorteo: #${firstTicket.numero_sorteo || firstTicket.Idsorteo}\nFecha: ${formatDate(fechaSorteo)}\nTotal: $${totalVenta.toFixed(2)}\n\nDescarga el ticket aquí: ${url}`;
+                const tipo = esCopia ? 'Copia de ' : '';
+                const message = `${tipo}Ticket de Sorteo\nColegio: ${colegioNombre}\nSorteo: ${firstTicket.nombreSorteo || 'Sorteo'} (${numeroSorteo})\nFecha: ${formatDate(fechaSorteo)}\nTotal: $${totalVenta.toFixed(2)}\n${esCopia ? '📄 COPIA DE RESPALDO\n' : ''}\nDescarga el ticket aquí: ${url}`;
                 const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
                 window.open(whatsappUrl, '_blank');
                 Swal.close();
@@ -682,7 +879,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       } catch (shareError) {
         console.error('Error al compartir:', shareError);
         
-        // Fallback: descargar PDF
         Swal.fire({
           title: '⚠️ Error al compartir',
           html: `
@@ -695,7 +891,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           confirmButtonText: 'Entendido'
         });
         
-        // Descargar automáticamente como fallback
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
@@ -703,9 +898,6 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
         link.click();
         document.body.removeChild(link);
       }
-    } else {
-      // CERRAR - No hacer nada, solo cerrar el modal
-      //console.log('🚪 Cerrando modal sin acción adicional');
     }
 
     // Agregar CSS para los botones
@@ -752,11 +944,10 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     `;
     document.head.appendChild(style);
 
-    // Liberar memoria después de 1 minuto
+    // Liberar memoria
     setTimeout(() => {
       URL.revokeObjectURL(url);
       document.head.removeChild(style);
-      console.log('🗑️ Recursos liberados');
     }, 60000);
 
   } catch (error) {
