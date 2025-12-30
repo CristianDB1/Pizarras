@@ -9,57 +9,42 @@ export default function SuperAdminDashboard() {
     const router = useRouter()
     const [isClient, setIsClient] = useState(false)
     const [colegios, setColegios] = useState([])
+    const [resultados, setResultados] = useState([])
     const [loading, setLoading] = useState(true)
+    const [loadingResultados, setLoadingResultados] = useState(false)
     
     // Agregar useRef para evitar bucles
     const hasLoaded = useRef(false)
     const authChecked = useRef(false)
 
     useEffect(() => {
-        //console.log('🔄 useEffect - Marcando como cliente')
         setIsClient(true)
     }, [])
 
-    // VERIFICACIÓN DE AUTENTICACIÓN - CORREGIDA para evitar bucles
+    // VERIFICACIÓN DE AUTENTICACIÓN
     useEffect(() => {
-        if (!isClient) {
-            //console.log('⏳ No es cliente aún, esperando...')
-            return
-        }
+        if (!isClient) return
 
-        // Evitar múltiples verificaciones
-        if (authChecked.current) {
-            //console.log('✅ Autenticación ya verificada (skip)')
-            return
-        }
-
-        /*console.log('🔍 Verificando autenticación...')
-        console.log('isLoggedIn:', session.isLoggedIn())
-        console.log('userType:', session.getUserType())
-        console.log('userData:', session.getUserData())*/
+        if (authChecked.current) return
 
         const userData = session.getUserData()
         
         if (!session.isLoggedIn()) {
-            //console.log('❌ No está logueado, redirigiendo a /loginAdmin')
             router.push('/loginAdmin')
             return
         }
 
         const userType = session.getUserType()
         if (userType !== 'admin_colegio' && userType !== 'superadmin') {
-            //console.log(`❌ Tipo de usuario incorrecto: ${userType}, redirigiendo a /`)
             router.push('/')
             return
         }
 
-        //console.log('✅ Autenticación OK, marcando como verificada')
         authChecked.current = true
         
-        // Cargar colegios solo una vez
         if (!hasLoaded.current) {
-            //console.log('📊 Cargando colegios por primera vez')
             loadColegios()
+            loadResultadosLoteria()
             hasLoaded.current = true
         }
         
@@ -67,30 +52,43 @@ export default function SuperAdminDashboard() {
 
     const loadColegios = async () => {
         try {
-            //console.log('📡 Haciendo fetch a /api/colegios...')
             setLoading(true)
             const response = await fetch('/api/colegios')
-            //console.log('📥 Respuesta recibida, status:', response.status)
             
             if (response.ok) {
                 const data = await response.json()
-                //console.log(`✅ Colegios cargados: ${data.length} registros`)
                 setColegios(data)
             } else {
-                //console.log('❌ Error en respuesta de API:', response.status)
                 setColegios([])
             }
         } catch (error) {
-            //console.error('❌ Error cargando colegios:', error)
+            console.error('Error cargando colegios:', error)
             setColegios([])
         } finally {
-            //console.log('🏁 Carga de colegios finalizada')
             setLoading(false)
         }
     }
 
+    const loadResultadosLoteria = async () => {
+        try {
+            setLoadingResultados(true)
+            const response = await fetch('/api/resultados-loteria-nacional')
+            
+            if (response.ok) {
+                const data = await response.json()
+                setResultados(data)
+            } else {
+                setResultados([])
+            }
+        } catch (error) {
+            console.error('Error cargando resultados lotería:', error)
+            setResultados([])
+        } finally {
+            setLoadingResultados(false)
+        }
+    }
+
     const handleLogout = () => {
-        //console.log('🚪 Cerrando sesión...')
         session.logout()
         router.push('/loginAdmin')
     }
@@ -99,9 +97,25 @@ export default function SuperAdminDashboard() {
         router.push('/superadmin/crear-colegio')
     }
 
+    const handleGestionarLoteria = () => {
+        router.push('/superadmin/loteria-nacional')
+    }
+
+    const handlePublicarResultado = (id) => {
+        router.push(`/superadmin/loteria-nacional/publicar/${id}`)
+    }
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A'
+        return new Date(dateString).toLocaleDateString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        })
+    }
+
     // Mostrar loading mientras se verifica autenticación
     if (!isClient || (loading && !hasLoaded.current)) {
-        console.log('🌀 Mostrando loading...')
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <div className="text-center">
@@ -153,15 +167,15 @@ export default function SuperAdminDashboard() {
             {/* Main Content */}
             <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
                 {/* Quick Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                                 <span className="text-2xl">🏫</span>
                             </div>
                             <div>
-                                <h3 className="font-semibold text-gray-900">Crear Nuevo Colegio</h3>
-                                <p className="text-sm text-gray-600 mt-1">Registra una nueva institución</p>
+                                <h3 className="font-semibold text-gray-900">Crear Colegio</h3>
+                                <p className="text-sm text-gray-600 mt-1">Registrar institución</p>
                             </div>
                         </div>
                         <button
@@ -179,7 +193,7 @@ export default function SuperAdminDashboard() {
                             </div>
                             <div>
                                 <h3 className="font-semibold text-gray-900">Administradores</h3>
-                                <p className="text-sm text-gray-600 mt-1">Gestiona administradores del sistema</p>
+                                <p className="text-sm text-gray-600 mt-1">Gestionar administradores</p>
                             </div>
                         </div>
                         <button
@@ -190,14 +204,32 @@ export default function SuperAdminDashboard() {
                         </button>
                     </div>
 
+                    <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-yellow-500">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                <span className="text-2xl">🎰</span>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900">Lotería Nacional</h3>
+                                <p className="text-sm text-gray-600 mt-1">Gestionar resultados</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleGestionarLoteria}
+                            className="mt-4 w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+                        >
+                            Gestionar Lotería
+                        </button>
+                    </div>
+
                     <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                                 <span className="text-2xl">📊</span>
                             </div>
                             <div>
-                                <h3 className="font-semibold text-gray-900">Estadísticas Globales</h3>
-                                <p className="text-sm text-gray-600 mt-1">Vista general del sistema</p>
+                                <h3 className="font-semibold text-gray-900">Estadísticas</h3>
+                                <p className="text-sm text-gray-600 mt-1">Vista general sistema</p>
                             </div>
                         </div>
                         <button
@@ -209,12 +241,128 @@ export default function SuperAdminDashboard() {
                     </div>
                 </div>
 
+                {/* Resultados Lotería Nacional - Vista Rápida */}
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+                    <div className="p-6 border-b">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-semibold text-gray-900">
+                                🎰 Resultados Lotería Nacional
+                            </h2>
+                            <div className="flex gap-2">
+                                <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">
+                                    Total: {resultados.length}
+                                </span>
+                                <button
+                                    onClick={handleGestionarLoteria}
+                                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+                                >
+                                    Gestionar
+                                </button>
+                            </div>
+                        </div>
+                        <p className="text-gray-600 text-sm mt-1">
+                            Últimos resultados registrados
+                        </p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Sorteo
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Fecha
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        1er Premio
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        2do Premio
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Estado
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {resultados.slice(0, 5).map((resultado) => (
+                                    <tr key={resultado.id_resultado} className="hover:bg-gray-50">
+                                        <td className="p-4 font-medium text-gray-900">
+                                            #{resultado.numero_sorteo_ln}
+                                        </td>
+                                        <td className="p-4 text-gray-600">
+                                            {formatDate(resultado.fecha_sorteo_ln)}
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="font-mono font-bold text-lg text-green-600">
+                                                {resultado.primer_premio_ln || '--'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="font-mono font-bold text-lg text-blue-600">
+                                                {resultado.segundo_premio_ln || '--'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                resultado.estado === 'publicado'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : resultado.estado === 'pendiente'
+                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                    : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                                {resultado.estado === 'publicado' ? 'Publicado' : 
+                                                 resultado.estado === 'pendiente' ? 'Pendiente' : 
+                                                 resultado.estado}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {resultados.length === 0 && !loadingResultados && (
+                        <div className="p-8 text-center text-gray-500">
+                            <div className="text-4xl mb-4">🎰</div>
+                            <p className="text-lg">No hay resultados registrados</p>
+                            <p className="text-sm mt-2">Comienza registrando el primer resultado</p>
+                            <button
+                                onClick={handleGestionarLoteria}
+                                className="mt-4 px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                            >
+                                Crear Primer Resultado
+                            </button>
+                        </div>
+                    )}
+
+                    {loadingResultados && (
+                        <div className="p-8 text-center">
+                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500"></div>
+                            <p className="text-gray-600 mt-2">Cargando resultados...</p>
+                        </div>
+                    )}
+
+                    {resultados.length > 5 && (
+                        <div className="p-4 border-t text-center">
+                            <button
+                                onClick={handleGestionarLoteria}
+                                className="text-yellow-600 hover:text-yellow-800 font-medium"
+                            >
+                                Ver todos los resultados ({resultados.length}) →
+                            </button>
+                        </div>
+                    )}
+                </div>
+
                 {/* Colegios List */}
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                     <div className="p-6 border-b">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-gray-900">
-                                Colegios Registrados ({colegios.length})
+                                🏫 Colegios Registrados ({colegios.length})
                             </h2>
                             <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">
                                 Total: {colegios.length}
