@@ -2,6 +2,7 @@
 'use client'
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import ResultadosOnline from "@/components/custom/resultadosOnline/ResultadosOnline";
 
 const OnlineHome = () => {
@@ -143,13 +144,32 @@ const OnlineHome = () => {
               {colegioId && (
                 <div className="mb-6 pb-4 border-b border-gray-200">
                   <div className="flex flex-col md:flex-row items-center justify-center space-y-3 md:space-y-0 md:space-x-4">
-                    {colegio?.logo_url && (
-                      <img 
-                        src={colegio.logo_url} 
-                        alt={colegio.nombre}
-                        className="h-16 w-16 object-contain"
-                      />
+                    {/* Mismo patrón que en SuperAdmin */}
+                    {colegio?.logo_url ? (
+                      <div className="relative h-20 w-20">
+                        <Image 
+                          src={colegio.logo_url}
+                          alt={colegio.nombre}
+                          width={80}
+                          height={80}
+                          className="object-contain"
+                          onError={(e) => {
+                            // Mismo manejador de errores
+                            e.target.style.display = 'none';
+                            e.target.parentNode.innerHTML = `
+                              <div class="h-20 w-20 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                                ${colegio.nombre?.charAt(0) || 'C'}
+                              </div>
+                            `;
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-20 w-20 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                        {colegio?.nombre?.charAt(0) || 'C'}
+                      </div>
                     )}
+                    
                     <div className="text-center md:text-left">
                       <h1 className="text-2xl font-bold text-gray-800">
                         {colegio?.nombre || `Colegio ${colegioId}`}
