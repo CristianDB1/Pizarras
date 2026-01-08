@@ -12,14 +12,36 @@ export async function POST(request) {
             fecha,
             precio_boleto = 100,
             comision_vendedor = 10,
-            digitos_boleto = 5
+            digitos_boleto = 5,
+            numero_sorteo // ← NUEVO CAMPO
         } = data;
         
-        //console.log('🎟️ Creando nuevo sorteo:', data);
+        console.log('🎟️ Creando nuevo sorteo:', data);
         
         // Validaciones
         if (!colegio_id || !nombre || !fecha) {
             throw new Error('Faltan datos requeridos: colegio_id, nombre, fecha');
+        }
+        
+        // Validar que el número de sorteo sea requerido
+        if (!numero_sorteo) {
+            throw new Error('El número de sorteo es requerido');
+        }
+        
+        // Validar formato del número de sorteo
+        const numeroSorteoRegex = /^[A-Za-z0-9-]+$/;
+        if (!numeroSorteoRegex.test(numero_sorteo)) {
+            throw new Error('El número de sorteo solo puede contener letras, números y guiones');
+        }
+        
+        // Validar que el número de sorteo sea único
+        const [sorteoExistente] = await pool.query(
+            `SELECT id_sorteo FROM sorteo WHERE numero_sorteo = ?`,
+            [numero_sorteo]
+        );
+        
+        if (sorteoExistente.length > 0) {
+            throw new Error('El número de sorteo ya está en uso');
         }
         
         // Validar que el colegio existe
@@ -47,7 +69,6 @@ export async function POST(request) {
             throw new Error('La fecha del sorteo debe ser futura');
         }
 
-        
         // Validar dígitos
         if (digitos_boleto < 1 || digitos_boleto > 10) {
             throw new Error('Los dígitos del boleto deben estar entre 1 y 10');
@@ -56,21 +77,7 @@ export async function POST(request) {
         connection = await pool.getConnection();
         await connection.beginTransaction();
         
-        // Obtener el último número de sorteo (global)
-        const [ultimoSorteo] = await connection.query(
-            `SELECT id_sorteo FROM sorteo ORDER BY id_sorteo DESC LIMIT 1`
-        );
-        
-        // Generar número de sorteo global único
-        let numeroSorteoGlobal;
-        if (ultimoSorteo.length > 0) {
-            const siguienteNumeroGlobal = ultimoSorteo[0].id_sorteo + 1;
-            numeroSorteoGlobal = `SORTEO-${siguienteNumeroGlobal}`;
-        } else {
-            numeroSorteoGlobal = 'SORTEO-1';
-        }
-        
-        // Crear el nuevo sorteo
+        // Crear el nuevo sorteo CON el número manual
         const [sorteoResult] = await connection.query(
             `INSERT INTO sorteo (
                 colegio_id,
@@ -79,7 +86,7 @@ export async function POST(request) {
                 primer_premio,
                 segundo_premio,
                 estatus,
-                numero_sorteo,
+                numero_sorteo,  // ← Usamos el número manual
                 precio_boleto,
                 comision_vendedor,
                 digitos_boleto
@@ -91,7 +98,7 @@ export async function POST(request) {
                 '', 
                 '', 
                 'activo',
-                numeroSorteoGlobal,
+                numero_sorteo,  // ← Usamos el número manual
                 precio_boleto,
                 comision_vendedor,
                 digitos_boleto
@@ -108,13 +115,13 @@ export async function POST(request) {
         
         await connection.commit();
         
-        //console.log('✅ Sorteo creado:', numeroSorteoGlobal);
+        console.log('✅ Sorteo creado:', numero_sorteo);
         
         return NextResponse.json({
             success: true,
             message: 'Sorteo creado exitosamente',
             sorteo: sorteoCreado[0],
-            numero_sorteo: numeroSorteoGlobal
+            numero_sorteo: numero_sorteo
         });
         
     } catch (error) {

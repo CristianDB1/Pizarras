@@ -12,13 +12,13 @@ export default function CrearColegioForm() {
     const [isClient, setIsClient] = useState(false)
     const [loading, setLoading] = useState(false)
     const [logoPreview, setLogoPreview] = useState(null)
-    const [logoFile, setLogoFile] = useState(null)  
+    const [logoFile, setLogoFile] = useState(null)
+    const [generandoNumero, setGenerandoNumero] = useState(false)
     
     // Calcular fecha mínima (mañana a las 23:59:59) y fecha máxima (2 años desde hoy)
     const getMinDate = () => {
         const tomorrow = new Date()
         tomorrow.setDate(tomorrow.getDate() + 1)
-        // Establecer a las 23:59:59 para que el sorteo termine al final del día
         tomorrow.setHours(23, 59, 59, 0)
         return tomorrow.toISOString().split('T')[0]
     }
@@ -30,20 +30,40 @@ export default function CrearColegioForm() {
         return twoYearsLater.toISOString().split('T')[0]
     }
 
-    // Formatear fecha para enviar al backend (datetime completo) EN UTC
+    // Formatear fecha para enviar al backend
     const formatDateTime = (dateString) => {
-        // Parsear la fecha como si fuera UTC para evitar problemas de zona horaria
         const [year, month, day] = dateString.split('-')
-        
-        // Crear fecha en UTC explícitamente (23:59:59 UTC)
         const date = new Date(Date.UTC(
             parseInt(year),
-            parseInt(month) - 1, // Los meses son 0-indexados
+            parseInt(month) - 1,
             parseInt(day),
             23, 59, 59, 0
         ))
-        
         return date.toISOString()
+    }
+    
+    // Generar número de sorteo sugerido
+    const generarNumeroSorteoSugerido = async () => {
+        try {
+            setGenerandoNumero(true);
+            const response = await fetch('/api/sorteos/generar-numero');
+            const data = await response.json();
+            
+            if (data.success && data.numero_sorteo) {
+                setValue('numero_sorteo', data.numero_sorteo);
+                Swal.fire({
+                    title: 'Número generado',
+                    text: `Se ha generado: ${data.numero_sorteo}`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        } catch (error) {
+            console.error('Error generando número:', error);
+        } finally {
+            setGenerandoNumero(false);
+        }
     }
     
     const {
@@ -51,7 +71,9 @@ export default function CrearColegioForm() {
         handleSubmit,
         formState: { errors },
         watch,
-        reset
+        reset,
+        setValue,
+        trigger
     } = useForm({
         defaultValues: {
             nombre: '',
@@ -63,7 +85,8 @@ export default function CrearColegioForm() {
             cifras_sorteo: 5,
             fecha_sorteo: getMinDate(), 
             precio_boleto: 100,
-            comision_vendedor: 10
+            comision_vendedor: 10,
+            numero_sorteo: '' // ← NUEVO CAMPO
         }
     })
 
@@ -81,33 +104,32 @@ export default function CrearColegioForm() {
     }, [isClient, session, router])
 
     const uploadLogo = async () => {
-    if (!logoFile) return null
+        if (!logoFile) return null
 
-    const formData = new FormData()
-    formData.append('logo', logoFile)
+        const formData = new FormData()
+        formData.append('logo', logoFile)
 
-    const res = await fetch('/api/upload/logo', {
-        method: 'POST',
-        body: formData
-    })
+        const res = await fetch('/api/upload/logo', {
+            method: 'POST',
+            body: formData
+        })
 
-    let data
-    try {
-        data = await res.json()
-    } catch {
-        throw new Error('Respuesta inválida del servidor al subir el logo')
-    }
+        let data
+        try {
+            data = await res.json()
+        } catch {
+            throw new Error('Respuesta inválida del servidor al subir el logo')
+        }
 
-    if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Error subiendo el logo')
-    }
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Error subiendo el logo')
+        }
 
-    return data.url
+        return data.url
     }
 
     const formatDateForDisplay = (isoDate) => {
         const date = new Date(isoDate)
-
         return date.toLocaleDateString('es-CO', {
             year: 'numeric',
             month: 'long',
@@ -115,11 +137,9 @@ export default function CrearColegioForm() {
         })
     }
 
-
     const handleLogoChange = (e) => {
         const file = e.target.files[0]
         if (file) {
-            // Validar tamaño (2MB máximo)
             if (file.size > 2 * 1024 * 1024) {
                 Swal.fire({
                     title: 'Archivo demasiado grande',
@@ -131,7 +151,6 @@ export default function CrearColegioForm() {
                 return
             }
 
-            // Validar tipo de archivo
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
             if (!allowedTypes.includes(file.type)) {
                 Swal.fire({
@@ -144,20 +163,16 @@ export default function CrearColegioForm() {
                 return
             }
 
-            // Guardar archivo
             setLogoFile(file)
 
-            // Crear vista previa
             const reader = new FileReader()
             reader.onloadend = () => {
                 setLogoPreview(reader.result)
             }
             reader.readAsDataURL(file)
         } else {
-            // Si no hay archivo, limpiar todo
             setLogoFile(null)
             setLogoPreview(null)
-            setLogoBase64(null)
         }
     }
 
@@ -173,7 +188,7 @@ export default function CrearColegioForm() {
             return
         }
 
-        // Validar que la fecha sea futura
+        // Validar fecha futura
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         
@@ -184,6 +199,17 @@ export default function CrearColegioForm() {
             Swal.fire({
                 title: 'Error',
                 text: 'La fecha del sorteo debe ser futura',
+                icon: 'error',
+                confirmButtonText: 'Entendido'
+            })
+            return
+        }
+
+        // Validar número de sorteo
+        if (!data.numero_sorteo) {
+            Swal.fire({
+                title: 'Error',
+                text: 'El número de sorteo es requerido',
                 icon: 'error',
                 confirmButtonText: 'Entendido'
             })
@@ -219,11 +245,12 @@ export default function CrearColegioForm() {
                     descripcion: `Sorteo inicial creado automáticamente para ${data.nombre}`,
                     estado: 'activo',
                     precio_boleto: parseFloat(data.precio_boleto),
-                    comision_vendedor: parseFloat(data.comision_vendedor)
+                    comision_vendedor: parseFloat(data.comision_vendedor),
+                    numero_sorteo: data.numero_sorteo.trim() // ← NUEVO CAMPO
                 }
             }
 
-            //console.log('📤 Enviando datos del colegio con sorteo:', colegioData)
+            console.log('📤 Enviando datos del colegio con sorteo:', colegioData)
 
             const response = await fetch('/api/colegios/crear', {
                 method: 'POST',
@@ -244,7 +271,8 @@ export default function CrearColegioForm() {
                             <h3 class="text-lg font-semibold mb-2">Colegio creado exitosamente</h3>
                             <div class="text-left bg-yellow-50 p-4 rounded-lg mt-4 border-l-4 border-yellow-400">
                                 <p class="font-medium">⚠️ Configuración INICIAL del sorteo:</p>
-                                <p class="mt-2"><strong>Fecha límite:</strong> ${formatDateForDisplay(formatDateTime(data.fecha_sorteo))}</p>
+                                <p class="mt-2"><strong>Número de sorteo:</strong> ${data.numero_sorteo}</p>
+                                <p class="mt-1"><strong>Fecha límite:</strong> ${formatDateForDisplay(formatDateTime(data.fecha_sorteo))}</p>
                                 <p class="mt-1"><strong>Cifras del boleto:</strong> ${data.cifras_sorteo}</p>
                                 <p class="text-sm text-gray-600 mt-2">Estos parámetros NO podrán ser modificados por el administrador del colegio</p>
                             </div>
@@ -265,7 +293,6 @@ export default function CrearColegioForm() {
                     if (result.isConfirmed) {
                         router.push('/superadmin/dashboard')
                     } else {
-                        // Limpiar formulario pero mantener valores por defecto
                         reset({
                             nombre: '',
                             logo_url: '',
@@ -276,7 +303,8 @@ export default function CrearColegioForm() {
                             cifras_sorteo: 5,
                             fecha_sorteo: getMinDate(),
                             precio_boleto: 100,
-                            comision_vendedor: 10
+                            comision_vendedor: 10,
+                            numero_sorteo: '' // ← Limpiar también este campo
                         })
                         setLogoPreview(null)
                     }
@@ -517,13 +545,52 @@ export default function CrearColegioForm() {
                             <h2 className="text-xl font-semibold text-gray-800 mb-6">
                                 🎟️ Configuración INICIAL del Sorteo
                             </h2>
-                                                     
+                            
+                            <div className="grid grid-cols-1 gap-6 mb-8">
+                                {/* Número de sorteo manual */}
+                                <div className="col-span-full">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Número de sorteo *
+                                            <span className="text-xs text-gray-500 ml-2">(Único en todo el sistema)</span>
+                                        </label>
+                                    </div>
+                                    <input
+                                        {...register('numero_sorteo', {
+                                            required: 'El número de sorteo es requerido',
+                                            pattern: {
+                                                value: /^[A-Za-z0-9-]+$/,
+                                                message: 'Solo letras, números y guiones'
+                                            },
+                                            minLength: {
+                                                value: 3,
+                                                message: 'Mínimo 3 caracteres'
+                                            },
+                                            maxLength: {
+                                                value: 50,
+                                                message: 'Máximo 50 caracteres'
+                                            }
+                                        })}
+                                        type="text"
+                                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                            errors.numero_sorteo ? 'border-red-500' : 'border-gray-300'
+                                        }`}
+                                        placeholder="Ej: 1234"
+                                    />
+                                    {errors.numero_sorteo && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.numero_sorteo.message}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Este número identificará el sorteo de manera única en todo el sistema
+                                    </p>
+                                </div>
+                            </div>
+                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Fecha del sorteo (usando campo 'fecha' existente) */}
+                                {/* Fecha del sorteo */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Fecha límite del sorteo *
-                                        <span className="text-xs text-gray-500 ml-2"></span>
                                     </label>
                                     <input
                                         {...register('fecha_sorteo', {
@@ -683,6 +750,7 @@ export default function CrearColegioForm() {
                                     <li>Se registrará el administrador con acceso al panel del colegio</li>
                                     <li><strong>Se creará automáticamente un sorteo inicial</strong> con:</li>
                                     <ul className="list-disc pl-5 mt-1">
+                                        <li><strong>Número de sorteo único</strong> - ingresado manualmente</li>
                                         <li>Fecha límite</li>
                                         <li>Cifras del boleto</li>
                                         <li>Precio sugerido del boleto - editable por el admin</li>

@@ -13,8 +13,8 @@ export async function POST(req) {
             configuracion, 
             admin_data,
             sorteo_data,
-            logo_base64,    // Nuevo: logo en Base64
-            logo_filename   // Nuevo: nombre del archivo
+            logo_base64,    
+            logo_filename   
         } = data;
 
         console.log('📥 Datos recibidos para crear colegio:', { 

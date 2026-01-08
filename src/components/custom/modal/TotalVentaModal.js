@@ -28,7 +28,8 @@ export default function TotalVentasModal(){
       "/ResultadosOnline",
       "/superadmin",
       "/loginAdmin",
-      "/colegio"
+      "/colegio",
+      "/online"
     ];
 
     const ocultar = rutasOcultas.some(ruta => pathname.startsWith(ruta));
