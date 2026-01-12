@@ -5,19 +5,25 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const colegioId = searchParams.get('colegioId');
-
-    if (!colegioId) {
-      return NextResponse.json({ error: 'colegioId es requerido' }, { status: 400 });
-    }
+    const asignados = searchParams.get('asignados'); // Nuevo parámetro
 
     const connection = await pool.getConnection();
     
     try {
-      const [rows] = await connection.query(
-        'SELECT * FROM Terminales WHERE ColegioID = ? ORDER BY Id_terminal DESC',
-        [colegioId]
-      );
+      let query = 'SELECT * FROM Terminales';
+      let params = [];
       
+      if (colegioId) {
+        query += ' WHERE ColegioID = ?';
+        params.push(colegioId);
+      } else if (asignados === 'false' || asignados === 'no') {
+        // Obtener terminales sin asignar
+        query += ' WHERE ColegioID IS NULL OR ColegioID = ""';
+      }
+      
+      query += ' ORDER BY Id_terminal DESC';
+      
+      const [rows] = await connection.query(query, params);
       return NextResponse.json(rows);
     } finally {
       connection.release();
@@ -47,10 +53,14 @@ export async function POST(request) {
       ColegioID 
     } = data;
 
-    // Validaciones básicas
+    // Validaciones
     if (!NumeroSerie || NumeroSerie.trim() === '') {
       return NextResponse.json({ error: 'El número de serie es requerido' }, { status: 400 });
     }
+
+    // Si ColegioID viene vacío, manejarlo como null para terminales sin asignar
+    const colegioIdValue = ColegioID && ColegioID.toString().trim() !== '' ? ColegioID : null;
+    const asignadoValue = colegioIdValue ? (Asignado?.trim() || 'Sí') : 'No';
 
     const connection = await pool.getConnection();
     
@@ -65,11 +75,11 @@ export async function POST(request) {
           Color?.trim() || '',
           CobroTarjeta || 'NO',
           Colegio?.trim() || '',
-          Asignado?.trim() || '',
+          asignadoValue, // Usar valor calculado
           FechaEntrega || null,
           FechaRecoger || null,
           Costo || 0,
-          ColegioID
+          colegioIdValue // Puede ser null
         ]
       );
 
@@ -86,7 +96,6 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error al crear terminal:', error);
     
-    // Manejar errores de duplicación
     if (error.code === 'ER_DUP_ENTRY') {
       return NextResponse.json(
         { error: 'Ya existe un terminal con este número de serie' },
