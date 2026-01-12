@@ -8,14 +8,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata = {
   title: "SorteoTrebol",
   description: "Loteria",
-
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <link rel="icon" type="image/png" href="/logo.png" />
+        <link rel="icon" type="image/png" href="/Logo_tu_sorteo_digital.png" />
       </head>
       <body className={inter.className}>
         <TotalVentaProvider>

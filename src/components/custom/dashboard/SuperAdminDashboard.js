@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import useSession from '@/hook/useSession'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image';
+import Link from 'next/link'
 
 export default function SuperAdminDashboard() {
     const session = useSession()
@@ -12,6 +13,8 @@ export default function SuperAdminDashboard() {
     const [resultados, setResultados] = useState([])
     const [loading, setLoading] = useState(true)
     const [loadingResultados, setLoadingResultados] = useState(false)
+    const [terminales, setTerminales] = useState([])
+    const [loadingTerminales, setLoadingTerminales] = useState(false)
     
     // Agregar useRef para evitar bucles
     const hasLoaded = useRef(false)
@@ -45,10 +48,30 @@ export default function SuperAdminDashboard() {
         if (!hasLoaded.current) {
             loadColegios()
             loadResultadosLoteria()
+            loadTerminales()
             hasLoaded.current = true
         }
         
     }, [isClient, router, session]);
+
+    const loadTerminales = async () => {
+        try {
+            setLoadingTerminales(true)
+            const response = await fetch('/api/terminales?asignados=no')
+            
+            if (response.ok) {
+                const data = await response.json()
+                setTerminales(data)
+            } else {
+                setTerminales([])
+            }
+        } catch (error) {
+            console.error('Error cargando terminales:', error)
+            setTerminales([])
+        } finally {
+            setLoadingTerminales(false)
+        }
+    }
 
     const loadColegios = async () => {
         try {
@@ -222,6 +245,24 @@ export default function SuperAdminDashboard() {
                         </button>
                     </div>
 
+                    <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-indigo-500">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <span className="text-2xl">💻</span>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-900">Terminales</h3>
+                                <p className="text-sm text-gray-600 mt-1">Gestionar equipos</p>
+                            </div>
+                        </div>
+                        <Link
+                            href="/superadmin/terminales"
+                            className="mt-4 w-full inline-block text-center bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                            Gestionar Terminales
+                        </Link>
+                    </div>
+
                     <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -353,6 +394,134 @@ export default function SuperAdminDashboard() {
                             >
                                 Ver todos los resultados ({resultados.length}) →
                             </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+                    <div className="p-6 border-b">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-semibold text-gray-900">
+                                💻 Terminales Sin Asignar
+                            </h2>
+                            <div className="flex gap-2">
+                                <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">
+                                    Disponibles: {terminales.filter(t => !t.ColegioID).length}
+                                </span>
+                                <Link
+                                    href="/superadmin/terminales"
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                                >
+                                    Gestionar
+                                </Link>
+                            </div>
+                        </div>
+                        <p className="text-gray-600 text-sm mt-1">
+                            Terminales disponibles para asignar a colegios
+                        </p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        N° Serie
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Modelo
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Color
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Cobro Tarjeta
+                                    </th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Acciones
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {terminales.filter(t => !t.ColegioID).slice(0, 5).map((terminal) => (
+                                    <tr key={terminal.Id_terminal} className="hover:bg-gray-50">
+                                        <td className="p-4 font-mono font-bold text-gray-900">
+                                            {terminal.NumeroSerie}
+                                        </td>
+                                        <td className="p-4 text-gray-600">
+                                            {terminal.Modelo || 'N/A'}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-2">
+                                                {terminal.Color && (
+                                                    <>
+                                                        <div 
+                                                            className="w-4 h-4 rounded-full border border-gray-300"
+                                                            style={{ backgroundColor: terminal.Color.toLowerCase() }}
+                                                        />
+                                                        <span>{terminal.Color}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                terminal.CobroTarjeta === 'SI'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                                {terminal.CobroTarjeta === 'SI' ? 'Sí' : 'No'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <Link
+                                                href={`/superadmin/terminales/${terminal.Id_terminal}/editar`}
+                                                className="text-indigo-600 hover:text-indigo-800 font-medium text-sm mr-4"
+                                            >
+                                                Editar
+                                            </Link>
+                                            <Link
+                                                href={`/superadmin/terminales/${terminal.Id_terminal}/asignar`}
+                                                className="text-green-600 hover:text-green-800 font-medium text-sm"
+                                            >
+                                                Asignar
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {terminales.filter(t => !t.ColegioID).length === 0 && !loadingTerminales && (
+                        <div className="p-8 text-center text-gray-500">
+                            <div className="text-4xl mb-4">💻</div>
+                            <p className="text-lg">No hay terminales sin asignar</p>
+                            <p className="text-sm mt-2">Crea nuevos terminales o desasigna algunos existentes</p>
+                            <Link
+                                href="/superadmin/terminales"
+                                className="mt-4 inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                                Gestionar Terminales
+                            </Link>
+                        </div>
+                    )}
+
+                    {loadingTerminales && (
+                        <div className="p-8 text-center">
+                            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                            <p className="text-gray-600 mt-2">Cargando terminales...</p>
+                        </div>
+                    )}
+
+                    {terminales.filter(t => !t.ColegioID).length > 5 && (
+                        <div className="p-4 border-t text-center">
+                            <Link
+                                href="/superadmin/terminales"
+                                className="text-indigo-600 hover:text-indigo-800 font-medium"
+                            >
+                                Ver todos los terminales ({terminales.filter(t => !t.ColegioID).length}) →
+                            </Link>
                         </div>
                     )}
                 </div>
