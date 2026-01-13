@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
-import fileUpload from "@/lib/fileUpload"; // Importar la utilidad
+import fileUpload from "@/lib/fileUpload"; 
 import path from 'path';
 
 export async function POST(req) {
@@ -113,23 +113,12 @@ export async function POST(req) {
                 throw new Error('La fecha del sorteo debe ser futura');
             }
 
-            // OBTENER EL ÚLTIMO ID DE SORTEO PARA NÚMERO GLOBAL
-            const [ultimoSorteo] = await connection.query(
-                `SELECT id_sorteo FROM sorteo ORDER BY id_sorteo DESC LIMIT 1`
-            );
-
-            // Generar número de sorteo GLOBAL
-            let numeroSorteoGlobal;
-            if (ultimoSorteo.length > 0) {
-                // Siguiente número global basado en el último ID
-                const siguienteNumeroGlobal = ultimoSorteo[0].id_sorteo + 1;
-                numeroSorteoGlobal = `SORTEO-${siguienteNumeroGlobal}`;
-            } else {
-                // Primer sorteo del sistema
-                numeroSorteoGlobal = 'SORTEO-1';
+            // VALIDAR que venga el número de sorteo desde el frontend
+            if (!sorteo_data.numero_sorteo || sorteo_data.numero_sorteo.trim() === '') {
+                throw new Error('El número de sorteo es requerido');
             }
 
-            console.log(`🎟️ Creando sorteo con número global: ${numeroSorteoGlobal}`);
+            console.log(`🎟️ Creando sorteo con número de lotería: ${sorteo_data.numero_sorteo.trim()}`);
 
             const [sorteoResult] = await connection.query(
                 `INSERT INTO sorteo (
@@ -151,28 +140,25 @@ export async function POST(req) {
                     '', // Vacío para admin
                     '', // Vacío para admin
                     'activo',
-                    numeroSorteoGlobal, // ← Número global único
+                    sorteo_data.numero_sorteo.trim(),
                     sorteo_data.precio_boleto || config.precio_boleto || 100,
-                    sorteo_data.comision_vendedor || config.comision_vendedor || 10,
+                    sorteo_data.comision_vendedor !== undefined && sorteo_data.comision_vendedor !== null 
+                        ? sorteo_data.comision_vendedor 
+                        : (config.comision_vendedor !== undefined && config.comision_vendedor !== null 
+                            ? config.comision_vendedor 
+                            : 10),
                     sorteo_data.cifras_sorteo || config.cifras_sorteo || 5
                 ]
             );
 
             sorteoId = sorteoResult.insertId;
             
-            // Obtener el número real que quedó (por si hay auto-increment gaps)
-            const [sorteoCreado] = await connection.query(
-                `SELECT numero_sorteo, id_sorteo FROM sorteo WHERE id_sorteo = ?`,
-                [sorteoId]
-            );
-            
-            const numeroFinal = sorteoCreado[0]?.numero_sorteo || numeroSorteoGlobal;
-            const idSorteoCreado = sorteoCreado[0]?.id_sorteo;
-            
             console.log('✅ Sorteo creado:');
             console.log('   ID:', sorteoId);
-            console.log('   Número global:', numeroFinal);
-            console.log('   ID en BD:', idSorteoCreado);
+            console.log('   Número de lotería:', sorteo_data.numero_sorteo);
+            console.log('   Comisión vendedor:', sorteo_data.comision_vendedor);
+            console.log('   Precio boleto:', sorteo_data.precio_boleto);
+            console.log('   Dígitos boleto:', sorteo_data.cifras_sorteo);
 
         } catch (configError) {
             console.error('❌ Error creando sorteo inicial:', configError);
@@ -195,7 +181,7 @@ export async function POST(req) {
             sorteo_info: {
                 fecha_limite: sorteo_data.fecha,
                 cifras_sorteo: sorteo_data.cifras_sorteo,
-                numero_sorteo: `SI-001`
+                numero_sorteo: sorteo_data.numero_sorteo
             },
             message: 'Colegio, administrador y sorteo inicial creados exitosamente'
         });
