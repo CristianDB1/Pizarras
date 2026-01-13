@@ -58,13 +58,30 @@ export async function POST(request) {
       return NextResponse.json({ error: 'El número de serie es requerido' }, { status: 400 });
     }
 
-    // Si ColegioID viene vacío, manejarlo como null para terminales sin asignar
-    const colegioIdValue = ColegioID && ColegioID.toString().trim() !== '' ? ColegioID : null;
-    const asignadoValue = colegioIdValue ? (Asignado?.trim() || 'Sí') : 'No';
-
     const connection = await pool.getConnection();
     
     try {
+      await connection.beginTransaction();
+
+      // 1. Verificar si el número de serie ya existe
+      const [existingTerminal] = await connection.query(
+        'SELECT Id_terminal FROM Terminales WHERE NumeroSerie = ?',
+        [NumeroSerie.trim()]
+      );
+
+      if (existingTerminal.length > 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'Ya existe un terminal con este número de serie' },
+          { status: 400 }
+        );
+      }
+
+      // 2. Si ColegioID viene vacío, manejarlo como null
+      const colegioIdValue = ColegioID && ColegioID.toString().trim() !== '' ? parseInt(ColegioID) : null;
+      const asignadoValue = colegioIdValue ? (Asignado?.trim() || 'Sí') : 'No';
+
+      // 3. Insertar (NO incluir Id_terminal - se generará automáticamente)
       const [result] = await connection.query(
         `INSERT INTO Terminales 
          (NumeroSerie, Modelo, Color, CobroTarjeta, Colegio, Asignado, FechaEntrega, FechaRecoger, Costo, ColegioID) 
@@ -75,36 +92,46 @@ export async function POST(request) {
           Color?.trim() || '',
           CobroTarjeta || 'NO',
           Colegio?.trim() || '',
-          asignadoValue, // Usar valor calculado
+          asignadoValue,
           FechaEntrega || null,
           FechaRecoger || null,
-          Costo || 0,
-          colegioIdValue // Puede ser null
+          parseFloat(Costo) || 0,
+          colegioIdValue
         ]
       );
 
-      // Obtener el registro recién creado
+      // 4. Obtener el registro recién creado (con el ID generado automáticamente)
       const [rows] = await connection.query(
         'SELECT * FROM Terminales WHERE Id_terminal = ?',
         [result.insertId]
       );
 
+      await connection.commit();
       return NextResponse.json(rows[0], { status: 201 });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Error al crear terminal:', error);
+    console.error('❌ Error al crear terminal:', error);
     
     if (error.code === 'ER_DUP_ENTRY') {
+      if (error.message.includes("'NumeroSerie'")) {
+        return NextResponse.json(
+          { error: 'Ya existe un terminal con este número de serie' },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
-        { error: 'Ya existe un terminal con este número de serie' },
+        { error: 'Error: ID duplicado. Contacte al administrador.' },
         { status: 400 }
       );
     }
     
     return NextResponse.json(
-      { error: 'Error al crear terminal' },
+      { error: `Error al crear terminal: ${error.message}` },
       { status: 500 }
     );
   }
