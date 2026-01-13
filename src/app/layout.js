@@ -6,7 +6,7 @@ import TotalVentasModal from "@/components/custom/modal/TotalVentaModal";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "SorteoTrebol",
+  title: "Sorteo Digital",
   description: "Loteria",
 };
 

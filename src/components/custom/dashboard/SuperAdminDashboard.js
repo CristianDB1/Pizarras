@@ -120,6 +120,10 @@ export default function SuperAdminDashboard() {
         router.push('/superadmin/crear-colegio')
     }
 
+    const handleGestionarAdmin = () => {
+        router.push('/superadmin/administradores')  
+    }
+
     const handleGestionarLoteria = () => {
         router.push('/superadmin/loteria-nacional')
     }
@@ -220,7 +224,7 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                         <button
-                            onClick={() => router.push('/superadmin/administradores')}
+                            onClick={handleGestionarAdmin}
                             className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
                         >
                             Ver Administradores

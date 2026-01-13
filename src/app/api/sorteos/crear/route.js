@@ -13,7 +13,7 @@ export async function POST(request) {
             precio_boleto = 100,
             comision_vendedor = 10,
             digitos_boleto = 5,
-            numero_sorteo // ← NUEVO CAMPO
+            numero_sorteo
         } = data;
         
         console.log('🎟️ Creando nuevo sorteo:', data);
@@ -86,7 +86,7 @@ export async function POST(request) {
                 primer_premio,
                 segundo_premio,
                 estatus,
-                numero_sorteo,  // ← Usamos el número manual
+                numero_sorteo,
                 precio_boleto,
                 comision_vendedor,
                 digitos_boleto
@@ -98,7 +98,7 @@ export async function POST(request) {
                 '', 
                 '', 
                 'activo',
-                numero_sorteo,  // ← Usamos el número manual
+                numero_sorteo,
                 precio_boleto,
                 comision_vendedor,
                 digitos_boleto

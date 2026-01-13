@@ -86,7 +86,7 @@ export default function CrearColegioForm() {
             fecha_sorteo: getMinDate(), 
             precio_boleto: 100,
             comision_vendedor: 10,
-            numero_sorteo: '' // ← NUEVO CAMPO
+            numero_sorteo: '' 
         }
     })
 
@@ -246,7 +246,7 @@ export default function CrearColegioForm() {
                     estado: 'activo',
                     precio_boleto: parseFloat(data.precio_boleto),
                     comision_vendedor: parseFloat(data.comision_vendedor),
-                    numero_sorteo: data.numero_sorteo.trim() // ← NUEVO CAMPO
+                    numero_sorteo: data.numero_sorteo.trim()
                 }
             }
 
@@ -263,52 +263,104 @@ export default function CrearColegioForm() {
             const result = await response.json()
 
             if (response.ok) {
-                Swal.fire({
-                    title: '¡Éxito!',
-                    html: `
-                        <div class="text-center">
-                            <div class="text-4xl mb-4">🎉</div>
-                            <h3 class="text-lg font-semibold mb-2">Colegio creado exitosamente</h3>
-                            <div class="text-left bg-yellow-50 p-4 rounded-lg mt-4 border-l-4 border-yellow-400">
-                                <p class="font-medium">⚠️ Configuración INICIAL del sorteo:</p>
-                                <p class="mt-2"><strong>Número de sorteo:</strong> ${data.numero_sorteo}</p>
-                                <p class="mt-1"><strong>Fecha límite:</strong> ${formatDateForDisplay(formatDateTime(data.fecha_sorteo))}</p>
-                                <p class="mt-1"><strong>Cifras del boleto:</strong> ${data.cifras_sorteo}</p>
-                                <p class="text-sm text-gray-600 mt-2">Estos parámetros NO podrán ser modificados por el administrador del colegio</p>
-                            </div>
-                            <div class="text-left bg-blue-50 p-4 rounded-lg mt-4">
-                                <p class="font-medium">Credenciales del administrador:</p>
-                                <p class="mt-1"><strong>Usuario:</strong> ${data.admin_usuario}</p>
-                                <p class="mt-1"><strong>Contraseña:</strong> ${data.admin_password}</p>
-                                <p class="text-xs text-gray-600 mt-2">Guarda estas credenciales para entregarlas al administrador</p>
-                            </div>
+            Swal.fire({
+                title: '¡Éxito!',
+                html: `
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🎉</div>
+                        <h3 class="text-lg font-semibold mb-2">Colegio creado exitosamente</h3>
+                        <div class="text-left bg-yellow-50 p-4 rounded-lg mt-4 border-l-4 border-yellow-400">
+                            <p class="font-medium">⚠️ Configuración INICIAL del sorteo:</p>
+                            <p class="mt-2"><strong>Número de sorteo:</strong> ${data.numero_sorteo}</p>
+                            <p class="mt-1"><strong>Fecha límite:</strong> ${formatDateForDisplay(formatDateTime(data.fecha_sorteo))}</p>
+                            <p class="mt-1"><strong>Cifras del boleto:</strong> ${data.cifras_sorteo}</p>
+                            <p class="text-sm text-gray-600 mt-2">Estos parámetros NO podrán ser modificados por el administrador del colegio</p>
                         </div>
-                    `,
-                    icon: 'success',
-                    confirmButtonText: 'Continuar al Dashboard',
-                    showCancelButton: true,
-                    cancelButtonText: 'Crear otro colegio',
-                    width: 600
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        router.push('/superadmin/dashboard')
-                    } else {
-                        reset({
-                            nombre: '',
-                            logo_url: '',
-                            admin_nombre: '',
-                            admin_usuario: '',
-                            admin_password: '',
-                            confirm_password: '',
-                            cifras_sorteo: 5,
-                            fecha_sorteo: getMinDate(),
-                            precio_boleto: 100,
-                            comision_vendedor: 10,
-                            numero_sorteo: '' // ← Limpiar también este campo
-                        })
-                        setLogoPreview(null)
-                    }
-                })
+                        <div class="text-left bg-blue-50 p-4 rounded-lg mt-4">
+                            <p class="font-medium">Credenciales del administrador:</p>
+                            <p class="mt-1"><strong>Usuario:</strong> ${data.admin_usuario}</p>
+                            <p class="mt-1"><strong>Contraseña:</strong> ${data.admin_password}</p>
+                            <div id="whatsapp-buttons" class="mt-4 flex gap-2">
+                                <button 
+                                    onclick="window.copyCredentialsToClipboard()"
+                                    class="flex-1 px-3 py-2 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200 transition-colors"
+                                >
+                                    📋 Copiar credenciales
+                                </button>
+                                <button 
+                                    onclick="window.shareViaWhatsApp()"
+                                    class="flex-1 px-3 py-2 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200 transition-colors"
+                                >
+                                    💬 Enviar por WhatsApp
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-2">Guarda estas credenciales para entregarlas al administrador</p>
+                        </div>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'Continuar al Dashboard',
+                showCancelButton: true,
+                cancelButtonText: 'Crear otro colegio',
+                width: 600,
+                didOpen: () => {
+                    // Definir funciones globales para usar en los botones del HTML
+                    window.copyCredentialsToClipboard = () => {
+                        const text = `Usuario: ${data.admin_usuario}\nContraseña: ${data.admin_password}`;
+                        navigator.clipboard.writeText(text).then(() => {
+                            Swal.fire({
+                                title: 'Copiado',
+                                text: 'Credenciales copiadas al portapapeles',
+                                icon: 'success',
+                                timer: 1500
+                            });
+                        });
+                    };
+                    
+                    window.shareViaWhatsApp = () => {
+                        const colegioNombre = data.nombre;
+                        const usuario = data.admin_usuario;
+                        const password = data.admin_password;
+                        const fechaSorteo = formatDateForDisplay(formatDateTime(data.fecha_sorteo));
+                        const numeroSorteo = data.numero_sorteo;
+                        
+                        const message = `*🏫 Credenciales para ${colegioNombre}*%0A%0A` +
+                                    `*Usuario:* ${usuario}%0A` +
+                                    `*Contraseña:* ${password}%0A%0A` +
+                                    `*Información del sorteo:*%0A` +
+                                    `Número de sorteo: ${numeroSorteo}%0A` +
+                                    `Fecha límite: ${fechaSorteo}%0A` +
+                                    `Cifras del boleto: ${data.cifras_sorteo}%0A%0A` +
+                                    `Accede al panel en: ${window.location.origin}/loginAdmin`;
+                        
+                        const whatsappUrl = `https://wa.me/?text=${message}`;
+                        window.open(whatsappUrl, '_blank');
+                    };
+                }
+            }).then((result) => {
+                // Limpiar funciones globales
+                delete window.copyCredentialsToClipboard;
+                delete window.shareViaWhatsApp;
+                
+                if (result.isConfirmed) {
+                    router.push('/superadmin/dashboard')
+                } else {
+                    reset({
+                        nombre: '',
+                        logo_url: '',
+                        admin_nombre: '',
+                        admin_usuario: '',
+                        admin_password: '',
+                        confirm_password: '',
+                        cifras_sorteo: 5,
+                        fecha_sorteo: getMinDate(),
+                        precio_boleto: 100,
+                        comision_vendedor: 10,
+                        numero_sorteo: ''
+                    })
+                    setLogoPreview(null)
+                }
+            })
             } else {
                 const errorMessage = result.details || result.error || 'Error al crear el colegio'
                 console.error('❌ Error del servidor:', result)
