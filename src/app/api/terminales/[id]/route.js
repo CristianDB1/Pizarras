@@ -34,48 +34,96 @@ export async function PUT(request, { params }) {
   try {
     const { id } = params;
     const data = await request.json();
+    const { 
+      NumeroSerie, 
+      Modelo, 
+      Color, 
+      CobroTarjeta, 
+      Colegio, 
+      Asignado,  // Texto libre
+      FechaEntrega, 
+      FechaRecoger, 
+      Costo, 
+      ColegioID 
+    } = data;
+
+    console.log('✏️ Editando terminal ID:', id, 'Datos:', data);
+
+    // Validaciones
+    if (!NumeroSerie || NumeroSerie.trim() === '') {
+      return NextResponse.json({ error: 'El número de serie es requerido' }, { status: 400 });
+    }
+
+    if (!Asignado || Asignado.trim() === '') {
+      return NextResponse.json({ error: 'El campo "Asignado a" es requerido' }, { status: 400 });
+    }
 
     const connection = await pool.getConnection();
     
     try {
-      // Verificar si el terminal existe
-      const [existing] = await connection.query(
-        'SELECT * FROM Terminales WHERE Id_terminal = ?',
+      await connection.beginTransaction();
+
+      // Verificar que el terminal existe
+      const [existingTerminal] = await connection.query(
+        'SELECT Id_terminal FROM Terminales WHERE Id_terminal = ?',
         [id]
       );
 
-      if (existing.length === 0) {
-        return NextResponse.json({ error: 'Terminal no encontrado' }, { status: 404 });
+      if (existingTerminal.length === 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'Terminal no encontrado' },
+          { status: 404 }
+        );
       }
 
-      // Actualizar el terminal
+      // Verificar si el nuevo número de serie ya existe (excepto en este terminal)
+      const [duplicateSerial] = await connection.query(
+        'SELECT Id_terminal FROM Terminales WHERE NumeroSerie = ? AND Id_terminal != ?',
+        [NumeroSerie.trim(), id]
+      );
+
+      if (duplicateSerial.length > 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'Ya existe otro terminal con este número de serie' },
+          { status: 400 }
+        );
+      }
+
+      // Si ColegioID viene vacío, manejarlo como null
+      const colegioIdValue = ColegioID && ColegioID.toString().trim() !== '' ? parseInt(ColegioID) : null;
+
+      // Actualizar
       const [result] = await connection.query(
         `UPDATE Terminales SET 
-          NumeroSerie = ?, 
-          Modelo = ?, 
-          Color = ?, 
-          CobroTarjeta = ?, 
-          Colegio = ?, 
-          Asignado = ?, 
-          FechaEntrega = ?, 
-          FechaRecoger = ?, 
-          Costo = ?, 
+          NumeroSerie = ?,
+          Modelo = ?,
+          Color = ?,
+          CobroTarjeta = ?,
+          Colegio = ?,
+          Asignado = ?,
+          FechaEntrega = ?,
+          FechaRecoger = ?,
+          Costo = ?,
           ColegioID = ?
-         WHERE Id_terminal = ?`,
+        WHERE Id_terminal = ?`,
         [
-          data.NumeroSerie?.trim() || '',
-          data.Modelo?.trim() || '',
-          data.Color?.trim() || '',
-          data.CobroTarjeta || 'NO',
-          data.Colegio?.trim() || '',
-          data.Asignado?.trim() || '',
-          data.FechaEntrega || null,
-          data.FechaRecoger || null,
-          data.Costo || 0,
-          data.ColegioID,
+          NumeroSerie.trim(),
+          Modelo?.trim() || '',
+          Color?.trim() || '',
+          CobroTarjeta || 'NO',
+          Colegio?.trim() || '',
+          Asignado.trim(), // Texto libre
+          FechaEntrega || null,
+          FechaRecoger || null,
+          parseFloat(Costo) || 0,
+          colegioIdValue,
           id
         ]
       );
+
+      console.log('✅ Terminal actualizado:', result.affectedRows, 'filas afectadas');
 
       // Obtener el registro actualizado
       const [rows] = await connection.query(
@@ -83,23 +131,18 @@ export async function PUT(request, { params }) {
         [id]
       );
 
+      await connection.commit();
       return NextResponse.json(rows[0]);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Error al actualizar terminal:', error);
-    
-    // Manejar errores de duplicación
-    if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json(
-        { error: 'Ya existe un terminal con este número de serie' },
-        { status: 400 }
-      );
-    }
-    
+    console.error('❌ Error al actualizar terminal:', error);
     return NextResponse.json(
-      { error: 'Error al actualizar terminal' },
+      { error: `Error al actualizar terminal: ${error.message}` },
       { status: 500 }
     );
   }

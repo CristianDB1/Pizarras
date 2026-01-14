@@ -15,7 +15,7 @@ export default function CrearTerminalForm() {
         Color: '',
         CobroTarjeta: 'NO',
         Colegio: '',
-        Asignado: 'No',
+        Asignado: '', // Cambiado de 'No' a vacío
         FechaEntrega: '',
         FechaRecoger: '',
         Costo: '',
@@ -55,18 +55,20 @@ export default function CrearTerminalForm() {
 
     const handleChange = (e) => {
         const { name, value } = e.target
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }))
-
+        
+        // Si cambia ColegioID, actualizar Colegio pero NO Asignado
         if (name === 'ColegioID') {
             const colegio = colegios.find(c => c.id_colegio === parseInt(value))
             setFormData(prev => ({
                 ...prev,
                 ColegioID: value,
-                Colegio: colegio ? colegio.nombre : '',
-                Asignado: value ? 'Sí' : 'No'
+                Colegio: colegio ? colegio.nombre : ''
+                // NO cambiar Asignado automáticamente
+            }))
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
             }))
         }
     }
@@ -84,7 +86,10 @@ export default function CrearTerminalForm() {
                 body: JSON.stringify({
                     ...formData,
                     ColegioID: formData.ColegioID || null,
-                    Costo: parseFloat(formData.Costo) || 0
+                    Costo: parseFloat(formData.Costo) || 0,
+                    // Si hay ColegioID pero Asignado está vacío, usar el nombre del colegio
+                    Asignado: formData.Asignado.trim() || 
+                              (formData.ColegioID ? formData.Colegio : 'No asignado')
                 })
             })
 
@@ -211,6 +216,25 @@ export default function CrearTerminalForm() {
                                         </option>
                                     ))}
                                 </select>
+                            </div>
+
+                            {/* Asignado a (Persona/Lugar) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Asignado a (Persona/Lugar) *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="Asignado"
+                                    value={formData.Asignado}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="Ej: Juan Pérez, Almacén Central, Bodega 3"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Especifica la persona o lugar donde está asignado el terminal
+                                </p>
                             </div>
 
                             {/* Costo */}
