@@ -128,6 +128,9 @@ export default function SuperAdminDashboard() {
         router.push('/superadmin/loteria-nacional')
     }
 
+    const handleEstadisticas = () => {
+        router.push('/superadmin/estadisticas')
+    }
     const handlePublicarResultado = (id) => {
         router.push(`/superadmin/loteria-nacional/publicar/${id}`)
     }
@@ -278,7 +281,7 @@ export default function SuperAdminDashboard() {
                             </div>
                         </div>
                         <button
-                            onClick={() => router.push('/superadmin/estadisticas')}
+                            onClick={handleEstadisticas}
                             className="mt-4 w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition-colors"
                         >
                             Ver Estadísticas
