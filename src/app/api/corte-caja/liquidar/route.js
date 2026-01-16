@@ -18,7 +18,7 @@ export async function POST(request) {
       total_caja,
       total_entregado,
       colegio_id,
-      id_sorteo  // Ahora es obligatorio para saber a qué sorteo corresponde
+      id_sorteo
     } = data;
 
     // Validaciones - AHORA id_sorteo es requerido
@@ -48,7 +48,7 @@ export async function POST(request) {
           comision || 0,
           total_caja || 0,
           total_entregado,
-          id_sorteo,  // Guardamos solo el ID del sorteo
+          id_sorteo,
           colegio_id
         ]
       );

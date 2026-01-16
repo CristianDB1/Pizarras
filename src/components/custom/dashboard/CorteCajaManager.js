@@ -178,11 +178,35 @@ const CorteCajaManager = ({ colegioId }) => {
   // Manejar liquidación
   const handleLiquidar = async (vendedor) => {
     const key = `${vendedor.id_vendedor}_${vendedor.id_sorteo}`
-    const monto = montoEntregado[key] || vendedor.totalEntregar
     
-    if (!monto || monto <= 0) {
-      showError('Monto inválido', 'Ingrese un monto válido para la liquidación')
-      return
+    // Obtener monto y asegurar que sea número
+    const montoInput = montoEntregado[key];
+    let monto;
+    
+    if (montoInput === undefined || montoInput === '' || montoInput === null) {
+      monto = vendedor.totalEntregar;
+    } else {
+      monto = parseFloat(montoInput);
+      if (isNaN(monto)) {
+        monto = vendedor.totalEntregar;
+      }
+    }
+    
+    if (typeof monto !== 'number' || isNaN(monto) || monto <= 0) {
+      showError('Monto inválido', 'Ingrese un monto válido para la liquidación');
+      return;
+    }
+    
+    monto = Math.round(monto * 100) / 100;
+    
+    if (!vendedor.id_sorteo) {
+      showError('Error en datos', 'El ID del sorteo no está definido');
+      return;
+    }
+    
+    if (!colegioId) {
+      showError('Error en datos', 'Falta el ID del colegio');
+      return;
     }
     
     const sorteoInfo = vendedor.nombre_sorteo 
@@ -208,23 +232,28 @@ const CorteCajaManager = ({ colegioId }) => {
       })
       
       try {
+        const payload = {
+          id_vendedor: vendedor.id_vendedor,
+          nombre_vendedor: vendedor.nombre || '',
+          boletos_vendidos: vendedor.boletosVendidos || 0,
+          venta: vendedor.ventaTotal || 0,
+          porcentaje_comision: vendedor.comision || 0,
+          comision: vendedor.comisionGanada || 0,
+          total_caja: vendedor.ventaTotal || 0,
+          total_entregado: monto,
+          id_sorteo: vendedor.id_sorteo,
+          colegio_id: colegioId,
+        };
+
+        
+        console.log('Payload completo con colegio_id:', payload);
+        
         const response = await fetch('/api/corte-caja/liquidar', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            id_vendedor: vendedor.id_vendedor,
-            nombre_vendedor: vendedor.nombre,
-            boletos_vendidos: vendedor.boletosVendidos,
-            venta: vendedor.ventaTotal,
-            porcentaje_comision: vendedor.comision,
-            comision: vendedor.comisionGanada,
-            total_caja: vendedor.ventaTotal,
-            total_entregado: monto,
-            id_sorteo: vendedor.id_sorteo,  // ¡IMPORTANTE! Enviar el id_sorteo
-            colegio_id: colegioId
-          })
+          body: JSON.stringify(payload)
         })
         
         Swal.close()
@@ -246,6 +275,7 @@ const CorteCajaManager = ({ colegioId }) => {
           })
         } else {
           const error = await response.json()
+          console.error('Error detallado:', error);
           showError('Error en la liquidación', error.error || 'Ocurrió un error al procesar')
         }
       } catch (error) {
@@ -540,32 +570,58 @@ const CorteCajaManager = ({ colegioId }) => {
                       
                       <td className="px-6 py-4">
                         {vendedor.estado === 'pendiente' && vendedor.boletosVendidos > 0 ? (
-                          <div className="flex flex-col gap-1">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={montoEntregado[key] !== undefined 
-                                ? montoEntregado[key] 
-                                : vendedor.totalEntregar}
-                              onChange={(e) => handleMontoChange(vendedor.id_vendedor, vendedor.id_sorteo, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                              placeholder="Monto a liquidar"
-                            />
-                            <div className="text-xs text-gray-500 text-center">
-                              Sugerido: {formatCurrency(vendedor.totalEntregar)}
+                          <div className="flex flex-col gap-2">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={montoEntregado[key] !== undefined 
+                                  ? (montoEntregado[key] === '' ? '' : montoEntregado[key])
+                                  : vendedor.totalEntregar?.toString() || ''}
+                                onChange={(e) => {
+                                  let value = e.target.value;
+                                  
+                                  // CORRECCIÓN: Usar [^\d.] para remover lo que NO sean dígitos o punto
+                                  value = value.replace(/[^\d.]/g, '');
+                                  
+                                  // Evitar múltiples puntos decimales
+                                  const parts = value.split('.');
+                                  if (parts.length > 2) {
+                                    value = parts[0] + '.' + parts.slice(1).join('');
+                                  }
+                                  
+                                  // Limitar a 2 decimales
+                                  if (parts.length === 2 && parts[1].length > 2) {
+                                    value = parts[0] + '.' + parts[1].substring(0, 2);
+                                  }
+                                  
+                                  handleMontoChange(vendedor.id_vendedor, vendedor.id_sorteo, value);
+                                }}
+                                className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 hover:border-green-400"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between px-1">
+                              <div className="text-sm text-gray-600 font-medium">
+                                Sugerido:
+                              </div>
+                              <div className="text-base font-bold text-green-700">
+                                {formatCurrency(vendedor.totalEntregar)}
+                              </div>
                             </div>
                           </div>
                         ) : (
                           vendedor.total_entregado ? (
                             <div className="text-center">
-                              <div className="font-medium text-gray-900">
+                              <div className="font-bold text-lg text-gray-900">
                                 {formatCurrency(vendedor.total_entregado)}
                               </div>
-                              <div className="text-xs text-gray-500">liquidado</div>
+                              <div className="text-sm text-green-600 font-medium mt-1">
+                                <FiCheckCircle className="inline mr-1" /> Liquidado
+                              </div>
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-sm italic">N/A</span>
+                            <span className="text-gray-400 text-base italic">N/A</span>
                           )
                         )}
                       </td>
