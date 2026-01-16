@@ -11,19 +11,7 @@ import SorteosManager from './SorteosManager'
 import ResultadosManager from './ResultadosManager'
 import CorteCajaManager from './CorteCajaManager'
 import TerminalesManager from './TerminalesManager'
-//import ReportesManager from './ReportesManager'
-
-const ReportesManager = ({ colegioId }) => (
-    <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-gray-900">📄 Reportes y Estadísticas</h1>
-            <p className="text-gray-600">Genera reportes detallados</p>
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p className="text-gray-700">Próximamente: Reportes personalizados, exportación a Excel/PDF y análisis avanzado.</p>
-            </div>
-        </div>
-    </div>
-);
+import ReportesManager from './ReportesManager'
 
 const AdminDashboard = () => {
     const session = useSession()
