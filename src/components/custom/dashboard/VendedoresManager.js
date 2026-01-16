@@ -2,6 +2,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { FiEye, FiEyeOff } from 'react-icons/fi'
 import Swal from 'sweetalert2'
 
 export default function VendedoresManager({ colegioId }) {
@@ -10,6 +11,51 @@ export default function VendedoresManager({ colegioId }) {
     const [showForm, setShowForm] = useState(false)
     const [editingId, setEditingId] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
+    const [passwordVisible, setPasswordVisible] = useState({})
+    const [credenciales, setCredenciales] = useState({})
+
+
+    const togglePassword = async (idVendedor) => {
+        // Si aún no tengo credenciales, las pido
+        if (!credenciales[idVendedor]) {
+            const data = await obtenerCredenciales(idVendedor)
+            if (!data) return
+        }
+
+        setPasswordVisible(prev => ({
+            ...prev,
+            [idVendedor]: !prev[idVendedor]
+        }))
+    }
+
+
+    const obtenerCredenciales = async (idVendedor) => {
+        try {
+            const res = await fetch(
+                `/api/vendedores/${idVendedor}/credenciales?colegioId=${colegioId}`
+            )
+
+            if (!res.ok) {
+                throw new Error('No se pudieron obtener las credenciales')
+            }
+
+            const data = await res.json()
+
+            setCredenciales(prev => ({
+                ...prev,
+                [idVendedor]: data
+            }))
+
+            return data
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: 'No se pudieron cargar las credenciales',
+                icon: 'error'
+            })
+            return null
+        }
+    }
     
     const { 
         register, 
@@ -535,6 +581,7 @@ export default function VendedoresManager({ colegioId }) {
                                 <tr>
                                     <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendedor</th>
                                     <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
+                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contraseña</th>
                                     <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
                                     <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comisión</th>
                                     <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
@@ -561,6 +608,25 @@ export default function VendedoresManager({ colegioId }) {
                                         <td className="p-4">
                                             <code className="text-sm bg-gray-100 px-2 py-1 rounded">{vendedor.usuario}</code>
                                         </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type={passwordVisible[vendedor.id_vendedor] ? 'text' : 'password'}
+                                                    value={credenciales[vendedor.id_vendedor]?.contrasena || ''}
+                                                    readOnly
+                                                    className="px-2 py-1 border border-gray-300 rounded text-sm w-32 bg-gray-50"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => togglePassword(vendedor.id_vendedor)}
+                                                    className="text-gray-600 hover:text-blue-600 transition-colors"
+                                                    title={passwordVisible[vendedor.id_vendedor] ? 'Ocultar' : 'Ver'}
+                                                >
+                                                    {passwordVisible[vendedor.id_vendedor] ? <FiEyeOff /> : <FiEye />}
+                                                </button>
+                                            </div>
+                                        </td>
+
                                         <td className="p-4">
                                             <div className="space-y-1">
                                                 <div className="text-sm">{vendedor.telefono || 'No especificado'}</div>
