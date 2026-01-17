@@ -39,19 +39,27 @@ export async function POST(request) {
       SELECT 
         COUNT(*) as total_boletos,
         COALESCE(SUM(precio), 0) as total_ingresos,
+        COALESCE(
+          SUM(CASE WHEN estado_pago = 'pagado' THEN precio ELSE 0 END),
+          0
+        ) as total_liquidado,
         COALESCE(AVG(precio), 0) as promedio_venta,
         COUNT(DISTINCT id_vendedor) as total_vendedores,
         
         SUM(CASE WHEN DATE(fecha_venta) = CURDATE() THEN 1 ELSE 0 END) as boletos_hoy,
-        COALESCE(SUM(CASE WHEN DATE(fecha_venta) = CURDATE() THEN precio ELSE 0 END), 0) as ingresos_hoy,
+        COALESCE(
+          SUM(CASE WHEN DATE(fecha_venta) = CURDATE() THEN precio ELSE 0 END),
+          0
+        ) as ingresos_hoy,
         
         SUM(CASE WHEN estado_pago = 'pagado' THEN 1 ELSE 0 END) as boletos_pagados,
         SUM(CASE WHEN estado_pago = 'pendiente' THEN 1 ELSE 0 END) as boletos_pendientes
-        
+            
       FROM boletos 
       WHERE colegio_id = ?
         ${fechaCondicion}
     `;
+
 
     const [estadisticasRows] = await connection.query({
       sql: sqlEstadisticas,

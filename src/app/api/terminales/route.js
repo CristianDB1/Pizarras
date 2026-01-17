@@ -5,7 +5,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const colegioId = searchParams.get('colegioId');
-    const asignados = searchParams.get('asignados'); // Nuevo parámetro
+    const asignados = searchParams.get('asignados');
 
     const connection = await pool.getConnection();
     
@@ -17,8 +17,11 @@ export async function GET(request) {
         query += ' WHERE ColegioID = ?';
         params.push(colegioId);
       } else if (asignados === 'false' || asignados === 'no') {
-        // Obtener terminales sin asignar
-        query += ' WHERE ColegioID IS NULL OR ColegioID = ""';
+        // Obtener terminales sin asignar (Asignado vacío, nulo o "No asignado")
+        query += ` WHERE (Asignado IS NULL OR Asignado = '' OR Asignado LIKE '%No asignado%')`;
+      } else if (asignados === 'true' || asignados === 'si') {
+        // Obtener terminales asignados
+        query += ` WHERE (Asignado IS NOT NULL AND Asignado != '' AND Asignado NOT LIKE '%No asignado%')`;
       }
       
       query += ' ORDER BY Id_terminal DESC';
@@ -53,9 +56,15 @@ export async function POST(request) {
       ColegioID 
     } = data;
 
+    console.log('📥 Datos recibidos para crear terminal:', data);
+
     // Validaciones
     if (!NumeroSerie || NumeroSerie.trim() === '') {
       return NextResponse.json({ error: 'El número de serie es requerido' }, { status: 400 });
+    }
+
+    if (!Asignado || Asignado.trim() === '') {
+      return NextResponse.json({ error: 'El campo "Asignado a" es requerido' }, { status: 400 });
     }
 
     const connection = await pool.getConnection();
@@ -79,9 +88,33 @@ export async function POST(request) {
 
       // 2. Si ColegioID viene vacío, manejarlo como null
       const colegioIdValue = ColegioID && ColegioID.toString().trim() !== '' ? parseInt(ColegioID) : null;
-      const asignadoValue = colegioIdValue ? (Asignado?.trim() || 'Sí') : 'No';
+      
+      // 3. Si se seleccionó colegio pero no se especificó asignación,
+      // usar el nombre del colegio como asignación por defecto
+      let asignadoValue = Asignado.trim();
+      if (!asignadoValue && colegioIdValue && Colegio) {
+        asignadoValue = Colegio.trim();
+      }
+      
+      // 4. Validar formato de fechas
+      let fechaEntregaValue = null;
+      let fechaRecogerValue = null;
+      
+      if (FechaEntrega) {
+        fechaEntregaValue = new Date(FechaEntrega);
+        if (isNaN(fechaEntregaValue.getTime())) {
+          throw new Error('Fecha de entrega inválida');
+        }
+      }
+      
+      if (FechaRecoger) {
+        fechaRecogerValue = new Date(FechaRecoger);
+        if (isNaN(fechaRecogerValue.getTime())) {
+          throw new Error('Fecha de recogida inválida');
+        }
+      }
 
-      // 3. Insertar (NO incluir Id_terminal - se generará automáticamente)
+      // 5. Insertar
       const [result] = await connection.query(
         `INSERT INTO Terminales 
          (NumeroSerie, Modelo, Color, CobroTarjeta, Colegio, Asignado, FechaEntrega, FechaRecoger, Costo, ColegioID) 
@@ -92,15 +125,17 @@ export async function POST(request) {
           Color?.trim() || '',
           CobroTarjeta || 'NO',
           Colegio?.trim() || '',
-          asignadoValue,
-          FechaEntrega || null,
-          FechaRecoger || null,
+          asignadoValue, // Texto libre (ej: "Juan Pérez", "Almacén Central")
+          fechaEntregaValue,
+          fechaRecogerValue,
           parseFloat(Costo) || 0,
           colegioIdValue
         ]
       );
 
-      // 4. Obtener el registro recién creado (con el ID generado automáticamente)
+      console.log('✅ Terminal creado con ID:', result.insertId);
+
+      // 6. Obtener el registro recién creado
       const [rows] = await connection.query(
         'SELECT * FROM Terminales WHERE Id_terminal = ?',
         [result.insertId]

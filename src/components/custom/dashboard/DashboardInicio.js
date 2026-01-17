@@ -6,6 +6,7 @@ export default function DashboardInicio({ colegioId }) {
   const [estadisticas, setEstadisticas] = useState({
     totalBoletos: 0,
     totalIngresos: 0,
+    totalLiquidado: 0,
     totalVendedores: 0,
     promedioVenta: 0,
     boletosHoy: 0,
@@ -47,6 +48,7 @@ export default function DashboardInicio({ colegioId }) {
         setEstadisticas({
           totalBoletos: data.total_boletos || 0,
           totalIngresos: data.total_ingresos || 0,
+          totalLiquidado: data.total_liquidado || 0,
           totalVendedores: data.total_vendedores || 0,
           promedioVenta: data.promedio_venta || 0,
           boletosHoy: data.boletos_hoy || 0,
@@ -237,34 +239,48 @@ export default function DashboardInicio({ colegioId }) {
           </div>
         </div>
 
-        {/* Vendedores Activos */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+        {/* Total Liquidado */}
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-white/20 p-3 rounded-lg">
-              <FaUsers className="text-2xl" />
+              <FaCheckCircle className="text-2xl" />
             </div>
             <div className="text-right">
               <span className="text-sm font-medium bg-white/20 px-2 py-1 rounded block mb-1">
-                Vendedores
+                Liquidado
               </span>
               <span className="text-xs opacity-80">
-                {estadisticas.vendedoresActivos} activos
+                {calcularPorcentaje(
+                  estadisticas.totalLiquidado,
+                  estadisticas.totalIngresos
+                )}% del total
               </span>
             </div>
           </div>
-          <h3 className="text-sm font-medium text-purple-100">Participando</h3>
+
+          <h3 className="text-sm font-medium text-emerald-100">
+            Dinero Cobrado
+          </h3>
+
           {loading ? (
             <div className="h-8 bg-white/20 rounded animate-pulse mt-2"></div>
           ) : (
-            <p className="text-3xl font-bold mt-2">{formatNumber(estadisticas.totalVendedores)}</p>
+            <p className="text-3xl font-bold mt-2">
+              {formatCurrency(estadisticas.totalLiquidado)}
+            </p>
           )}
-          <div className="mt-4 pt-4 border-t border-purple-400/30">
+
+          <div className="mt-4 pt-4 border-t border-emerald-400/30">
             <div className="flex justify-between text-sm">
-              <span className="text-purple-100">Boletos hoy:</span>
+              <span className="text-emerald-100">Pendiente:</span>
               {loading ? (
                 <div className="h-4 w-20 bg-white/20 rounded animate-pulse"></div>
               ) : (
-                <span className="font-semibold">{formatNumber(estadisticas.boletosHoy)}</span>
+                <span className="font-semibold">
+                  {formatCurrency(
+                    estadisticas.totalIngresos - estadisticas.totalLiquidado
+                  )}
+                </span>
               )}
             </div>
           </div>
