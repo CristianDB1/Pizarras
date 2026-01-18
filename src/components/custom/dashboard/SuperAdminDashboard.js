@@ -24,6 +24,7 @@ export default function SuperAdminDashboard() {
         setIsClient(true)
     }, [])
 
+    
     // VERIFICACIÓN DE AUTENTICACIÓN
     useEffect(() => {
         if (!isClient) return
@@ -73,6 +74,29 @@ export default function SuperAdminDashboard() {
         }
     }
 
+    // Función auxiliar para extraer colegios de cualquier formato
+    const extraerColegiosDeRespuesta = (data) => {
+        // Si data es directamente un array
+        if (Array.isArray(data)) {
+            return data;
+        }
+        
+        // Si data es un objeto con propiedad 'colegios'
+        if (data && data.colegios && Array.isArray(data.colegios)) {
+            return data.colegios;
+        }
+        
+        // Si data es un objeto con propiedad 'success' y 'colegios'
+        if (data && data.success !== undefined && data.colegios && Array.isArray(data.colegios)) {
+            return data.colegios;
+        }
+        
+        // Si no se reconoce el formato, devolver array vacío
+        console.warn('Formato de respuesta no reconocido:', data);
+        return [];
+    };
+
+    // Luego en loadColegios
     const loadColegios = async () => {
         try {
             setLoading(true)
@@ -80,7 +104,8 @@ export default function SuperAdminDashboard() {
             
             if (response.ok) {
                 const data = await response.json()
-                setColegios(data)
+                const colegiosArray = extraerColegiosDeRespuesta(data)
+                setColegios(colegiosArray)
             } else {
                 setColegios([])
             }
@@ -91,6 +116,8 @@ export default function SuperAdminDashboard() {
             setLoading(false)
         }
     }
+
+    
 
     const loadResultadosLoteria = async () => {
         try {
@@ -161,8 +188,7 @@ export default function SuperAdminDashboard() {
                 </div>
             </div>
         )
-    }
-    
+    } 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
             {/* Header */}
@@ -547,57 +573,86 @@ export default function SuperAdminDashboard() {
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Colegio
-                                    </th>
-                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Estado
-                                    </th>
-                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Fecha Registro
-                                    </th>
-                                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Acciones
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {colegios.map((colegio) => (
-                                    <tr key={colegio.id_colegio} className="hover:bg-gray-50">
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                {colegio.logo_url ? (
-                                                    <Image 
-                                                        src={colegio.logo_url}
-                                                        width={120}
-                                                        height={120} 
-                                                        alt={colegio.nombre}
-                                                        className="w-10 h-10 rounded-full"
-                                                        onError={(e) => {
-                                                            e.target.style.display = 'none'
-                                                            e.target.parentNode.innerHTML = `
-                                                                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                                                                    ${colegio.nombre?.charAt(0) || 'C'}
-                                                                </div>
-                                                            `
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                                                        {colegio.nombre?.charAt(0) || 'C'}
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <div className="font-medium text-gray-900">
-                                                        {colegio.nombre}
-                                                    </div>
+                    <table className="w-full">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Colegio
+                                </th>
+                                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Estado
+                                </th>
+                                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Fecha Registro
+                                </th>
+                                <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Acciones
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {colegios.map((colegio) => (
+                                <tr 
+                                    key={colegio.id_colegio} 
+                                    className={`hover:bg-gray-50 ${
+                                        colegio.estatus === 'inactivo'
+                                            ? 'bg-red-50 text-red-900'
+                                            : ''
+                                    }`}
+                                >
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            {colegio.logo_url ? (
+                                                <Image 
+                                                    src={colegio.logo_url}
+                                                    width={120}
+                                                    height={120} 
+                                                    alt={colegio.nombre}
+                                                    className={`w-10 h-10 rounded-full ${
+                                                        colegio.estatus === 'inactivo' 
+                                                            ? 'opacity-70 border-2 border-red-200' 
+                                                            : ''
+                                                    }`}
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        const parent = e.target.parentNode;
+                                                        parent.innerHTML = `
+                                                            <div class="w-10 h-10 ${
+                                                                colegio.estatus === 'inactivo' 
+                                                                    ? 'bg-gradient-to-r from-red-400 to-red-500' 
+                                                                    : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                                            } rounded-full flex items-center justify-center text-white font-bold">
+                                                                ${colegio.nombre?.charAt(0) || 'C'}
+                                                            </div>
+                                                        `;
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                                                    colegio.estatus === 'inactivo' 
+                                                        ? 'bg-gradient-to-r from-red-400 to-red-500' 
+                                                        : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                                }`}>
+                                                    {colegio.nombre?.charAt(0) || 'C'}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="font-medium text-gray-900">
+                                                    {colegio.nombre}
+                                                    {colegio.estatus === 'inactivo' && (
+                                                        <span className="ml-2 text-xs font-normal text-red-600">
+                                                            (INACTIVO)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    ID: {colegio.id_colegio}
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td className="p-4">
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2">
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                                 colegio.estatus === 'activo'
                                                     ? 'bg-green-100 text-green-800'
@@ -605,23 +660,38 @@ export default function SuperAdminDashboard() {
                                             }`}>
                                                 {colegio.estatus === 'activo' ? 'Activo' : 'Inactivo'}
                                             </span>
-                                        </td>
-                                        <td className="p-4 text-gray-600">
+                                            {colegio.estatus === 'inactivo' && (
+                                                <span className="text-xs text-red-600 font-bold">⛔</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="text-gray-600">
                                             {colegio.created_at ? new Date(colegio.created_at).toLocaleDateString('es-ES') : 'No registrada'}
-                                        </td>
-                                        <td className="p-4">
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
                                             <button
                                                 onClick={() => router.push(`/superadmin/colegios/${colegio.id_colegio}`)}
-                                                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                                className={`text-sm font-medium ${
+                                                    colegio.estatus === 'inactivo'
+                                                        ? 'text-gray-500 hover:text-gray-700'
+                                                        : 'text-blue-600 hover:text-blue-800'
+                                                }`}
                                             >
                                                 Ver detalles →
                                             </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                            {colegio.estatus === 'inactivo' && (
+                                                <span className="text-xs text-gray-400">(Solo lectura)</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                     {colegios.length === 0 && !loading && (
                         <div className="p-8 text-center text-gray-500">
