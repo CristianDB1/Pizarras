@@ -59,6 +59,54 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
         formState: { errors: errorsEditarSorteo }
     } = useForm()
 
+    // Función para cambiar solo el estatus
+const cambiarEstatusColegio = async (nuevoEstatus) => {
+    setCargando(true);
+    try {
+        const response = await fetch(`/api/colegios/${colegioId}/estatus`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                estatus: nuevoEstatus
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            Swal.fire({
+                title: '¡Éxito!',
+                text: result.message,
+                icon: 'success',
+                timer: 2000
+            });
+            
+            // Actualizar estado local
+            setColegio(prev => ({
+                ...prev,
+                estatus: nuevoEstatus
+            }));
+            
+            // Recargar datos
+            cargarDatosCompletos();
+        } else {
+            throw new Error(result.details || result.error);
+        }
+    } catch (error) {
+        console.error('Error cambiando estatus:', error);
+        Swal.fire({
+            title: 'Error',
+            text: error.message || 'Error al cambiar el estatus',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+    } finally {
+        setCargando(false);
+    }
+};
+
     const cargarDatosCompletos = useCallback(async () => {
         if (!colegioId) return;
         
@@ -443,17 +491,32 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                                     />
                                 </div>
                                 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Estatus *
-                                    </label>
-                                    <select
-                                        {...registerColegio('estatus', { required: true })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                {/* En la sección de información del colegio */}
+                                <div className="flex items-center gap-3 mt-4">
+                                    <button
+                                        onClick={() => cambiarEstatusColegio(
+                                            colegio.estatus === 'activo' ? 'inactivo' : 'activo'
+                                        )}
+                                        className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                                            colegio.estatus === 'activo'
+                                                ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                        }`}
+                                        disabled={cargando}
                                     >
-                                        <option value="activo">Activo</option>
-                                        <option value="inactivo">Inactivo</option>
-                                    </select>
+                                        {cargando ? 'Cambiando...' : 
+                                            colegio.estatus === 'activo' 
+                                                ? 'Desactivar Colegio' 
+                                                : 'Activar Colegio'
+                                        }
+                                    </button>
+                                    
+                                    <span className="text-sm text-gray-500">
+                                        {colegio.estatus === 'activo' 
+                                            ? 'El colegio está activo y visible'
+                                            : 'El colegio está inactivo y oculto'
+                                        }
+                                    </span>
                                 </div>
                                 
                                 <div>
