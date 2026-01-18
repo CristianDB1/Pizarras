@@ -84,11 +84,6 @@ const ViewTickets = () => {
     }
   };
 
-  console.log("📋 Primer ticket recibido:", tickets[0]);
-  console.log("📅 FechaSorteo en ticket:", tickets[0]?.FechaSorteo);
-  console.log("🔢 Número de sorteo:", tickets[0]?.numeroSorteo);
-  console.log("🎯 Dígitos boleto:", tickets[0]?.digitos_boleto);
-
   useEffect(() => {
     fetchData();
   }, []);
