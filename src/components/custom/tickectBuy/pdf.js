@@ -5,25 +5,32 @@ import QRCode from "qrcode";
 
 // Función auxiliar para formatear fechas
 const formatDate = (dateString) => {
-  if (!dateString) return '';
+  if (!dateString) {
+    console.warn('⚠️ Fecha vacía recibida en formatDate');
+    return 'Fecha por definir';
+  }
   
   try {
-    const date = new Date(dateString);
-    
-    // Si es una fecha válida
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
+    // Si ya está en formato legible, devolverlo
+    if (typeof dateString === 'string' && dateString.includes('/')) {
+      return dateString;
     }
     
-    // Si ya está en formato dd/mm/yyyy
-    return dateString;
+    const date = new Date(dateString);
+    
+    if (isNaN(date.getTime())) {
+      console.warn('⚠️ Fecha inválida:', dateString);
+      return 'Fecha por definir';
+    }
+    
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   } catch (error) {
-    console.warn('⚠️ Error formateando fecha:', dateString);
-    return dateString;
+    console.warn('⚠️ Error formateando fecha:', error);
+    return dateString || 'Fecha por definir';
   }
 };
 
@@ -255,6 +262,51 @@ const obtenerNumeroSorteo = async (ticketsData, esCopia = false) => {
   }
 };
 
+const obtenerDigitosSorteo = async (tickets) => {
+  try {
+    if (!tickets || tickets.length === 0) return 3;
+
+    const firstTicket = tickets[0];
+    
+    console.log('🔢 Obteniendo dígitos del boleto...');
+    console.log('   - Ticket tiene digitos_boleto?:', firstTicket.digitos_boleto);
+    console.log('   - Ticket completo:', firstTicket);
+
+    // 1. Buscar directamente en el ticket (debería venir del API)
+    if (firstTicket.digitos_boleto) {
+      const digitos = parseInt(firstTicket.digitos_boleto);
+      console.log(`✅ Dígitos encontrados en ticket: ${digitos}`);
+      return isNaN(digitos) ? 3 : digitos;
+    }
+
+    // 2. Si no está, intentar obtener del sorteo (fallback)
+    const sorteoId = firstTicket.id_sorteo || firstTicket.Idsorteo;
+    if (sorteoId) {
+      try {
+        const response = await fetch(`/api/sorteos/${sorteoId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.sorteo && data.sorteo.digitos_boleto) {
+            const digitos = parseInt(data.sorteo.digitos_boleto);
+            console.log(`✅ Dígitos obtenidos desde API: ${digitos}`);
+            return digitos;
+          }
+        }
+      } catch (apiError) {
+        console.warn('⚠️ Error obteniendo dígitos desde API:', apiError);
+      }
+    }
+
+    // 3. Fallback final
+    console.warn('⚠️ Usando valor por defecto: 3 dígitos');
+    return 3;
+    
+  } catch (error) {
+    console.error('❌ Error en obtenerDigitosSorteo:', error);
+    return 3;
+  }
+};
+
 // Función principal mejorada
 const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
   try {
@@ -296,37 +348,17 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
       }
     }
 
-    // ========== OBTENER EL NÚMERO DE SORTEO CORRECTO (funciona para original y copia) ==========
-    console.log('🔍 Obteniendo número de sorteo...');
-    const numeroSorteo = await obtenerNumeroSorteo(tickets, esCopia);
-    console.log('✅ Número de sorteo obtenido:', numeroSorteo);
+    // ========== OBTENER NÚMERO DE SORTEO ==========
+    const numeroSorteo = firstTicket.numeroSorteo || 
+                        firstTicket.numero_sorteo || 
+                        '—';
 
-    // ========== OBTENER DIGITOS DEL SORTEO ==========
-    let digitosBoleto = 3; // Valor por defecto
+    console.log('📊 Número de sorteo para PDF:', numeroSorteo);
     
+    // ========== OBTENER DIGITOS DEL SORTEO ==========
+
     // Buscar dígitos en múltiples fuentes
-    if (firstTicket.digitos_boleto) {
-      digitosBoleto = parseInt(firstTicket.digitos_boleto);
-    } else if (firstTicket.digitos) {
-      digitosBoleto = parseInt(firstTicket.digitos);
-    } else if (colegioData?.configuracion) {
-      try {
-        let config;
-        
-        // Manejar configuración que puede ser string JSON o ya objeto
-        if (typeof colegioData.configuracion === 'string') {
-          config = JSON.parse(colegioData.configuracion);
-        } else if (typeof colegioData.configuracion === 'object') {
-          config = colegioData.configuracion;
-        }
-        
-        if (config && config.cifras_sorteo) {
-          digitosBoleto = parseInt(config.cifras_sorteo);
-        }
-      } catch (e) {
-        console.warn('⚠️ Error parseando configuración:', e);
-      }
-    }
+    const digitosBoleto = await obtenerDigitosSorteo(tickets);
 
     console.log('🔢 Dígitos del boleto configurados:', digitosBoleto);
 
@@ -339,7 +371,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
           colegioId: colegioId,
           colegioNombre: colegioData?.nombre,
           sorteoId: firstTicket.Idsorteo || firstTicket.id_sorteo,
-          sorteoNumero: numeroSorteo, // Usar el número corregido
+          sorteoNumero: numeroSorteo, 
           sorteoNombre: firstTicket.nombreSorteo,
           sorteoFecha: fechaSorteo,
           boletoId: ticket.id_boleto || ticket.id,
@@ -478,7 +510,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     doc.setTextColor(0, 0, 0);
     
     console.log('📝 Escribiendo en PDF - Número de sorteo:', numeroSorteo);
-    doc.text(`Sorteo: ${numeroSorteo} de lotería nacional`, 40, yPosition, { align: 'center' });
+    doc.text(`Resultados con: ${numeroSorteo} de lotería nacional`, 40, yPosition, { align: 'center' });
     yPosition += 5;
 
     // Línea separadora
@@ -649,7 +681,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     doc.setTextColor(100, 100, 100);
     
     // Información sobre dígitos del sorteo
-    const infoDigitos = `Este sorteo utiliza boletos de ${digitosBoleto} dígitos (${'0'.repeat(digitosBoleto)} al ${'9'.repeat(digitosBoleto)})`;
+    const infoDigitos = `Este sorteo utiliza boletos de ${digitosBoleto} dígitos (${ '0'.repeat(digitosBoleto) } al ${ '9'.repeat(digitosBoleto) })`;
     doc.text(infoDigitos, 40, yPosition, { align: 'center' });
     yPosition += 4;
     
@@ -679,7 +711,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
 
     const ticketData = {
       colegioNombre,
-      sorteoNum: numeroSorteo, // Usar el número corregido
+      sorteoNum: numeroSorteo, 
       sorteoNombre: firstTicket.nombreSorteo,
       fechaSorteo,
       totalVenta,
