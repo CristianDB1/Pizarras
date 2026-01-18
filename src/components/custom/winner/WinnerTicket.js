@@ -15,15 +15,43 @@ const WinnerTicket = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [currentBoletoId, setCurrentBoletoId] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [colegioId, setColegioId] = useState(null);
   const fileInputRef = useRef(null);
   const router = useRouter();
   const { addVenta } = useTotalVenta();
 
-  // Cargar los boletos premiados al iniciar
+  // Obtener datos del usuario y colegio al cargar
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const localUserData = localStorage.getItem("userData");
+        if (localUserData) {
+          const parsedData = JSON.parse(localUserData);
+          setUserData(parsedData);
+          
+          // Asumiendo que el usuario tiene un campo 'colegio_id' o similar
+          // Si no, necesitarías ajustar según tu estructura de datos
+          const colegioIdFromUser = parsedData.colegio_id || parsedData.ColegioId || null;
+          setColegioId(colegioIdFromUser);
+        }
+      } catch (error) {
+        console.error("Error al recuperar datos del usuario:", error);
+      }
+    }
+  }, []);
+
+  // Cargar los boletos premiados filtrados por colegio
   const fetchPremiados = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/winner", { cache: 'no-store' });
+      
+      // Construir URL con parámetro colegio_id si está disponible
+      let url = "/api/winner";
+      if (colegioId) {
+        url += `?colegio_id=${colegioId}`;
+      }
+      
+      const response = await fetch(url, { cache: 'no-store' });
       
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
@@ -33,6 +61,7 @@ const WinnerTicket = () => {
       
       if (data.success && data.premiados) {
         setPremiados(data.premiados);
+        console.log(`Cargados ${data.premiados.length} ganadores`, colegioId ? `para colegio ID: ${colegioId}` : 'para todos los colegios');
       } else {
         Swal.fire("Error", "No se pudieron cargar los boletos premiados", "error");
       }
@@ -43,6 +72,7 @@ const WinnerTicket = () => {
       setIsLoading(false);
     }
   };
+
   // Función para comprimir imagen antes de convertir a base64
   const comprimirImagen = (file, maxWidth = 800, maxHeight = 800, quality = 0.8) => {
     return new Promise((resolve, reject) => {
@@ -56,7 +86,6 @@ const WinnerTicket = () => {
           let width = img.width;
           let height = img.height;
           
-          // Redimensionar manteniendo proporción si excede los límites
           if (width > height) {
             if (width > maxWidth) {
               height = Math.round((height * maxWidth) / width);
@@ -75,7 +104,6 @@ const WinnerTicket = () => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Obtener imagen comprimida en formato base64
           const imagenComprimida = canvas.toDataURL('image/jpeg', quality);
           resolve(imagenComprimida);
         };
@@ -87,16 +115,6 @@ const WinnerTicket = () => {
     });
   };
 
-  // Convertir imagen a base64 (mantenido para compatibilidad)
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   // Manejar selección de imagen con compresión
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
@@ -104,21 +122,17 @@ const WinnerTicket = () => {
       try {
         console.log("Archivo seleccionado:", file.name);
         
-        // Verificar tamaño antes de procesar
-        if (file.size > 10 * 1024 * 1024) { // 10MB límite
+        if (file.size > 10 * 1024 * 1024) {
           Swal.fire("Error", "La imagen es demasiado grande. Máximo 10MB", "error");
           return;
         }
         
-        // Aplicar compresión a la imagen
         const imagenComprimida = await comprimirImagen(file);
         console.log("Imagen comprimida correctamente");
         
-        // Guardar imagen comprimida en el estado
         setSelectedImage(imagenComprimida);
         setPreviewImage(URL.createObjectURL(file));
         
-        // Mostrar confirmación visual
         const previewContainer = document.getElementById("previewContainer");
         const previewImageElement = document.getElementById("previewImage");
         
@@ -136,7 +150,6 @@ const WinnerTicket = () => {
   // Marcar un boleto como pagado
   const marcarComoPagado = async (id, imageData = null) => {
     try {
-      // Asegurarnos de tener los datos del usuario antes de continuar
       let currentUserData = userData;
       
       if (typeof window !== "undefined") {
@@ -174,41 +187,41 @@ const WinnerTicket = () => {
         body: JSON.stringify({ 
           id, 
           ine: ineImage, 
-          user: currentUserData
+          user: currentUserData,
+          liquidado: 'si' // Agregado según nuevo endpoint
         }),
       });
 
-      // VERIFICAR SI LA RESPUESTA ES VÁLIDA ANTES DE HACER .json()
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
       }
 
-      // VERIFICAR QUE LA RESPUESTA NO ESTÉ VACÍA
       const responseText = await response.text();
       if (!responseText) {
         throw new Error("Respuesta vacía del servidor");
       }
 
-      // PARSEAR EL JSON
       const data = JSON.parse(responseText);
       console.log("Respuesta del servidor:", data);
       
       if (data.success) {
-        // Actualizar el estado local para reflejar el cambio
+        // Actualizar el estado local con los nuevos nombres de campos
         const boletoActualizado = data.boleto;
         setPremiados(prev => 
           prev.map(boleto => 
-            boleto.Id_ganador === id ? boletoActualizado : boleto
+            boleto.id_ganador === id ? boletoActualizado : boleto
           )
         );
         
-        // Mostrar folio y opciones
-        const folio = data.folio || boletoActualizado.Folio;
+        // Usar folio en minúscula según nueva estructura
+        const folio = data.folio || boletoActualizado.folio;
+        
         Swal.fire({
           title: "¡Boleto pagado con éxito!",
           html: `
             <p>El boleto ha sido marcado como pagado.</p>
             <p>Folio de pago: <strong>${folio}</strong></p>
+            ${boletoActualizado.liquidado === 'si' ? '<p>✅ Liquidado: Sí</p>' : ''}
           `,
           icon: "success",
           showCancelButton: true,
@@ -220,14 +233,13 @@ const WinnerTicket = () => {
           }
         });
 
-        console.log(boletoActualizado);
-        
+        // Registrar en ventas (ajustado a nuevos nombres)
         addVenta({
           tipo: "premio",
-          descripcion: `Premio boleto ${boletoActualizado.Boleto}`, 
+          descripcion: `Premio boleto ${boletoActualizado.boleto}`, 
           cantidad: 1,
-          precio: -Number(boletoActualizado.Premio),
-          subtotal: -Number(boletoActualizado.Premio),
+          precio: -Number(boletoActualizado.premio),
+          subtotal: -Number(boletoActualizado.premio),
         });
 
         // Limpiar la imagen seleccionada
@@ -240,7 +252,6 @@ const WinnerTicket = () => {
     } catch (error) {
       console.error("Error al marcar como pagado:", error);
       
-      // MENSAJE DE ERROR MÁS ESPECÍFICO
       let errorMessage = "Ocurrió un error al procesar el pago";
       if (error.message.includes("HTTP")) {
         errorMessage = `Error del servidor: ${error.message}`;
@@ -254,9 +265,9 @@ const WinnerTicket = () => {
     }
   };
 
-  // Imprimir comprobante de pago
+  // Imprimir comprobante de pago (actualizado)
   const imprimirComprobante = (id, folio, boletoActualizado = null) => {
-    const boleto = boletoActualizado || premiados.find(b => b.Id_ganador === id);
+    const boleto = boletoActualizado || premiados.find(b => b.id_ganador === id);
   
     if (!boleto) {
       console.error("No se encontró el boleto con ID:", id);
@@ -264,12 +275,23 @@ const WinnerTicket = () => {
       return;
     }
     
+    // Mapear nombres antiguos a nuevos para compatibilidad con generateWinnerPDF
+    const boletoCompatible = {
+      ...boleto,
+      Id_ganador: boleto.id_ganador,
+      Folio: boleto.folio,
+      Boleto: boleto.boleto,
+      Cliente: boleto.cliente,
+      Premio: boleto.premio,
+      Fecha_sorteo: boleto.fecha_sorteo,
+      Vendedor: boleto.vendedor,
+      Estatus: boleto.estatus
+    };
     
-    // Utilizar el generador de PDF externo
-    generateWinnerPDF(boleto, folio);
+    generateWinnerPDF(boletoCompatible, folio);
   };
 
-  //formatea fecha de sorteo de YYYY-MM-DD a DD/MM/YYYY con expreciones regulares
+  // Formatear fecha (mantenido igual)
   const formatDate = (dateString) => {
     const regex = /(\d{4})-(\d{2})-(\d{2})/;
     const match = dateString.match(regex);
@@ -279,16 +301,21 @@ const WinnerTicket = () => {
       const day = match[3];
       return `${day}/${month}/${year}`;
     }
-    return dateString; // Retorna la cadena original si no coincide con el formato
+    return dateString;
   };
 
-  // Confirmar antes de marcar como pagado
+  // Confirmar antes de marcar como pagado (mantenido igual)
   const confirmarPago = (id) => {
-    const boleto = premiados.find(b => b.Id_ganador === id);
+    const boleto = premiados.find(b => b.id_ganador === id);
+    if (!boleto) {
+      Swal.fire("Error", "No se encontró el boleto", "error");
+      return;
+    }
+    
     setCurrentBoletoId(id);
 
     Swal.fire({
-      title: `Capturar identificación para boleto #${boleto.Boleto}`,
+      title: `Capturar identificación para boleto #${boleto.boleto}`,
       html: `
         <div style="text-align: center; margin-bottom: 15px;">
           <p>Seleccione cómo desea capturar la identificación:</p>
@@ -335,14 +362,11 @@ const WinnerTicket = () => {
         let stream = null;
         let capturedImage = null;
 
-        // OPCIÓN 1: ABRIR CÁMARA TRASERA
         openCameraButton.addEventListener("click", async () => {
           try {
-            // Obtener todas las cámaras disponibles
             const cameras = await navigator.mediaDevices.getUserMedia({ 
-              video: { facingMode: { exact: "environment" } } // Forzar cámara trasera
+              video: { facingMode: { exact: "environment" } } 
             }).catch(async () => {
-              // Si falla cámara trasera, intentar con cualquier cámara
               return await navigator.mediaDevices.getUserMedia({ video: true });
             });
 
@@ -350,7 +374,6 @@ const WinnerTicket = () => {
             cameraPreview.srcObject = stream;
             cameraContainer.style.display = "block";
             
-            // Ocultar botones de opción
             openCameraButton.style.display = "none";
             selectFileButton.style.display = "none";
             
@@ -360,25 +383,20 @@ const WinnerTicket = () => {
           }
         });
 
-        // OPCIÓN 2: SELECCIONAR DE GALERÍA
         selectFileButton.addEventListener("click", () => {
           fileInput.click();
         });
 
-        // Manejar selección de archivo
         fileInput.addEventListener("change", async (e) => {
           const file = e.target.files[0];
           if (file) {
             try {
-              // Comprimir imagen seleccionada
               const imagenComprimida = await comprimirImagen(file);
               capturedImage = imagenComprimida;
               
-              // Mostrar preview
               previewImage.src = imagenComprimida;
               previewContainer.style.display = "block";
               
-              // Ocultar botones de opción
               openCameraButton.style.display = "none";
               selectFileButton.style.display = "none";
               
@@ -389,14 +407,12 @@ const WinnerTicket = () => {
           }
         });
 
-        // TOMAR FOTO CON CÁMARA
         takePhotoButton.addEventListener("click", async () => {
           const canvas = document.createElement("canvas");
           canvas.width = cameraPreview.videoWidth;
           canvas.height = cameraPreview.videoHeight;
           canvas.getContext("2d").drawImage(cameraPreview, 0, 0);
           
-          // Comprimir foto tomada
           const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
           const file = new File([blob], 'foto-identificacion.jpg', { type: 'image/jpeg' });
           const imagenComprimida = await comprimirImagen(file);
@@ -405,14 +421,12 @@ const WinnerTicket = () => {
           previewImage.src = imagenComprimida;
           previewContainer.style.display = "block";
 
-          // Detener cámara
           if (stream) {
             stream.getTracks().forEach(track => track.stop());
             cameraContainer.style.display = "none";
           }
         });
 
-        // ❌ CERRAR CÁMARA
         closeCameraButton.addEventListener("click", () => {
           if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -420,7 +434,6 @@ const WinnerTicket = () => {
           }
           cameraContainer.style.display = "none";
           
-          // Mostrar botones de opción nuevamente
           openCameraButton.style.display = "block";
           selectFileButton.style.display = "block";
         });
@@ -435,7 +448,6 @@ const WinnerTicket = () => {
       }
     }).then((result) => {
       if (result.isConfirmed) {
-        // Obtener la imagen del preview
         const previewImage = document.getElementById("previewImage");
         if (previewImage && previewImage.src) {
           marcarComoPagado(id, previewImage.src);
@@ -448,7 +460,6 @@ const WinnerTicket = () => {
     });
   };
 
-  
   // Observar cambios en la previsualización
   useEffect(() => {
     if (previewImage && currentBoletoId) {
@@ -467,30 +478,33 @@ const WinnerTicket = () => {
     router.push('/menu');
   };
 
-  // Filtrar boletos según la búsqueda (por número de folio) usando expresiones regulares
+  // Filtrar boletos según la búsqueda (actualizado para nuevos nombres de campos)
   const filteredPremiados = useMemo(() => {
     if (!search || search.length < 5) return [];
     
     try {
-      // Crear una expresión regular a partir del texto de búsqueda
-      // La bandera 'i' hace que sea insensible a mayúsculas/minúsculas
       const regex = new RegExp(search, 'i');
       
       return premiados.filter(boleto => 
-        boleto.Folio && regex.test(boleto.Folio.toString())
+        boleto.folio && regex.test(boleto.folio.toString())
       );
     } catch (error) {
-      // Si hay un error en la expresión regular, usar búsqueda estándar
       console.error("Error en expresión regular:", error);
       return premiados.filter(boleto => 
-        boleto.Folio && boleto.Folio.toString().toLowerCase().includes(search.toLowerCase())
+        boleto.folio && boleto.folio.toString().toLowerCase().includes(search.toLowerCase())
       );
     }
   }, [premiados, search]);
+
+  // Cargar datos cuando cambie colegioId
+  useEffect(() => {
+    if (colegioId !== null) {
+      fetchPremiados();
+    }
+  }, [colegioId]);
+
   // Cargar datos al montar el componente
   useEffect(() => {
-    fetchPremiados();
-
     // Limpieza cuando el componente se desmonta
     return () => {
       const readerElement = document.getElementById("reader");
@@ -498,19 +512,17 @@ const WinnerTicket = () => {
     };
   }, []);
 
-  // ESCÁNER QR 
+  // ESCÁNER QR (mantenido igual)
   const startQrScanner = async () => {
     try {
       const readerElement = document.getElementById("reader");
       if (!readerElement) return;
 
-      // Mostrar el contenedor del lector
       readerElement.style.display = "block";
 
       const html5QrCode = new Html5Qrcode("reader");
       const config = { fps: 10, qrbox: 200 };
 
-      // Intentar usar cámara trasera primero
       const cameras = await Html5Qrcode.getCameras();
       if (!cameras || cameras.length === 0) {
         Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
@@ -518,7 +530,6 @@ const WinnerTicket = () => {
         return;
       }
 
-      // Buscar cámara trasera o usar la primera disponible
       const backCamera =
         cameras.find((cam) =>
           cam.label.toLowerCase().includes("back") ||
@@ -529,7 +540,6 @@ const WinnerTicket = () => {
         { deviceId: { exact: backCamera.id } },
         config,
         (decodedText) => {
-          // Texto del QR: "ticketNumber-fecha"
           const numeroSerie = decodedText.split("-")[0];
           setSearch(numeroSerie);
 
@@ -541,7 +551,6 @@ const WinnerTicket = () => {
             showConfirmButton: false,
           });
 
-          // Detener cámara y ocultar lector
           html5QrCode.stop().then(() => {
             readerElement.style.display = "none";
           });
@@ -560,16 +569,23 @@ const WinnerTicket = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl text-white font-bold mb-4 text-center">Boletos Premiados</h1>
       
-      {/* Estadísticas */}
+      {/* Mostrar colegio actual */}
+      {colegioId && (
+        <div className="bg-blue-900 p-3 rounded-md mb-4 text-white text-center">
+          <p className="font-semibold">Mostrando ganadores del Colegio</p>
+        </div>
+      )}
+      
+      {/* Estadísticas (actualizado para nuevos nombres de campos) */}
       <div className="flex flex-col md:flex-row justify-between mb-4 text-white">
         <div className="bg-gray-800 p-3 rounded-md mb-2 md:mb-0 md:mr-2 flex-1">
           <p className="font-semibold">Total de boletos premiados: {premiados.length}</p>
         </div>
         <div className="bg-gray-800 p-3 rounded-md mb-2 md:mb-0 md:mx-2 flex-1">
-          <p className="font-semibold">Pagados: {premiados.filter(b => b.Estatus === "pagado").length}</p>
+          <p className="font-semibold">Pagados: {premiados.filter(b => b.estatus === "pagado").length}</p>
         </div>
         <div className="bg-gray-800 p-3 rounded-md md:ml-2 flex-1">
-          <p className="font-semibold">Pendientes: {premiados.filter(b => b.Estatus === "No pagado").length}</p>
+          <p className="font-semibold">Pendientes: {premiados.filter(b => b.estatus === "pendiente").length}</p>
         </div>
       </div>
       
@@ -616,8 +632,8 @@ const WinnerTicket = () => {
         onChange={handleImageChange}
       />
       
-        {/* Tabla de boletos premiados - solo se muestra cuando hay búsqueda */}
-        {search !== "" && (
+      {/* Tabla de boletos premiados (actualizada para nuevos nombres de campos) */}
+      {search !== "" && (
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -634,31 +650,31 @@ const WinnerTicket = () => {
             <tbody>
               {filteredPremiados.length > 0 ? (
                 filteredPremiados.map((boleto) => (
-                  <tr key={boleto.Id_ganador} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <tr key={boleto.id_ganador} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                      {boleto.Folio}
+                      {boleto.folio}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                      {boleto.Boleto.toString().replace( /\.\d{2}$/, "")}
+                      {boleto.boleto ? boleto.boleto.toString().replace(/\.\d{2}$/, "") : ''}
                     </td>
                     <td className="px-6 py-4">
-                      {boleto.Cliente}
+                      {boleto.cliente}
                     </td>
                     <td className="px-6 py-4">
-                      ${boleto.Premio}
+                      ${boleto.premio}
                     </td>
                     <td className="px-6 py-4">
-                      {formatDate(boleto.Fecha_sorteo)}
+                      {formatDate(boleto.fecha_sorteo)}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${boleto.Estatus === "pagado" ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                        {boleto.Estatus}
+                      <span className={`px-2 py-1 rounded-full text-xs ${boleto.estatus === "pagado" ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                        {boleto.estatus}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {boleto.Estatus === "No pagado" ? (
+                      {boleto.estatus === "pendiente" ? (
                         <button
-                          onClick={() => confirmarPago(boleto.Id_ganador)}
+                          onClick={() => confirmarPago(boleto.id_ganador)}
                           className="text-blue-600 dark:text-blue-500 hover:text-blue-800 text-xl"
                           disabled={isLoading}
                         >
@@ -668,7 +684,7 @@ const WinnerTicket = () => {
                         <div className="flex space-x-3">
                           <span className="text-green-500">✓</span>
                           <button
-                            onClick={() => imprimirComprobante(boleto.Id_ganador, boleto.Folio)}
+                            onClick={() => imprimirComprobante(boleto.id_ganador, boleto.folio)}
                             className="text-blue-600 dark:text-blue-500 hover:text-blue-800"
                             title="Imprimir comprobante"
                           >
@@ -681,7 +697,7 @@ const WinnerTicket = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center">
+                  <td colSpan="7" className="px-6 py-4 text-center">
                     {isLoading ? "Cargando..." : "No hay boletos premiados que coincidan con la búsqueda"}
                   </td>
                 </tr>
@@ -697,6 +713,7 @@ const WinnerTicket = () => {
           <p className="text-lg">Ingrese al menos 5 caracteres para buscar</p>
         </div>
       )}
+      
       {/* Botón para volver al menú */}
       <button
         onClick={goToMenu}

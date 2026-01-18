@@ -44,9 +44,9 @@ export async function POST(request) {
         // 🔒 Verificar usuario duplicado
         const [usuarioExiste] = await pool.query(
             `SELECT id_vendedor 
-             FROM vendedores 
-             WHERE usuario = ? AND colegio_id = ?`,
-            [usuario.trim(), colegio_id]
+            FROM vendedores 
+            WHERE usuario = ?`,
+            [usuario.trim()]
         );
 
         if (usuarioExiste.length > 0) {
