@@ -1,9 +1,8 @@
 {
-  "version": 2,
-  "builds": [
+  "crons": [
     {
-      "src": "package.json",
-      "use": "@vercel/next"
+      "path": "/api/cron/cerrar-sorteos",
+      "schedule": "*/1 * * * *"
     }
   ]
 }
