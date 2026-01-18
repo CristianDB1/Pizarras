@@ -510,7 +510,7 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     doc.setTextColor(0, 0, 0);
     
     console.log('📝 Escribiendo en PDF - Número de sorteo:', numeroSorteo);
-    doc.text(`Resultados con: ${numeroSorteo} de lotería nacional`, 40, yPosition, { align: 'center' });
+    doc.text(`Resultados con: ${numeroSorteo}`, 40, yPosition, { align: 'center' });
     yPosition += 5;
 
     // Línea separadora

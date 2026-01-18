@@ -120,7 +120,11 @@ const ViewMenu = () => {
     }
 
     const handleWinnerSraffle = () => {
-        router.push('/winnerSraffle');
+        if (userData?.colegio_id) {
+            router.push(`/winnerSraffle?colegioId=${userData.colegio_id}`);
+        } else {
+            Swal.fire("Error", "No se pudo obtener el ID del colegio", "error");
+        }
     }
 
     const handleWinnigTicket = () => {

@@ -1,11 +1,13 @@
 // app/api/colegios/estadisticas/route.js
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
+import { cerrarSorteosVencidos } from "@/lib/cerrarSorteosVencidos";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request) {
+    await cerrarSorteosVencidos();
     try {
         const { searchParams } = new URL(request.url);
         const fechaInicio = searchParams.get('fechaInicio');
