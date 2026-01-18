@@ -1,10 +1,12 @@
 // app/api/colegios/[id]/reporte-detallado/route.js
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
+import { cerrarSorteosVencidos } from "@/lib/cerrarSorteosVencidos";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
+    await cerrarSorteosVencidos();
     try {
         const { id } = params;
         

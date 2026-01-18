@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
+import { cerrarSorteosVencidos } from "@/lib/cerrarSorteosVencidos";
 
 export async function GET(request, { params }) {
+    await cerrarSorteosVencidos();
     try {
         const { colegioId } = params;
         

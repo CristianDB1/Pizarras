@@ -1,8 +1,10 @@
 // /api/boletosOnline/route.js - VERSIÓN CORREGIDA
 import pool from "@/db/MysqlConection";
 import { NextResponse } from "next/server";
+import { cerrarSorteosVencidos } from "@/lib/cerrarSorteosVencidos";
 
 export async function GET(req) {
+    await cerrarSorteosVencidos();
   try {
     const { searchParams } = new URL(req.url);
     const colegioId = searchParams.get('colegio');
