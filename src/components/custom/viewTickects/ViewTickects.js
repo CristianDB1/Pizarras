@@ -5,6 +5,7 @@ import generatePDF from "../tickectBuy/pdf";
 import { FaHome } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import updateInfo from "../validation/updateInfo";
+import Swal from "sweetalert2";
 
 const ViewTickets = () => {
   const { getUserData } = useSession();
@@ -100,21 +101,40 @@ const ViewTickets = () => {
 
 
   const filteredTickets = Array.isArray(tickets)
-    ? tickets.filter((ticket) => String(ticket.Boleto).includes(search))
-    : [];
+      ? tickets.filter((ticket) => String(ticket.Boleto).includes(search))
+      : [];
+
+    const esFechaValida = (fecha) => {
+      if (!fecha) return false;
+
+      const d = new Date(fecha);
+      return !isNaN(d.getTime());
+    };
+
 
   const handlePrint = (ticket) => {
-    const tickets = [];
-    tickets.push(ticket); 
-    //console.log("tickets", tickets);    
-    let fechaSinHora = tickets[0].FechaSorteo;
-    if (isNaN(new Date(fechaSinHora).getTime())) {
-      console.error("Invalid date:", fechaSinHora);
-    } else {
-      //console.log("fechaSinHora", fechaSinHora);
-      generatePDF(tickets, fechaSinHora,true);
-    }
-  };
+  console.log("🧪 Ticket recibido:", ticket);
+
+  const fechaSorteo = ticket?.fechaSorteo;
+
+  console.log("🧪 Fecha usada para PDF:", fechaSorteo);
+
+  if (!fechaSorteo) {
+    alert("❌ Este boleto no tiene fecha de sorteo");
+    return;
+  }
+
+  const date = new Date(fechaSorteo);
+
+  if (isNaN(date.getTime())) {
+    alert("❌ Fecha de sorteo inválida");
+    return;
+  }
+
+  generatePDF([ticket], fechaSorteo, true);
+};
+
+
 
  const goToMenu = () => {
         updateInfo(userData.Idvendedor).then(() => {

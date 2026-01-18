@@ -187,6 +187,7 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                     colegio_id: colegioId,
                     nombre: data.nombre,
                     fecha: data.fecha,
+                    numero_sorteo: data.numero_sorteo.trim(),
                     precio_boleto: parseFloat(data.precio_boleto),
                     comision_vendedor: parseFloat(data.comision_vendedor),
                     digitos_boleto: parseInt(data.digitos_boleto)
@@ -241,7 +242,7 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                     precio_boleto: parseFloat(data.precio_boleto),
                     comision_vendedor: parseFloat(data.comision_vendedor),
                     digitos_boleto: parseInt(data.digitos_boleto),
-                    numero_sorteo: data.numero_sorteo.trim()  // ← Asegúrate de enviar esto
+                    numero_sorteo: data.numero_sorteo.trim()
                 })
             })
             
@@ -768,6 +769,31 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
                                         min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                                         className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Número de Sorteo (Lotería) *
+                                    </label>
+                                    <input
+                                        {...registerNuevoSorteo('numero_sorteo', {
+                                            required: 'El número de sorteo es obligatorio',
+                                            pattern: {
+                                                value: /^[A-Za-z0-9-]+$/,
+                                                message: 'Solo letras, números y guiones'
+                                            }
+                                        })}
+                                        type="text"
+                                        placeholder="Ej: LOT-2026-01"
+                                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                            errorsNuevoSorteo.numero_sorteo ? 'border-red-500' : 'border-gray-300'
+                                        }`}
+                                    />
+                                    {errorsNuevoSorteo.numero_sorteo && (
+                                        <p className="text-red-500 text-xs mt-1">
+                                            {errorsNuevoSorteo.numero_sorteo.message}
+                                        </p>
+                                    )}
                                 </div>
                                 
                                 <div className="grid grid-cols-3 gap-3">

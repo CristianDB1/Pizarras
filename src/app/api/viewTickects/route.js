@@ -16,12 +16,14 @@ export async function POST(req) {
     // Consulta corregida - Sin comparar fechas
     const finalSql = `
         SELECT 
-            b.*, 
-            s.nombre AS nombreSorteo,
-            s.fecha AS FechaSorteo,
-            s.primer_premio,
-            s.segundo_premio,
-            v.nombre AS nombreVendedor
+          b.*, 
+          s.nombre AS nombreSorteo,
+          s.numero_sorteo AS numeroSorteo,
+          s.fecha AS fechaSorteo,
+          s.primer_premio,
+          s.segundo_premio,
+          s.digitos_boleto,
+          v.nombre AS nombreVendedor
         FROM boletos b
         JOIN sorteo s ON b.id_sorteo = s.id_sorteo
         JOIN vendedores v ON b.id_vendedor = v.id_vendedor
@@ -31,7 +33,6 @@ export async function POST(req) {
             SELECT 1 FROM cortesdecaja cc 
             WHERE cc.id_vendedor = b.id_vendedor 
               AND cc.id_sorteo = b.id_sorteo
-              -- Eliminada la comparación de fechas que no es necesaria
           )
         ORDER BY b.fecha_venta DESC;
     `;
@@ -50,23 +51,23 @@ export async function POST(req) {
       precio: boleto.precio,
       estado_pago: boleto.estado_pago,
       fecha_venta: boleto.fecha_venta,
-      
+
       Idsorteo: boleto.id_sorteo,
       Idvendedor: boleto.id_vendedor,
-      Boleto: boleto.boleto,
-      Costo: boleto.precio,
-      Fecha: boleto.fecha_venta,
-      
+
       nombreVendedor: boleto.nombreVendedor,
       nombreSorteo: boleto.nombreSorteo,
-      FechaSorteo: boleto.FechaSorteo,
+      numeroSorteo: boleto.numeroSorteo,
+
+      fechaSorteo: boleto.fechaSorteo,
+
       primer_premio: boleto.primer_premio,
       segundo_premio: boleto.segundo_premio,
-      
+      digitos_boleto: boleto.digitos_boleto, 
+
       estado: boleto.estado_pago,
       cortado: false
     }));
-
     return NextResponse.json(boletosFormateados);
     
   } catch (error) {
@@ -76,7 +77,7 @@ export async function POST(req) {
       success: false,
       error: "Error al obtener los boletos",
       details: error.message,
-      sql: error.sql  // Para debug
+      sql: error.sql 
     }, { status: 500 });
   }
 }
