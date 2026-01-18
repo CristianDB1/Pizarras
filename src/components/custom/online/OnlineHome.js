@@ -54,8 +54,12 @@ const OnlineHome = () => {
           const data = await response.json();
           
           if (data.success) {
-            setSorteos(data.sorteos || []);
-          } else {
+            const sorteosActivos = (data.sorteos || []).filter(
+              (s) => s.estatus === 'activo'
+            );
+            setSorteos(sorteosActivos);
+          }
+          else {
             setSorteos([]);
           }
         } else {
@@ -75,6 +79,10 @@ const OnlineHome = () => {
   }, [colegioId]);
 
   const handleJugar = (sorteo) => {
+    if (sorteo.estatus !== 'activo') {
+      alert("Este sorteo ya está cerrado");
+      return;
+    }
     localStorage.setItem('sorteoSeleccionado', JSON.stringify(sorteo));
     
     const urlBase = "/CompraOnlineEspecial";
@@ -237,13 +245,14 @@ const OnlineHome = () => {
                         </p>
                       )}
                     </div>
-
-                    <button
-                      onClick={() => handleJugar(sorteo)}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
-                    >
-                      JUGAR AHORA
-                    </button>
+                    {sorteo.estatus === 'activo' && (
+                      <button
+                        onClick={() => handleJugar(sorteo)}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg"
+                      >
+                        JUGAR AHORA
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

@@ -31,6 +31,18 @@ const CompraOnlineEspecial = () => {
         const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
         if (sorteoGuardado) {
           const sorteo = JSON.parse(sorteoGuardado);
+
+          if (sorteo.estatus !== 'activo') {
+            Swal.fire({
+              icon: "warning",
+              title: "Sorteo no disponible",
+              text: "Este sorteo ya se encuentra cerrado",
+            });
+
+            localStorage.removeItem("sorteoSeleccionado");
+            router.push(colegioId ? `/online?colegio=${colegioId}` : "/online");
+            return;
+          }
           //console.log("📦 Sorteo cargado:", sorteo.Idsorteo || sorteo.id_sorteo);
           setPrizes(sorteo);
           setPrecioFijo(sorteo.precio_boleto || sorteo.PrecioBoleto || sorteo.precio || "");
@@ -114,6 +126,11 @@ const CompraOnlineEspecial = () => {
 
   // Función para obtener un número aleatorio disponible
   const getRandomNumberEspecialOnline = async () => {
+    if (prizes.estatus !== 'activo') {
+      Swal.fire("Sorteo cerrado", "Este sorteo ya no está disponible", "warning");
+      return;
+    }
+
     try {
       setIsLoading(true);
 
@@ -279,6 +296,11 @@ const handleTicketNumberChange = (e) => {
   }
 };
   const enviarDatosNormal = () => {
+    if (prizes.estatus !== 'activo') {
+      Swal.fire("Sorteo cerrado", "No puedes comprar boletos de este sorteo", "warning");
+      return;
+    }
+
     if (!precioFijo) {
       Swal.fire("Error", "No se pudo obtener el precio del boleto", "error");
       return;
@@ -298,6 +320,11 @@ const handleTicketNumberChange = (e) => {
   };
 
   const confirmVenta = async ({ telefono, metodoPago, bancoSeleccionado }) => {
+    if (prizes.estatus !== 'activo') {
+      Swal.fire("Sorteo cerrado", "Este sorteo ya fue cerrado", "error");
+      return;
+    }
+ 
     setIsLoading(true);
 
     const boletoData = {
@@ -414,23 +441,18 @@ const handleTicketNumberChange = (e) => {
   };
 
   // Loading state
-  if (!prizes || cargandoDatos) {
+  if (!prizes || prizes.estatus !== 'activo') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <div className="relative w-32 h-32 mb-4">
-          <div className="absolute top-0 left-0 animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-purple-600"></div>
-          <div className="absolute top-0 left-0 flex items-center justify-center h-32 w-32">
-            <span className="text-purple-600 font-semibold">Cargando...</span>
-          </div>
-        </div>
-        <p className="text-gray-600">
-          {!prizes ? "Cargando sorteo..." : "Cargando boletos disponibles..."}
-        </p>
-        {prizes && (
-          <p className="text-sm text-gray-500 mt-2">
-            Sorteo: {prizes.Idsorteo || prizes.id_sorteo}
-          </p>
-        )}
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h2 className="text-xl font-semibold text-red-600">
+          Este sorteo ya no está disponible
+        </h2>
+        <button
+          onClick={goToMenu}
+          className="mt-4 bg-purple-600 text-white px-6 py-3 rounded-lg"
+        >
+          Volver a sorteos
+        </button>
       </div>
     );
   }
