@@ -42,7 +42,7 @@ const generateWinnerPDF = async (boleto, folio) => {
   });
 
   // URL de la imagen
-  const imageURL = "/noSencillo.jpg";
+  const imageURL = "/Logo_tu_sorteo_digital.jpg";
 
   // Agregar la imagen al PDF
   doc.addImage(imageURL, "JPEG", 0, 0, 80, 30);
