@@ -103,31 +103,6 @@ export default function CrearColegioForm() {
         }
     }, [isClient, session, router])
 
-    const uploadLogo = async () => {
-        if (!logoFile) return null
-
-        const formData = new FormData()
-        formData.append('logo', logoFile)
-
-        const res = await fetch('/api/upload/logo', {
-            method: 'POST',
-            body: formData
-        })
-
-        let data
-        try {
-            data = await res.json()
-        } catch {
-            throw new Error('Respuesta inválida del servidor al subir el logo')
-        }
-
-        if (!res.ok || !data.success) {
-            throw new Error(data.error || 'Error subiendo el logo')
-        }
-
-        return data.url
-    }
-
     const formatDateForDisplay = (isoDate) => {
         const date = new Date(isoDate)
         return date.toLocaleDateString('es-CO', {
@@ -219,15 +194,11 @@ export default function CrearColegioForm() {
         setLoading(true)
         
         try {
-            let logoUrlFinal = data.logo_url || null
-
-            if (logoFile) {
-                logoUrlFinal = await uploadLogo()
-            }
-            
             const colegioData = {
                 nombre: data.nombre,
-                logo_url: logoUrlFinal, 
+                logo_url: data.logo_url || null,
+                logo_base64: logoPreview || null,
+                logo_filename: logoFile ? logoFile.name : null, 
                 configuracion: JSON.stringify({
                     cifras_sorteo: parseInt(data.cifras_sorteo),
                     precio_boleto: parseFloat(data.precio_boleto),
