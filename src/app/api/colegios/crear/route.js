@@ -1,7 +1,37 @@
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
-import fileUpload from "@/lib/fileUpload"; 
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
+
+async function saveBase64Image(base64, filename) {
+    try {
+        const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (!matches) {
+            throw new Error("Formato Base64 inválido");
+        }
+
+        const extension = matches[1].split("/")[1];
+        const buffer = Buffer.from(matches[2], "base64");
+
+        const uploadDir = path.join(process.cwd(), "public/uploads/logos/colegios");
+
+        // Crear carpeta si no existe
+        await fs.mkdir(uploadDir, { recursive: true });
+
+        const finalName = `${filename}-${Date.now()}.${extension}`;
+        const filePath = path.join(uploadDir, finalName);
+
+        await fs.writeFile(filePath, buffer);
+
+        // Esta es la URL pública
+        return `/uploads/logos/colegios/${finalName}`;
+
+    } catch (error) {
+        console.error("❌ Error guardando imagen:", error);
+        return null;
+    }
+}
+
 
 export async function POST(req) {
     let connection;
@@ -38,28 +68,26 @@ export async function POST(req) {
             throw new Error('Faltan datos requeridos para el sorteo inicial (fecha y cifras_sorteo)');
         }
 
-        // Inicializar fileUpload
-        await fileUpload.init();
+        let finalLogoUrl = logo_url || null;
 
-        // Variable para guardar la URL del logo
-        let finalLogoUrl = logo_url;
-
-        // Procesar logo si viene en Base64
         if (logo_base64) {
-            console.log('🖼️ Procesando logo en Base64...');
-            const uploadResult = await fileUpload.saveBase64Image(
-                logo_base64, 
-                logo_filename || `${nombre.toLowerCase().replace(/\s+/g, '-')}-logo`
-            );
+            console.log("🖼️ Guardando logo en servidor local...");
 
-            if (uploadResult.success) {
-                finalLogoUrl = uploadResult.publicUrl;
-                console.log('✅ Logo guardado en:', finalLogoUrl);
+            const safeName = (logo_filename || nombre)
+                .toLowerCase()
+                .replace(/\s+/g, "-")
+                .replace(/[^a-z0-9-]/g, "");
+
+            const savedPath = await saveBase64Image(logo_base64, safeName);
+
+            if (savedPath) {
+                finalLogoUrl = savedPath;
+                console.log("✅ Logo guardado en:", finalLogoUrl);
             } else {
-                console.warn('⚠️ No se pudo guardar el logo:', uploadResult.error);
-                // Continuar sin logo, usar el URL si existe
+                console.warn("⚠️ No se pudo guardar el logo");
             }
         }
+
 
         // Obtener conexión para transacción
         connection = await pool.getConnection();
