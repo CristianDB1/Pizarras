@@ -3,10 +3,8 @@ import pool from "@/db/MysqlConection";
 import fs from "fs/promises";
 import path from "path";
 
-/**
- * Guarda una imagen base64 en /public/uploads/logos/colegios
- * y retorna la URL pública
- */
+export const dynamic = "force-dynamic";
+
 async function saveBase64Image(base64, filename) {
     const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
 
@@ -25,17 +23,27 @@ async function saveBase64Image(base64, filename) {
         "colegios"
     );
 
-    // Crear carpeta si no existe
     await fs.mkdir(uploadDir, { recursive: true });
 
     const finalName = `${filename}-${Date.now()}.${extension}`;
     const filePath = path.join(uploadDir, finalName);
 
+    // 1️ Escribir archivo
     await fs.writeFile(filePath, buffer);
 
-    // URL pública (MUY IMPORTANTE)
+    // 2️ VERIFICAR que realmente exista y tenga tamaño
+    const stat = await fs.stat(filePath);
+
+    if (!stat || stat.size === 0) {
+        throw new Error("La imagen se guardó vacía");
+    }
+
+    // 3️ Pequeño delay para evitar cache 404 de Next (sí, es necesario)
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     return `/uploads/logos/colegios/${finalName}`;
 }
+
 
 export async function POST(req) {
     let connection;
