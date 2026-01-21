@@ -5,6 +5,8 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
+const UPLOAD_DIR = "/home/tusorteodigital/uploads/logos/colegios";
+
 async function saveBase64Image(base64, filename) {
     const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
 
@@ -15,35 +17,24 @@ async function saveBase64Image(base64, filename) {
     const extension = matches[1].split("/")[1];
     const buffer = Buffer.from(matches[2], "base64");
 
-    const uploadDir = path.join(
-        process.cwd(),
-        "public",
-        "uploads",
-        "logos",
-        "colegios"
-    );
-
-    await fs.mkdir(uploadDir, { recursive: true });
+    // Asegurar carpeta
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
     const finalName = `${filename}-${Date.now()}.${extension}`;
-    const filePath = path.join(uploadDir, finalName);
+    const filePath = path.join(UPLOAD_DIR, finalName);
 
-    // 1️ Escribir archivo
+    // Escribir archivo
     await fs.writeFile(filePath, buffer);
 
-    // 2️ VERIFICAR que realmente exista y tenga tamaño
+    // Verificar que existe y no está vacío
     const stat = await fs.stat(filePath);
-
     if (!stat || stat.size === 0) {
         throw new Error("La imagen se guardó vacía");
     }
 
-    // 3️ Pequeño delay para evitar cache 404 de Next (sí, es necesario)
-    await new Promise(resolve => setTimeout(resolve, 50));
-
+    // DEVOLVER SOLO LA RUTA PÚBLICA
     return `/uploads/logos/colegios/${finalName}`;
 }
-
 
 export async function POST(req) {
     let connection;
@@ -61,7 +52,6 @@ export async function POST(req) {
             logo_filename
         } = data;
 
-        // Validaciones básicas
         if (!nombre || !admin_data?.nombre || !admin_data?.usuario || !admin_data?.password) {
             throw new Error("Faltan datos obligatorios del colegio o administrador");
         }
