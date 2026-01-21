@@ -210,6 +210,7 @@ const AdminDashboard = () => {
                                     width={80}
                                     height={80}
                                     className="object-contain p-1"
+                                    unoptimized
                                 />
                             </div>
                             <div className="text-xl font-bold text-white truncate w-full">
