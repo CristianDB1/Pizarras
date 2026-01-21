@@ -435,12 +435,10 @@ export default function CrearColegioForm() {
                                             Vista previa del logo
                                         </label>
                                         <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
-                                            <Image
+                                            <img
                                             src={logoPreview}
-                                            alt="Preview"
-                                            width={100}
-                                            height={100}
-                                            unoptimized
+                                            alt="Logo colegio"
+                                            className="w-20 h-20 object-contain"
                                             />
                                         </div>
                                     </div>
