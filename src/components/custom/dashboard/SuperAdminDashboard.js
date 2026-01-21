@@ -603,10 +603,8 @@ export default function SuperAdminDashboard() {
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             {colegio.logo_url ? (
-                                                <Image 
+                                                <img
                                                     src={colegio.logo_url}
-                                                    width={120}
-                                                    height={120} 
                                                     alt={colegio.nombre}
                                                     className={`w-10 h-10 rounded-full ${
                                                         colegio.estatus === 'inactivo' 
@@ -626,7 +624,6 @@ export default function SuperAdminDashboard() {
                                                             </div>
                                                         `;
                                                     }}
-                                                    unoptimized
                                                 />
                                             ) : (
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
