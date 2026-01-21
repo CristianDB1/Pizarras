@@ -3,241 +3,158 @@ import pool from "@/db/MysqlConection";
 import fs from "fs/promises";
 import path from "path";
 
+/**
+ * Guarda una imagen base64 en /public/uploads/logos/colegios
+ * y retorna la URL pública
+ */
 async function saveBase64Image(base64, filename) {
-    try {
-        const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
-        if (!matches) {
-            throw new Error("Formato Base64 inválido");
-        }
+    const matches = base64.match(/^data:(image\/\w+);base64,(.+)$/);
 
-        const extension = matches[1].split("/")[1];
-        const buffer = Buffer.from(matches[2], "base64");
-
-        const uploadDir = path.join(process.cwd(), "public/uploads/logos/colegios");
-
-        // Crear carpeta si no existe
-        await fs.mkdir(uploadDir, { recursive: true });
-
-        const finalName = `${filename}-${Date.now()}.${extension}`;
-        const filePath = path.join(uploadDir, finalName);
-
-        await fs.writeFile(filePath, buffer);
-
-        // Esta es la URL pública
-        return `/uploads/logos/colegios/${finalName}`;
-
-    } catch (error) {
-        console.error("❌ Error guardando imagen:", error);
-        return null;
+    if (!matches) {
+        throw new Error("Formato Base64 inválido");
     }
-}
 
+    const extension = matches[1].split("/")[1];
+    const buffer = Buffer.from(matches[2], "base64");
+
+    const uploadDir = path.join(
+        process.cwd(),
+        "public",
+        "uploads",
+        "logos",
+        "colegios"
+    );
+
+    // Crear carpeta si no existe
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const finalName = `${filename}-${Date.now()}.${extension}`;
+    const filePath = path.join(uploadDir, finalName);
+
+    await fs.writeFile(filePath, buffer);
+
+    // URL pública (MUY IMPORTANTE)
+    return `/uploads/logos/colegios/${finalName}`;
+}
 
 export async function POST(req) {
     let connection;
+
     try {
         const data = await req.json();
-        const { 
-            nombre, 
-            logo_url, 
-            configuracion, 
+
+        const {
+            nombre,
+            logo_url,
+            configuracion,
             admin_data,
             sorteo_data,
-            logo_base64,    
-            logo_filename   
+            logo_base64,
+            logo_filename
         } = data;
 
-        console.log('📥 Datos recibidos para crear colegio:', { 
-            nombre, 
-            sorteo_data,
-            admin_data: { 
-                nombre: admin_data?.nombre,
-                usuario: admin_data?.usuario,
-                password: '***' 
-            },
-            tiene_logo_base64: !!logo_base64
-        });
-
-        // Validar datos requeridos
+        // Validaciones básicas
         if (!nombre || !admin_data?.nombre || !admin_data?.usuario || !admin_data?.password) {
-            throw new Error('Faltan datos requeridos');
+            throw new Error("Faltan datos obligatorios del colegio o administrador");
         }
 
-        // Validar datos del sorteo
         if (!sorteo_data?.fecha || !sorteo_data?.cifras_sorteo) {
-            throw new Error('Faltan datos requeridos para el sorteo inicial (fecha y cifras_sorteo)');
+            throw new Error("Datos del sorteo incompletos");
         }
 
         let finalLogoUrl = logo_url || null;
 
+        // Guardar logo si viene en base64
         if (logo_base64) {
-            console.log("🖼️ Guardando logo en servidor local...");
-
             const safeName = (logo_filename || nombre)
                 .toLowerCase()
                 .replace(/\s+/g, "-")
                 .replace(/[^a-z0-9-]/g, "");
 
-            const savedPath = await saveBase64Image(logo_base64, safeName);
-
-            if (savedPath) {
-                finalLogoUrl = savedPath;
-                console.log("✅ Logo guardado en:", finalLogoUrl);
-            } else {
-                console.warn("⚠️ No se pudo guardar el logo");
-            }
+            finalLogoUrl = await saveBase64Image(logo_base64, safeName);
         }
 
-
-        // Obtener conexión para transacción
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // 1. Crear el colegio CON LOGO
+        // 1. Crear colegio
         const [colegioResult] = await connection.query(
-            `INSERT INTO colegios (nombre, logo_url, configuracion, create_by, estatus) 
+            `INSERT INTO colegios (nombre, logo_url, configuracion, create_by, estatus)
              VALUES (?, ?, ?, NULL, 'activo')`,
-            [nombre, finalLogoUrl || null, configuracion || '{}']
+            [nombre, finalLogoUrl, configuracion || '{}']
         );
 
         const colegioId = colegioResult.insertId;
-        console.log('✅ Colegio creado con ID:', colegioId, 'Logo:', finalLogoUrl);
 
-        // 2. Verificar si el usuario ya existe
+        // 2. Validar usuario duplicado
         const [existingUser] = await connection.query(
             `SELECT id_usuario FROM usuarios WHERE usuario = ?`,
             [admin_data.usuario]
         );
 
         if (existingUser.length > 0) {
-            throw new Error('El usuario ya existe en el sistema');
+            throw new Error("El usuario ya existe");
         }
 
-        // 3. Crear el administrador del colegio
+        // 3. Crear admin
         const [adminResult] = await connection.query(
-            `INSERT INTO usuarios (nombre, usuario, contra, estatus, colegio_id, rol) 
+            `INSERT INTO usuarios (nombre, usuario, contra, estatus, colegio_id, rol)
              VALUES (?, ?, ?, 'activo', ?, 'admin_colegio')`,
             [admin_data.nombre, admin_data.usuario, admin_data.password, colegioId]
         );
 
         const adminId = adminResult.insertId;
-        console.log('✅ Administrador creado con ID:', adminId);
 
-        // 4. Actualizar el colegio con el ID del creador
+        // 4. Actualizar creador
         await connection.query(
             `UPDATE colegios SET create_by = ? WHERE id_colegio = ?`,
             [adminId, colegioId]
         );
 
-        // 5. Crear un sorteo inicial para el colegio
-        let sorteoId = null;
-        try {
-            const config = configuracion ? JSON.parse(configuracion) : {};
-            
-            // Validar fecha
-            const fechaSorteo = new Date(sorteo_data.fecha);
-            const hoy = new Date();
-            if (fechaSorteo <= hoy) {
-                throw new Error('La fecha del sorteo debe ser futura');
-            }
+        // 5. Crear sorteo inicial
+        const [sorteoResult] = await connection.query(
+            `INSERT INTO sorteo (
+                colegio_id,
+                nombre,
+                fecha,
+                estatus,
+                numero_sorteo,
+                precio_boleto,
+                comision_vendedor,
+                digitos_boleto
+            ) VALUES (?, ?, ?, 'activo', ?, ?, ?, ?)`,
+            [
+                colegioId,
+                sorteo_data.nombre || `Sorteo Inicial - ${nombre}`,
+                sorteo_data.fecha,
+                sorteo_data.numero_sorteo,
+                sorteo_data.precio_boleto || 100,
+                sorteo_data.comision_vendedor || 10,
+                sorteo_data.cifras_sorteo
+            ]
+        );
 
-            // VALIDAR que venga el número de sorteo desde el frontend
-            if (!sorteo_data.numero_sorteo || sorteo_data.numero_sorteo.trim() === '') {
-                throw new Error('El número de sorteo es requerido');
-            }
-
-            console.log(`🎟️ Creando sorteo con número de lotería: ${sorteo_data.numero_sorteo.trim()}`);
-
-            const [sorteoResult] = await connection.query(
-                `INSERT INTO sorteo (
-                    colegio_id, 
-                    nombre, 
-                    fecha, 
-                    primer_premio, 
-                    segundo_premio, 
-                    estatus, 
-                    numero_sorteo, 
-                    precio_boleto, 
-                    comision_vendedor, 
-                    digitos_boleto
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    colegioId, 
-                    sorteo_data.nombre || `Sorteo Inicial - ${nombre}`, 
-                    sorteo_data.fecha,
-                    '', // Vacío para admin
-                    '', // Vacío para admin
-                    'activo',
-                    sorteo_data.numero_sorteo.trim(),
-                    sorteo_data.precio_boleto || config.precio_boleto || 100,
-                    sorteo_data.comision_vendedor !== undefined && sorteo_data.comision_vendedor !== null 
-                        ? sorteo_data.comision_vendedor 
-                        : (config.comision_vendedor !== undefined && config.comision_vendedor !== null 
-                            ? config.comision_vendedor 
-                            : 10),
-                    sorteo_data.cifras_sorteo || config.cifras_sorteo || 5
-                ]
-            );
-
-            sorteoId = sorteoResult.insertId;
-            
-            console.log('✅ Sorteo creado:');
-            console.log('   ID:', sorteoId);
-            console.log('   Número de lotería:', sorteo_data.numero_sorteo);
-            console.log('   Comisión vendedor:', sorteo_data.comision_vendedor);
-            console.log('   Precio boleto:', sorteo_data.precio_boleto);
-            console.log('   Dígitos boleto:', sorteo_data.cifras_sorteo);
-
-        } catch (configError) {
-            console.error('❌ Error creando sorteo inicial:', configError);
-            throw new Error(`Error al crear sorteo inicial: ${configError.message}`);
-        }
-
-        // Confirmar transacción
         await connection.commit();
 
         return NextResponse.json({
             success: true,
             colegio_id: colegioId,
             admin_id: adminId,
-            sorteo_id: sorteoId,
-            logo_url: finalLogoUrl,
-            credenciales: {
-                usuario: admin_data.usuario,
-                password: admin_data.password
-            },
-            sorteo_info: {
-                fecha_limite: sorteo_data.fecha,
-                cifras_sorteo: sorteo_data.cifras_sorteo,
-                numero_sorteo: sorteo_data.numero_sorteo
-            },
-            message: 'Colegio, administrador y sorteo inicial creados exitosamente'
+            sorteo_id: sorteoResult.insertId,
+            logo_url: finalLogoUrl
         });
 
     } catch (error) {
-        console.error('❌ Error creando colegio:', error);
-        
-        // Revertir transacción si hay conexión
-        if (connection) {
-            try {
-                await connection.rollback();
-            } catch (rollbackError) {
-                console.error('❌ Error en rollback:', rollbackError);
-            }
-        }
-        
+        if (connection) await connection.rollback();
+
+        console.error("❌ Error creando colegio:", error);
+
         return NextResponse.json(
-            { 
-                success: false,
-                error: 'Error al crear el colegio',
-                details: error.message 
-            },
+            { success: false, message: error.message },
             { status: 500 }
         );
+
     } finally {
-        // Liberar conexión
-        if (connection) {
-            connection.release();
-        }
+        if (connection) connection.release();
     }
 }

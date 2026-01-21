@@ -19,14 +19,14 @@ export default function CrearColegioForm() {
     const getMinDate = () => {
         const tomorrow = new Date()
         tomorrow.setDate(tomorrow.getDate() + 1)
-        tomorrow.setHours(23, 59, 59, 0)
+        tomorrow.setHours(12, 0, 0, 0)
         return tomorrow.toISOString().split('T')[0]
     }
 
     const getMaxDate = () => {
         const twoYearsLater = new Date()
         twoYearsLater.setFullYear(twoYearsLater.getFullYear() + 2)
-        twoYearsLater.setHours(23, 59, 59, 0)
+        twoYearsLater.setHours(12, 0, 0, 0)
         return twoYearsLater.toISOString().split('T')[0]
     }
 
@@ -37,7 +37,7 @@ export default function CrearColegioForm() {
             parseInt(year),
             parseInt(month) - 1,
             parseInt(day),
-            23, 59, 59, 0
+            12, 0, 0, 0
         ))
         return date.toISOString()
     }
@@ -435,12 +435,12 @@ export default function CrearColegioForm() {
                                             Vista previa del logo
                                         </label>
                                         <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden">
-                                            <Image 
-                                            src={logoPreview} 
-                                            alt="Preview" 
-                                            width={100} 
-                                            height={100} 
-                                            priority={false} 
+                                            <Image
+                                            src={logoPreview}
+                                            alt="Preview"
+                                            width={100}
+                                            height={100}
+                                            unoptimized
                                             />
                                         </div>
                                     </div>
