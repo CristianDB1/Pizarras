@@ -195,7 +195,7 @@ const CompraOnlineEspecial = () => {
         }
 
         setTicketNumber(numeroAleatorio);
-        setName("Trébol de la Suerte");
+        setName("Sorteo Digital");
         setFoundTope(null);
 
         Swal.fire({

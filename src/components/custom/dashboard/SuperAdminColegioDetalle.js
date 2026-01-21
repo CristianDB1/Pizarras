@@ -125,7 +125,17 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                 nombre: colegioData.nombre || '',
                 logo_url: colegioData.logo_url || '',
                 estatus: colegioData.estatus || 'activo',
-                configuracion: colegioData.configuracion || '{}'
+                configuracion: (() => {
+                    try {
+                        if (!colegioData.configuracion) return '{}'
+                        if (typeof colegioData.configuracion === 'string') {
+                            return JSON.stringify(JSON.parse(colegioData.configuracion), null, 2)
+                        }
+                        return JSON.stringify(colegioData.configuracion, null, 2)
+                    } catch {
+                        return '{}'
+                    }
+                })()
             })
             
             // 2. Cargar admin del colegio (OPCIONAL)
@@ -180,6 +190,21 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
     // Función para editar colegio
     const onSubmitEditarColegio = async (data) => {
         setCargando(true)
+
+        let configuracionParseada;
+
+        try {
+            configuracionParseada = JSON.parse(data.configuracion)
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: 'La configuración debe ser un JSON válido',
+                icon: 'error'
+            })
+            setCargando(false)
+            return
+        }
+
         try {
             const response = await fetch(`/api/colegios/${colegioId}/editar`, {
                 method: 'PUT',
@@ -189,7 +214,7 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                 body: JSON.stringify({
                     nombre: data.nombre,
                     logo_url: data.logo_url || null,
-                    configuracion: data.configuracion,
+                    configuracion: JSON.stringify(configuracionParseada),
                     estatus: data.estatus
                 })
             })
@@ -480,17 +505,6 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                                     />
                                 </div>
                                 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        URL del Logo (opcional)
-                                    </label>
-                                    <input
-                                        {...registerColegio('logo_url')}
-                                        type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                                
                                 {/* En la sección de información del colegio */}
                                 <div className="flex items-center gap-3 mt-4">
                                     <button
@@ -563,14 +577,9 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                                     </div>
                                 </div>
                                 
-                                <div>
-                                    <p className="text-sm text-gray-500">Logo URL</p>
-                                    <p className="font-medium text-sm truncate">{colegio.logo_url || 'No definido'}</p>
-                                </div>
-                                
                                 {colegio.configuracion && colegio.configuracion !== '{}' && (
                                     <div className="mt-3">
-                                        <p className="text-sm text-gray-500 mb-1">Configuración</p>
+                                        <p className="text-sm text-gray-500 mb-1">Configuración Inicial</p>
                                         <div className="bg-gray-50 p-3 rounded border overflow-x-auto">
                                             <pre className="text-xs font-mono">
                                                 {(function() {
