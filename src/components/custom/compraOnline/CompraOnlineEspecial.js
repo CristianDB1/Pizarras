@@ -195,7 +195,7 @@ const CompraOnlineEspecial = () => {
         }
 
         setTicketNumber(numeroAleatorio);
-        setName("Sorteo Digital");
+        setName(`Comprador ${numeroAleatorio}`);
         setFoundTope(null);
 
         Swal.fire({
@@ -365,8 +365,8 @@ const handleTicketNumberChange = (e) => {
             `\n\u{1F4DE} Teléfono: ${telefono}` +
             `\n\u{1F4B3} Método de pago: ${metodoPago}` +
             (metodoPago === "Banco" && bancoSeleccionado
-                ? `\n\u{1F3E6} Banco: ${bancoSeleccionado.Banco}\n\u{1F4B3} Cuenta: ${bancoSeleccionado.Cuenta}`
-                : "") +
+              ? `\n🏦 Banco: ${bancoSeleccionado.banco}\n💳 Cuenta: ${bancoSeleccionado.cuenta}`
+              : "")+
             `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
         );
 
@@ -655,6 +655,7 @@ const handleTicketNumberChange = (e) => {
       
       {previewModal && (
         <EspecialPreviewModalOnline
+          colegioId={colegioId}
           onClose={() => setPreviewModal(false)}
           onConfirm={confirmVenta}
         />

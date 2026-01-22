@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react";
 
-const EspecialPreviewModalOnline = ({ onClose, onConfirm }) => {
+const EspecialPreviewModalOnline = ({ colegioId, onClose, onConfirm }) => {
   const [telefono, setTelefono] = useState("");
   const [metodoPago, setMetodoPago] = useState("");
   const [bancos, setBancos] = useState([]);
   const [bancoSeleccionado, setBancoSeleccionado] = useState(null);
 
   useEffect(() => {
-    // Cargar bancos desde API
-    fetch("/api/bancos")
+    if (!colegioId) return;
+
+    fetch(`/api/bancos?colegio=${colegioId}`)
       .then((res) => res.json())
       .then((data) => setBancos(data.bancos || []))
       .catch((err) => console.error("Error cargando bancos:", err));
-  }, []);
+  }, [colegioId]);
 
   const handleConfirm = () => {
     if (!telefono || !metodoPago) {
@@ -69,10 +70,10 @@ const EspecialPreviewModalOnline = ({ onClose, onConfirm }) => {
           <div className="mb-4">
             <label className="block font-semibold mb-2 text-gray-700">Selecciona un Banco</label>
             <select
-              value={bancoSeleccionado ? bancoSeleccionado.IdBanco : ""}
+              value={bancoSeleccionado ? bancoSeleccionado.id_banco : ""}
               onChange={(e) => {
                 const banco = bancos.find(
-                  (b) => b.IdBanco === parseInt(e.target.value)
+                  (b) => b.id_banco === parseInt(e.target.value)
                 );
                 setBancoSeleccionado(banco || null);
               }}
@@ -80,8 +81,8 @@ const EspecialPreviewModalOnline = ({ onClose, onConfirm }) => {
             >
               <option value="">-- Selecciona un banco --</option>
               {bancos.map((b) => (
-                <option key={b.IdBanco} value={b.IdBanco}>
-                  {b.Banco} - {b.Cuenta}
+                <option key={b.id_banco} value={b.id_banco}>
+                  {b.banco} - {b.cuenta}
                 </option>
               ))}
             </select>
@@ -92,8 +93,8 @@ const EspecialPreviewModalOnline = ({ onClose, onConfirm }) => {
         {bancoSeleccionado && (
           <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
             <h4 className="font-semibold text-purple-800 mb-2">Información del Banco:</h4>
-            <p className="text-sm text-purple-700"><strong>Banco:</strong> {bancoSeleccionado.Banco}</p>
-            <p className="text-sm text-purple-700"><strong>Cuenta:</strong> {bancoSeleccionado.Cuenta}</p>
+            <p className="text-sm text-purple-700"><strong>Banco:</strong> {bancoSeleccionado.banco}</p>
+            <p className="text-sm text-purple-700"><strong>Cuenta:</strong> {bancoSeleccionado.cuenta}</p>
           </div>
         )}
 
