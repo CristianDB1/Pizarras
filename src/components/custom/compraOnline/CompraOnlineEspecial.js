@@ -22,6 +22,7 @@ const CompraOnlineEspecial = () => {
   const [cargandoDatos, setCargandoDatos] = useState(true); 
   const [previewModal, setPreviewModal] = useState(false);
   const [showDisponibles, setShowDisponibles] = useState(false);
+  const [whatsappColegio, setWhatsappColegio] = useState(null);
   const router = useRouter();
 
   // Cargar datos del sorteo desde localStorage
@@ -59,6 +60,28 @@ const CompraOnlineEspecial = () => {
 
     cargarSorteo();
   }, []);
+
+  useEffect(() => {
+    if (!colegioId) return;
+
+    const cargarWhatsapp = async () => {
+      try {
+        const res = await fetch(`/api/colegios/${colegioId}/whatsapp`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          setWhatsappColegio(data.whatsapp);
+        } else {
+          setWhatsappColegio(null);
+        }
+      } catch (error) {
+        console.error("Error cargando WhatsApp del colegio:", error);
+        setWhatsappColegio(null);
+      }
+    };
+
+    cargarWhatsapp();
+  }, [colegioId]);
 
   // 2. CARGAR BOLETOS CUANDO TENEMOS EL SORTEO
   const cargarBoletos = useCallback(async () => {
@@ -221,80 +244,80 @@ const CompraOnlineEspecial = () => {
 
   // Validar disponibilidad del boleto (chequear AMBAS tablas)
   // Modificar la función handleTicketNumberChange
-const handleTicketNumberChange = (e) => {
-  let value = e.target.value;
-  
-  // Solo números, máximo 3 dígitos
-  if (!/^[0-9]*$/.test(value)) {
-    value = value.slice(0, -1);
-  }
-  
-  // Limitar a 3 dígitos
-  if (value.length > 3) {
-    value = value.substring(0, 3);
-  }
-  
-  setTicketNumber(value);
+  const handleTicketNumberChange = (e) => {
+    let value = e.target.value;
+    
+    // Solo números, máximo 3 dígitos
+    if (!/^[0-9]*$/.test(value)) {
+      value = value.slice(0, -1);
+    }
+    
+    // Limitar a 3 dígitos
+    if (value.length > 3) {
+      value = value.substring(0, 3);
+    }
+    
+    setTicketNumber(value);
 
-  if (!value || value.length < 3) {
-    setFoundTope(null);
-    return;
-  }
+    if (!value || value.length < 3) {
+      setFoundTope(null);
+      return;
+    }
 
-  // Formatear el boleto buscado a 3 dígitos (con ceros a la izquierda)
-  const boletoBuscado = value.padStart(3, '0');
-  
-  // Convertir las listas de boletos a strings formateados a 3 dígitos
-  const boletosNormalesFormateados = boletosNormales.map(num => 
-    num.toString().padStart(3, '0')
-  );
-  
-  const boletosOnlineFormateados = boletosOnline.map(num => 
-    num.toString().padStart(3, '0')
-  );
-  
-  /*console.log("🔍 Validando boleto:", {
-    boletoBuscado,
-    enNormales: boletosNormalesFormateados.includes(boletoBuscado),
-    enOnline: boletosOnlineFormateados.includes(boletoBuscado),
-    listaNormales: boletosNormalesFormateados,
-    listaOnline: boletosOnlineFormateados
-  });*/
-  
-  const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
-  const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
-  
-  if (enNormales || enOnline) {
-    //console.log(`❌ Boleto ${boletoBuscado} NO disponible`);
-    setFoundTope(true);
-  } else {
-    //console.log(`✅ Boleto ${boletoBuscado} DISPONIBLE`);
-    setFoundTope(null);
-  }
-};
-
-  const handleBlur = (e) => {
-  let value = e.target.value;
-  // Siempre formatear a 3 dígitos
-  value = value.padStart(3, "0");
-  setTicketNumber(value);
-  
-  // Re-evaluar disponibilidad después de formatear
-  if (value.length === 3) {
-    const boletoBuscado = value;
+    // Formatear el boleto buscado a 3 dígitos (con ceros a la izquierda)
+    const boletoBuscado = value.padStart(3, '0');
+    
+    // Convertir las listas de boletos a strings formateados a 3 dígitos
     const boletosNormalesFormateados = boletosNormales.map(num => 
       num.toString().padStart(3, '0')
     );
+    
     const boletosOnlineFormateados = boletosOnline.map(num => 
       num.toString().padStart(3, '0')
     );
     
+    /*console.log("🔍 Validando boleto:", {
+      boletoBuscado,
+      enNormales: boletosNormalesFormateados.includes(boletoBuscado),
+      enOnline: boletosOnlineFormateados.includes(boletoBuscado),
+      listaNormales: boletosNormalesFormateados,
+      listaOnline: boletosOnlineFormateados
+    });*/
+    
     const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
     const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
     
-    setFoundTope(enNormales || enOnline ? true : null);
-  }
-};
+    if (enNormales || enOnline) {
+      //console.log(`❌ Boleto ${boletoBuscado} NO disponible`);
+      setFoundTope(true);
+    } else {
+      //console.log(`✅ Boleto ${boletoBuscado} DISPONIBLE`);
+      setFoundTope(null);
+    }
+  };
+
+  const handleBlur = (e) => {
+    let value = e.target.value;
+    // Siempre formatear a 3 dígitos
+    value = value.padStart(3, "0");
+    setTicketNumber(value);
+    
+    // Re-evaluar disponibilidad después de formatear
+    if (value.length === 3) {
+      const boletoBuscado = value;
+      const boletosNormalesFormateados = boletosNormales.map(num => 
+        num.toString().padStart(3, '0')
+      );
+      const boletosOnlineFormateados = boletosOnline.map(num => 
+        num.toString().padStart(3, '0')
+      );
+      
+      const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
+      const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
+      
+      setFoundTope(enNormales || enOnline ? true : null);
+    }
+  };
   const enviarDatosNormal = () => {
     if (prizes.estatus !== 'activo') {
       Swal.fire("Sorteo cerrado", "No puedes comprar boletos de este sorteo", "warning");
@@ -356,6 +379,16 @@ const handleTicketNumberChange = (e) => {
       if (data.error) {
         Swal.fire("❌ Error", "Error al registrar la compra", "error");
       } else {
+
+        if (!whatsappColegio || !whatsappColegio.numero) {
+          Swal.fire(
+            "WhatsApp no configurado",
+            "Este colegio no tiene un número de WhatsApp configurado",
+            "error"
+          );
+          setIsLoading(false);
+          return;
+        }
         // Mensaje de WhatsApp
         const fechaCorta = new Date(prizes.Fecha || prizes.fecha).toISOString().split("T")[0];
         const mensaje = encodeURIComponent(
@@ -370,7 +403,7 @@ const handleTicketNumberChange = (e) => {
             `\n\n\u{26A0}\uFE0F El siguiente paso es enviar foto del comprobante de pago por aquí.`
         );
 
-        const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+        const whatsappNumber = whatsappColegio.numero;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
         if (isMobile) {
