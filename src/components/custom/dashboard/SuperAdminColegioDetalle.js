@@ -28,6 +28,12 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
     const [editandoSorteoId, setEditandoSorteoId] = useState(null)
     const [mostrarNuevoSorteo, setMostrarNuevoSorteo] = useState(false)
     const [cargando, setCargando] = useState(false)
+
+    const [whatsapp, setWhatsapp] = useState(null);
+    const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+    const [numeroWhatsapp, setNumeroWhatsapp] = useState('');
+
+
     
     // Formularios
     const { 
@@ -60,52 +66,52 @@ export default function SuperAdminColegioDetalle({ colegioId, onBack }) {
     } = useForm()
 
     // Función para cambiar solo el estatus
-const cambiarEstatusColegio = async (nuevoEstatus) => {
-    setCargando(true);
-    try {
-        const response = await fetch(`/api/colegios/${colegioId}/estatus`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                estatus: nuevoEstatus
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            Swal.fire({
-                title: '¡Éxito!',
-                text: result.message,
-                icon: 'success',
-                timer: 2000
+    const cambiarEstatusColegio = async (nuevoEstatus) => {
+        setCargando(true);
+        try {
+            const response = await fetch(`/api/colegios/${colegioId}/estatus`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    estatus: nuevoEstatus
+                })
             });
             
-            // Actualizar estado local
-            setColegio(prev => ({
-                ...prev,
-                estatus: nuevoEstatus
-            }));
+            const result = await response.json();
             
-            // Recargar datos
-            cargarDatosCompletos();
-        } else {
-            throw new Error(result.details || result.error);
+            if (response.ok) {
+                Swal.fire({
+                    title: '¡Éxito!',
+                    text: result.message,
+                    icon: 'success',
+                    timer: 2000
+                });
+                
+                // Actualizar estado local
+                setColegio(prev => ({
+                    ...prev,
+                    estatus: nuevoEstatus
+                }));
+                
+                // Recargar datos
+                cargarDatosCompletos();
+            } else {
+                throw new Error(result.details || result.error);
+            }
+        } catch (error) {
+            console.error('Error cambiando estatus:', error);
+            Swal.fire({
+                title: 'Error',
+                text: error.message || 'Error al cambiar el estatus',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            setCargando(false);
         }
-    } catch (error) {
-        console.error('Error cambiando estatus:', error);
-        Swal.fire({
-            title: 'Error',
-            text: error.message || 'Error al cambiar el estatus',
-            icon: 'error',
-            confirmButtonText: 'OK'
-        });
-    } finally {
-        setCargando(false);
-    }
-};
+    };
 
     const cargarDatosCompletos = useCallback(async () => {
         if (!colegioId) return;
@@ -125,7 +131,17 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                 nombre: colegioData.nombre || '',
                 logo_url: colegioData.logo_url || '',
                 estatus: colegioData.estatus || 'activo',
-                configuracion: colegioData.configuracion || '{}'
+                configuracion: (() => {
+                    try {
+                        if (!colegioData.configuracion) return '{}'
+                        if (typeof colegioData.configuracion === 'string') {
+                            return JSON.stringify(JSON.parse(colegioData.configuracion), null, 2)
+                        }
+                        return JSON.stringify(colegioData.configuracion, null, 2)
+                    } catch {
+                        return '{}'
+                    }
+                })()
             })
             
             // 2. Cargar admin del colegio (OPCIONAL)
@@ -151,6 +167,14 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                     sorteos_cerrados: 0
                 })
             }
+
+            // 4. Cargar WhatsApp del colegio
+            const whatsappRes = await fetch(`/api/colegios/${colegioId}/whatsapp`);
+            if (whatsappRes.ok) {
+                const data = await whatsappRes.json();
+                setWhatsapp(data.whatsapp);
+            }
+
             
         } catch (error) {
             console.error('Error cargando datos:', error)
@@ -177,9 +201,47 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
         }
     }, [colegioId, cargarDatosCompletos])
 
+    const guardarWhatsapp = async () => {
+        if (!numeroWhatsapp) {
+            Swal.fire('Error', 'Debes ingresar el número de WhatsApp', 'error');
+            return;
+        }
+
+        const res = await fetch(`/api/colegios/${colegioId}/whatsapp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numero: numeroWhatsapp })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            Swal.fire('Éxito', 'WhatsApp guardado correctamente', 'success');
+            setWhatsappModalOpen(false);
+            cargarDatosCompletos();
+        } else {
+            Swal.fire('Error', data.error || 'No se pudo guardar', 'error');
+        }
+    };
+
     // Función para editar colegio
     const onSubmitEditarColegio = async (data) => {
         setCargando(true)
+
+        let configuracionParseada;
+
+        try {
+            configuracionParseada = JSON.parse(data.configuracion)
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: 'La configuración debe ser un JSON válido',
+                icon: 'error'
+            })
+            setCargando(false)
+            return
+        }
+
         try {
             const response = await fetch(`/api/colegios/${colegioId}/editar`, {
                 method: 'PUT',
@@ -189,7 +251,7 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                 body: JSON.stringify({
                     nombre: data.nombre,
                     logo_url: data.logo_url || null,
-                    configuracion: data.configuracion,
+                    configuracion: JSON.stringify(configuracionParseada),
                     estatus: data.estatus
                 })
             })
@@ -480,17 +542,6 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                                     />
                                 </div>
                                 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        URL del Logo (opcional)
-                                    </label>
-                                    <input
-                                        {...registerColegio('logo_url')}
-                                        type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                </div>
-                                
                                 {/* En la sección de información del colegio */}
                                 <div className="flex items-center gap-3 mt-4">
                                     <button
@@ -563,14 +614,9 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                                     </div>
                                 </div>
                                 
-                                <div>
-                                    <p className="text-sm text-gray-500">Logo URL</p>
-                                    <p className="font-medium text-sm truncate">{colegio.logo_url || 'No definido'}</p>
-                                </div>
-                                
                                 {colegio.configuracion && colegio.configuracion !== '{}' && (
                                     <div className="mt-3">
-                                        <p className="text-sm text-gray-500 mb-1">Configuración</p>
+                                        <p className="text-sm text-gray-500 mb-1">Configuración Inicial</p>
                                         <div className="bg-gray-50 p-3 rounded border overflow-x-auto">
                                             <pre className="text-xs font-mono">
                                                 {(function() {
@@ -674,6 +720,48 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                                     </div>
                                 ))}
                             </div>
+                        )}
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                            WhatsApp del Colegio
+                        </h2>
+
+                        {whatsapp ? (
+                            <div className="space-y-2">
+                            <p className="text-sm text-gray-600">Número</p>
+                            <p className="font-semibold text-green-700">
+                                +{whatsapp.numero}
+                            </p>
+
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                whatsapp.activo
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                                {whatsapp.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+
+                            <button
+                                onClick={() => {
+                                setWhatsappModalOpen(true);
+                                setNumeroWhatsapp(whatsapp.numero);
+                                }}
+                                className="mt-3 w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Editar WhatsApp
+                            </button>
+                            </div>
+                        ) : (
+                            <button
+                            onClick={() => {
+                                setWhatsappModalOpen(true);
+                                setNumeroWhatsapp('');
+                            }}
+                            className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                            >
+                            Agregar WhatsApp
+                            </button>
                         )}
                     </div>
                 </div>
@@ -789,6 +877,47 @@ const cambiarEstatusColegio = async (nuevoEstatus) => {
                     </div>
                 </div>
             </div>
+
+            {whatsappModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                        📱 {whatsapp ? 'Editar WhatsApp' : 'Agregar WhatsApp'}
+                    </h3>
+
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Número de WhatsApp
+                        </label>
+                        <input
+                        type="text"
+                        value={numeroWhatsapp}
+                        onChange={(e) => setNumeroWhatsapp(e.target.value)}
+                        placeholder="573001234567"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                        Incluye código de país (ej: 57 para Colombia)
+                        </p>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                        <button
+                        onClick={() => setWhatsappModalOpen(false)}
+                        className="px-4 py-2 border rounded text-sm"
+                        >
+                        Cancelar
+                        </button>
+                        <button
+                        onClick={guardarWhatsapp}
+                        className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                        >
+                        Guardar
+                        </button>
+                    </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal: Nuevo Sorteo */}
             {mostrarNuevoSorteo && (

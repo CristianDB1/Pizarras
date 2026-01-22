@@ -8,36 +8,42 @@ export const runtime = 'nodejs'; // ← Especificar runtime
 
 export async function GET(request) {
   try {
-    // Para evitar el error de `request.url` en build estático
     const url = new URL(request.url);
-    const searchParams = url.searchParams;
-    const colegioId = searchParams.get('colegio');
-    
-    let query = "SELECT id_banco, banco, cuenta FROM bancos";
-    let params = [];
-    
-    if (colegioId) {
-      query += " WHERE colegio_id = ?";
-      params.push(colegioId);
+    const colegioId = url.searchParams.get('colegio');
+
+    if (!colegioId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "El colegio_id es obligatorio para listar bancos"
+        },
+        { status: 400 }
+      );
     }
-    
-    query += " ORDER BY banco ASC";
-    
-    const [rows] = await pool.query(query, params);
-    
+
+    const query = `
+      SELECT id_banco, banco, cuenta
+      FROM bancos
+      WHERE colegio_id = ?
+      ORDER BY banco ASC
+    `;
+
+    const [rows] = await pool.query(query, [colegioId]);
+
     return NextResponse.json({
       success: true,
       bancos: rows,
       total: rows.length
     });
-    
+
   } catch (error) {
     console.error("Error al obtener bancos:", error);
-    // En producción, devolver array vacío para no romper el build
-    return NextResponse.json({
-      success: true,
-      bancos: [],
-      error: "No se pudieron cargar los bancos"
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Error al cargar bancos"
+      },
+      { status: 500 }
+    );
   }
 }
