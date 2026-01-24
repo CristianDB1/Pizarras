@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 import generateWinnerPDF from "./generateWinnerPDF";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { Html5Qrcode } from "html5-qrcode";
-import { Html5QrcodeScanner } from "html5-qrcode";
+
 
 const WinnerTicket = () => {
   const [premiados, setPremiados] = useState([]);
@@ -72,42 +72,56 @@ const WinnerTicket = () => {
   };
 
   // ESCÁNER QR - SIMPLIFICADO: Solo pone el texto en el search
-  const startQrScanner = () => {
-  const readerElement = document.getElementById("reader");
-  if (!readerElement) return;
+  const startQrScanner = async () => {
+  try {
+    const readerElement = document.getElementById("reader");
+    if (!readerElement) return;
 
-  readerElement.style.display = "block";
+    readerElement.style.display = "block";
 
-  const scanner = new Html5QrcodeScanner(
-    "reader",
-    {
-      fps: 10,
-      qrbox: 250,
-      rememberLastUsedCamera: true,
-    },
-    false
-  );
+    // 👉 Crear la instancia SOLO UNA VEZ
+    if (!qrCodeRef.current) {
+      qrCodeRef.current = new Html5Qrcode("reader");
+    }
 
-  scanner.render(
-    (decodedText) => {
-      if (!decodedText || decodedText.trim() === "") return;
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras || cameras.length === 0) {
+      Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
+      readerElement.style.display = "none";
+      return;
+    }
 
-      setSearch(decodedText.trim());
+    const backCamera =
+      cameras.find((cam) =>
+        cam.label.toLowerCase().includes("back") ||
+        cam.label.toLowerCase().includes("trasera")
+      ) || cameras[0];
 
-      Swal.fire({
-        title: "QR detectado ✅",
-        text: decodedText,
-        icon: "success",
-        timer: 1200,
-        showConfirmButton: false,
-      });
+    await qrCodeRef.current.start(
+      { deviceId: { exact: backCamera.id } },
+      { fps: 10, qrbox: 200 },
+      (decodedText) => {
+        // Guardamos el dato con la "N" incluida como me pediste
+        setSearch(decodedText); 
 
-      scanner.clear().then(() => {
-        readerElement.style.display = "none";
-      });
-    },
-    () => {}
-  );
+        Swal.fire({
+          title: "QR detectado ✅",
+          text: `Buscando: ${decodedText}`, 
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        qrCodeRef.current.stop().then(() => {
+          readerElement.style.display = "none";
+        });
+      },
+      () => {}
+    );
+  } catch (err) {
+    console.error(err);
+    Swal.fire("Error", "No se pudo acceder a la cámara", "error");
+  }
 };
 
   // Función para comprimir imagen antes de convertir a base64
@@ -489,24 +503,24 @@ const WinnerTicket = () => {
   const filteredPremiados = useMemo(() => {
     if (!search || search.trim() === '') return [];
     
+    // 1. Creamos una versión "limpia" para comparar con los números
     const searchTerm = search.toLowerCase().trim();
+    const searchNumbersOnly = searchTerm.startsWith('n') ? searchTerm.substring(1) : searchTerm;
     
-    // Si el término tiene al menos 3 caracteres, buscar
-    if (searchTerm.length >= 3) {
+    if (searchTerm.length >= 1) { // Bajé esto a 1 para que encuentre IDs cortos
       return premiados.filter(boleto => {
-        // Buscar por folio
-        if (boleto.folio && boleto.folio.toString().toLowerCase().includes(searchTerm)) {
-          return true;
-        }
-        // Buscar por número de boleto
-        if (boleto.boleto && boleto.boleto.toString().toLowerCase().includes(searchTerm)) {
-          return true;
-        }
-        // Buscar por cliente
-        if (boleto.cliente && boleto.cliente.toLowerCase().includes(searchTerm)) {
-          return true;
-        }
-        return false;
+        // Comparamos contra el término con N o el término limpio
+        const folioStr = (boleto.folio || "").toString().toLowerCase();
+        const boletoStr = (boleto.boleto || "").toString().toLowerCase();
+        const clienteStr = (boleto.cliente || "").toLowerCase();
+
+        return (
+          folioStr.includes(searchTerm) || 
+          folioStr.includes(searchNumbersOnly) || // Busca el número si el QR trae N
+          boletoStr.includes(searchTerm) ||
+          boletoStr.includes(searchNumbersOnly) || // Busca el número si el QR trae N
+          clienteStr.includes(searchTerm)
+        );
       });
     }
     
