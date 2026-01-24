@@ -28,7 +28,6 @@ const WinnerTicket = () => {
         if (localUserData) {
           const parsedData = JSON.parse(localUserData);
           setUserData(parsedData);
-          
           const colegioIdFromUser = parsedData.colegio_id || parsedData.ColegioId || null;
           setColegioId(colegioIdFromUser);
         }
@@ -58,7 +57,7 @@ const WinnerTicket = () => {
       
       if (data.success && data.premiados) {
         setPremiados(data.premiados);
-        console.log(`Cargados ${data.premiados.length} ganadores`, colegioId ? `para colegio ID: ${colegioId}` : 'para todos los colegios');
+        console.log(`Cargados ${data.premiados.length} ganadores`);
       } else {
         Swal.fire("Error", "No se pudieron cargar los boletos premiados", "error");
       }
@@ -117,26 +116,15 @@ const WinnerTicket = () => {
     const file = e.target.files[0];
     if (file) {
       try {
-        console.log("Archivo seleccionado:", file.name);
-        
         if (file.size > 10 * 1024 * 1024) {
           Swal.fire("Error", "La imagen es demasiado grande. Máximo 10MB", "error");
           return;
         }
         
         const imagenComprimida = await comprimirImagen(file);
-        console.log("Imagen comprimida correctamente");
-        
         setSelectedImage(imagenComprimida);
         setPreviewImage(URL.createObjectURL(file));
         
-        const previewContainer = document.getElementById("previewContainer");
-        const previewImageElement = document.getElementById("previewImage");
-        
-        if (previewContainer && previewImageElement) {
-          previewContainer.style.display = "block";
-          previewImageElement.src = URL.createObjectURL(file);
-        }
       } catch (error) {
         console.error("Error al procesar imagen:", error);
         Swal.fire("Error", "No se pudo procesar la imagen", "error");
@@ -189,17 +177,12 @@ const WinnerTicket = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-
       const responseText = await response.text();
       if (!responseText) {
         throw new Error("Respuesta vacía del servidor");
       }
 
       const data = JSON.parse(responseText);
-      console.log("Respuesta del servidor:", data);
       
       if (data.success) {
         const boletoActualizado = data.boleto;
@@ -216,7 +199,6 @@ const WinnerTicket = () => {
           html: `
             <p>El boleto ha sido marcado como pagado.</p>
             <p>Folio de pago: <strong>${folio}</strong></p>
-            ${boletoActualizado.liquidado === 'si' ? '<p>✅ Liquidado: Sí</p>' : ''}
           `,
           icon: "success",
           showCancelButton: true,
@@ -244,15 +226,7 @@ const WinnerTicket = () => {
       }
     } catch (error) {
       console.error("Error al marcar como pagado:", error);
-      
-      let errorMessage = "Ocurrió un error al procesar el pago";
-      if (error.message.includes("HTTP")) {
-        errorMessage = `Error del servidor: ${error.message}`;
-      } else if (error.message.includes("vacía")) {
-        errorMessage = "El servidor no respondió correctamente";
-      }
-      
-      Swal.fire("Error", errorMessage, "error");
+      Swal.fire("Error", "Ocurrió un error al procesar el pago", "error");
     } finally {
       setIsLoading(false);
     }
@@ -267,7 +241,7 @@ const WinnerTicket = () => {
       readerElement.style.display = "block";
 
       const html5QrCode = new Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: 200 };
+      const config = { fps: 10, qrbox: 250 };
 
       const cameras = await Html5Qrcode.getCameras();
       if (!cameras || cameras.length === 0) {
@@ -276,118 +250,78 @@ const WinnerTicket = () => {
         return;
       }
 
-      const backCamera =
-        cameras.find((cam) =>
-          cam.label.toLowerCase().includes("back") ||
-          cam.label.toLowerCase().includes("trasera")
-        ) || cameras[0];
+      const backCamera = cameras.find(cam => 
+        cam.label.toLowerCase().includes("back") || 
+        cam.label.toLowerCase().includes("trasera")
+      ) || cameras[0];
 
       await html5QrCode.start(
-        { deviceId: { exact: backCamera.id } },
+        backCamera.id,
         config,
-        (decodedText) => {
-          // Procesar el QR según el formato
+        async (decodedText) => {
+          console.log("QR escaneado:", decodedText);
+          
+          // Detener el escáner inmediatamente
+          await html5QrCode.stop();
+          readerElement.style.display = "none";
+          
+          // Procesar el QR
           procesarQR(decodedText);
-
-          // Detener el escáner
-          html5QrCode.stop().then(() => {
-            readerElement.style.display = "none";
-          });
         },
-        (error) => {
-          // No mostramos errores de lectura continua
+        (errorMessage) => {
+          // Ignorar errores de lectura continua
         }
-      );
+      ).catch(err => {
+        console.error("Error al iniciar escáner:", err);
+        Swal.fire("Error", "No se pudo iniciar la cámara", "error");
+        readerElement.style.display = "none";
+      });
+      
     } catch (err) {
-      console.error("Error al iniciar el lector QR:", err);
+      console.error("Error en startQrScanner:", err);
       Swal.fire("Error", "No se pudo acceder a la cámara", "error");
     }
   };
 
   // Función para procesar el código QR escaneado
   const procesarQR = (decodedText) => {
-    let idBoleto = null;
-    let mensaje = "";
+    console.log("Procesando QR:", decodedText);
     
-    // Verificar si es el nuevo formato: N152
-    if (decodedText.startsWith('N') && !isNaN(parseInt(decodedText.substring(1)))) {
-      // Formato nuevo: N152
-      idBoleto = decodedText.substring(1); // Extrae "152" de "N152"
-      mensaje = `QR detectado (formato N): ${decodedText}`;
-      console.log(mensaje, "ID del boleto:", idBoleto);
-    } else {
+    // Intentar extraer el ID del boleto
+    let idBoleto = null;
+    
+    // Formato NUEVO: N152
+    if (decodedText.startsWith('N') && !isNaN(decodedText.substring(1))) {
+      idBoleto = decodedText.substring(1);
+      console.log("Formato N detectado, ID:", idBoleto);
+    } 
+    // Formato JSON antiguo
+    else if (decodedText.startsWith('{')) {
       try {
-        // Intentar como JSON (formato antiguo)
         const qrData = JSON.parse(decodedText);
         idBoleto = qrData.id_boleto || qrData.idBoleto;
-        mensaje = `QR detectado (formato JSON): ${decodedText}`;
-        console.log(mensaje, "ID del boleto:", idBoleto);
-      } catch (error) {
-        // Si no es JSON válido, usar el texto completo
-        idBoleto = decodedText;
-        mensaje = `QR detectado (texto plano): ${decodedText}`;
-        console.log(mensaje);
+        console.log("Formato JSON detectado, ID:", idBoleto);
+      } catch (e) {
+        console.error("Error parseando JSON:", e);
       }
     }
-
+    // Texto plano (podría ser solo el número)
+    else {
+      idBoleto = decodedText;
+      console.log("Formato texto plano, ID:", idBoleto);
+    }
+    
     if (idBoleto) {
-      buscarBoletoPorId(idBoleto);
-    } else {
-      Swal.fire("Error", "No se pudo extraer el ID del boleto del QR", "error");
-    }
-  };
-
-  // Función para buscar boleto por ID en los datos cargados y/o API
-const buscarBoletoPorId = async (idBoleto) => {
-  try {
-    // Primero buscar en los datos ya cargados
-    const boletoEncontradoLocal = premiados.find(boleto => {
-      return boleto.id_ganador?.toString() === idBoleto.toString();
-    });
-    
-    if (boletoEncontradoLocal) {
-      // Usar el folio para la búsqueda en la tabla
-      const folio = boletoEncontradoLocal.folio || '';
-      if (folio) {
-        setSearch(folio);
-      }
+      // Buscar en los datos cargados por número de boleto
+      const boletoEncontrado = premiados.find(boleto => 
+        boleto.boleto?.toString() === idBoleto.toString() ||
+        boleto.id_ganador?.toString() === idBoleto.toString() ||
+        boleto.folio?.toString().includes(idBoleto.toString())
+      );
       
-      Swal.fire({
-        title: "✅ Boleto encontrado (en datos locales)",
-        html: `
-          <div style="text-align: left;">
-            <p><strong>Folio:</strong> ${folio}</p>
-            <p><strong>Número de boleto:</strong> ${boletoEncontradoLocal.boleto || 'N/A'}</p>
-            <p><strong>Cliente:</strong> ${boletoEncontradoLocal.cliente || 'N/A'}</p>
-            <p><strong>Premio:</strong> $${boletoEncontradoLocal.premio || '0'}</p>
-            <p><strong>Estado:</strong> ${boletoEncontradoLocal.estatus || 'pendiente'}</p>
-          </div>
-        `,
-        icon: "success",
-        showConfirmButton: true,
-        confirmButtonText: "Ver en tabla",
-      });
-      return;
-    }
-    
-    // Si no está en los datos locales, buscar en la API
-    setIsLoading(true);
-    
-    let url = `/api/winner?id_boleto=${idBoleto}`;
-    if (colegioId) {
-      url += `&colegio_id=${colegioId}`;
-    }
-    
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    if (data.success) {
-      if (data.ganadorEncontrado) {
-        // Recargar datos para incluir el nuevo ganador
-        await fetchPremiados();
-        
-        // Buscar el folio para la búsqueda
-        const folio = data.ganador?.folio || '';
+      if (boletoEncontrado) {
+        // Usar el folio para la búsqueda
+        const folio = boletoEncontrado.folio || '';
         if (folio) {
           setSearch(folio);
           
@@ -396,52 +330,49 @@ const buscarBoletoPorId = async (idBoleto) => {
             html: `
               <div style="text-align: left;">
                 <p><strong>Folio:</strong> ${folio}</p>
-                <p><strong>Número de boleto:</strong> ${data.ganador.boleto || 'N/A'}</p>
-                <p><strong>Cliente:</strong> ${data.ganador.cliente || 'N/A'}</p>
-                <p><strong>Premio:</strong> $${data.ganador.premio || '0'}</p>
-                <p><strong>Estado:</strong> ${data.ganador.estatus || 'pendiente'}</p>
+                <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
+                <p><strong>Cliente:</strong> ${boletoEncontrado.cliente || 'N/A'}</p>
+                <p><strong>Premio:</strong> $${boletoEncontrado.premio || '0'}</p>
               </div>
             `,
             icon: "success",
             showConfirmButton: true,
             confirmButtonText: "Ver en tabla",
           });
+        } else {
+          Swal.fire({
+            title: "Boleto encontrado",
+            text: "Pero no tiene folio asignado",
+            icon: "info"
+          });
         }
-      } else if (data.boletoEncontrado) {
-        Swal.fire({
-          title: "⚠️ Boleto no ganador",
-          html: `
-            <p>El boleto <strong>${data.numeroBoleto}</strong> existe pero no está registrado como ganador.</p>
-            <p class="text-sm mt-2">El usuario debe verificar si realmente ganó un premio.</p>
-          `,
-          icon: "warning",
-          showConfirmButton: true,
-          confirmButtonText: "Entendido",
-        });
       } else {
         Swal.fire({
           title: "❌ Boleto no encontrado",
-          text: `No existe un boleto con ID: ${idBoleto}`,
-          icon: "error",
+          html: `
+            <p>No se encontró el boleto <strong>${idBoleto}</strong> en los datos cargados.</p>
+            <p class="text-sm mt-2">Posibles razones:</p>
+            <ul class="text-sm text-left ml-4 mt-1">
+              <li>• El boleto no es ganador</li>
+              <li>• No pertenece a este colegio</li>
+              <li>• Los datos no están actualizados</li>
+            </ul>
+          `,
+          icon: "warning",
           showConfirmButton: true,
+          confirmButtonText: "Recargar datos",
+          showCancelButton: true,
+          cancelButtonText: "Cerrar",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            fetchPremiados();
+          }
         });
       }
     } else {
-      Swal.fire({
-        title: "❌ Error en la búsqueda",
-        text: data.error || "Ocurrió un error al buscar el boleto",
-        icon: "error",
-        showConfirmButton: true,
-      });
+      Swal.fire("Error", "No se pudo leer el código QR", "error");
     }
-    
-  } catch (error) {
-    console.error("Error al buscar boleto:", error);
-    Swal.fire("Error", "Ocurrió un error al buscar el boleto", "error");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // Imprimir comprobante de pago
   const imprimirComprobante = (id, folio, boletoActualizado = null) => {
@@ -657,20 +588,30 @@ const buscarBoletoPorId = async (idBoleto) => {
 
   // Filtrar boletos según la búsqueda
   const filteredPremiados = useMemo(() => {
-    if (!search || search.length < 5) return [];
+    if (!search || search.trim() === '') return [];
     
-    try {
-      const regex = new RegExp(search, 'i');
-      
-      return premiados.filter(boleto => 
-        boleto.folio && regex.test(boleto.folio.toString())
-      );
-    } catch (error) {
-      console.error("Error en expresión regular:", error);
-      return premiados.filter(boleto => 
-        boleto.folio && boleto.folio.toString().toLowerCase().includes(search.toLowerCase())
-      );
+    const searchTerm = search.toLowerCase().trim();
+    
+    // Si el término tiene al menos 3 caracteres, buscar
+    if (searchTerm.length >= 3) {
+      return premiados.filter(boleto => {
+        // Buscar por folio
+        if (boleto.folio && boleto.folio.toString().toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        // Buscar por número de boleto
+        if (boleto.boleto && boleto.boleto.toString().toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        // Buscar por cliente
+        if (boleto.cliente && boleto.cliente.toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        return false;
+      });
     }
+    
+    return [];
   }, [premiados, search]);
 
   // Cargar datos cuando cambie colegioId
@@ -696,14 +637,14 @@ const buscarBoletoPorId = async (idBoleto) => {
       {colegioId && (
         <div className="bg-blue-900 p-3 rounded-md mb-4 text-white text-center">
           <p className="font-semibold">Mostrando ganadores del Colegio</p>
-          <p className="text-sm mt-1">Formato QR: <span className="font-bold">N + ID del boleto</span> (Ej: N152)</p>
+          <p className="text-sm mt-1">Formato QR: N + ID del boleto</p>
         </div>
       )}
       
       {/* Estadísticas */}
       <div className="flex flex-col md:flex-row justify-between mb-4 text-white">
         <div className="bg-gray-800 p-3 rounded-md mb-2 md:mb-0 md:mr-2 flex-1">
-          <p className="font-semibold">Total de boletos premiados: {premiados.length}</p>
+          <p className="font-semibold">Total boletos premiados: {premiados.length}</p>
         </div>
         <div className="bg-gray-800 p-3 rounded-md mb-2 md:mb-0 md:mx-2 flex-1">
           <p className="font-semibold">Pagados: {premiados.filter(b => b.estatus === "pagado").length}</p>
@@ -720,13 +661,13 @@ const buscarBoletoPorId = async (idBoleto) => {
           className="flex-1 p-4 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 
           focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 
           dark:placeholder-gray-400 dark:text-white"
-          placeholder="Buscar por número de folio o escanear QR..."
+          placeholder="Buscar por folio, número de boleto o cliente..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
           type="button"
-          onClick={() => startQrScanner()}
+          onClick={startQrScanner}
           className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 flex items-center justify-center"
           title="Escanear QR"
         >
@@ -757,7 +698,7 @@ const buscarBoletoPorId = async (idBoleto) => {
       />
       
       {/* Tabla de boletos premiados */}
-      {search !== "" && (
+      {filteredPremiados.length > 0 ? (
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -772,64 +713,58 @@ const buscarBoletoPorId = async (idBoleto) => {
               </tr>
             </thead>
             <tbody>
-              {filteredPremiados.length > 0 ? (
-                filteredPremiados.map((boleto) => (
-                  <tr key={boleto.id_ganador} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                      {boleto.folio}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                      {boleto.boleto ? boleto.boleto.toString().replace(/\.\d{2}$/, "") : ''}
-                    </td>
-                    <td className="px-6 py-4">
-                      {boleto.cliente}
-                    </td>
-                    <td className="px-6 py-4">
-                      ${boleto.premio}
-                    </td>
-                    <td className="px-6 py-4">
-                      {formatDate(boleto.fecha_sorteo)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${boleto.estatus === "pagado" ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                        {boleto.estatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {boleto.estatus === "pendiente" ? (
+              {filteredPremiados.map((boleto) => (
+                <tr key={boleto.id_ganador} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                    {boleto.folio}
+                  </td>
+                  <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                    {boleto.boleto}
+                  </td>
+                  <td className="px-6 py-4">{boleto.cliente}</td>
+                  <td className="px-6 py-4">${boleto.premio}</td>
+                  <td className="px-6 py-4">{formatDate(boleto.fecha_sorteo)}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-xs ${boleto.estatus === "pagado" ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                      {boleto.estatus}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {boleto.estatus === "pendiente" ? (
+                      <button
+                        onClick={() => confirmarPago(boleto.id_ganador)}
+                        className="text-blue-600 dark:text-blue-500 hover:text-blue-800 text-xl"
+                        disabled={isLoading}
+                      >
+                        <FaMoneyBillWave title="Marcar como pagado" />
+                      </button>
+                    ) : (
+                      <div className="flex space-x-3">
+                        <span className="text-green-500">✓</span>
                         <button
-                          onClick={() => confirmarPago(boleto.id_ganador)}
-                          className="text-blue-600 dark:text-blue-500 hover:text-blue-800 text-xl"
-                          disabled={isLoading}
+                          onClick={() => imprimirComprobante(boleto.id_ganador, boleto.folio)}
+                          className="text-blue-600 dark:text-blue-500 hover:text-blue-800"
+                          title="Imprimir comprobante"
                         >
-                          <FaMoneyBillWave title="Marcar como pagado" />
+                          <FaShare />
                         </button>
-                      ) : (
-                        <div className="flex space-x-3">
-                          <span className="text-green-500">✓</span>
-                          <button
-                            onClick={() => imprimirComprobante(boleto.id_ganador, boleto.folio)}
-                            className="text-blue-600 dark:text-blue-500 hover:text-blue-800"
-                            title="Imprimir comprobante"
-                          >
-                            <FaShare />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center">
-                    {isLoading ? "Cargando..." : "No hay boletos premiados que coincidan con la búsqueda"}
+                      </div>
+                    )}
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-      )}
+      ) : search.length >= 3 ? (
+        <div className="text-center text-white mt-8 mb-8">
+          <p className="text-lg">No se encontraron resultados para: "{search}"</p>
+        </div>
+      ) : search.length > 0 && search.length < 3 ? (
+        <div className="text-center text-white mt-8 mb-8">
+          <p className="text-lg">Ingrese al menos 3 caracteres para buscar</p>
+        </div>
+      ) : null}
       
       {/* Mensaje cuando no hay búsqueda */}
       {search.length > 0 && search.length < 5 && (
@@ -840,7 +775,7 @@ const buscarBoletoPorId = async (idBoleto) => {
       
       {/* Botón para volver al menú */}
       <button
-        onClick={goToMenu}
+        onClick={() => router.push('/menu')}
         className="fixed bottom-4 right-4 bg-red-700 text-white flex justify-center items-center p-2 rounded-full h-[40px] w-[40px]"
       >
         <FaHome />
