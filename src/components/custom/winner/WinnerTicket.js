@@ -102,7 +102,9 @@ const WinnerTicket = () => {
       { fps: 10, qrbox: 200 },
       (decodedText) => {
         // Guardamos el dato con la "N" incluida como me pediste
-        setSearch(decodedText); 
+        const cleanText = decodedText.replace(/['"]+/g, '');
+
+        setSearch(cleanText);
 
         Swal.fire({
           title: "QR detectado ✅",
@@ -503,24 +505,24 @@ const WinnerTicket = () => {
   const filteredPremiados = useMemo(() => {
     if (!search || search.trim() === '') return [];
     
-    // 1. Creamos una versión "limpia" para comparar con los números
     const searchTerm = search.toLowerCase().trim();
-    const searchNumbersOnly = searchTerm.startsWith('n') ? searchTerm.substring(1) : searchTerm;
     
-    if (searchTerm.length >= 1) { // Bajé esto a 1 para que encuentre IDs cortos
+    // Si el término tiene al menos 3 caracteres, buscar
+    if (searchTerm.length >= 3) {
       return premiados.filter(boleto => {
-        // Comparamos contra el término con N o el término limpio
-        const folioStr = (boleto.folio || "").toString().toLowerCase();
-        const boletoStr = (boleto.boleto || "").toString().toLowerCase();
-        const clienteStr = (boleto.cliente || "").toLowerCase();
-
-        return (
-          folioStr.includes(searchTerm) || 
-          folioStr.includes(searchNumbersOnly) || // Busca el número si el QR trae N
-          boletoStr.includes(searchTerm) ||
-          boletoStr.includes(searchNumbersOnly) || // Busca el número si el QR trae N
-          clienteStr.includes(searchTerm)
-        );
+        // Buscar por folio
+        if (boleto.folio && boleto.folio.toString().toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        // Buscar por número de boleto
+        if (boleto.boleto && boleto.boleto.toString().toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        // Buscar por cliente
+        if (boleto.cliente && boleto.cliente.toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        return false;
       });
     }
     
