@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import generateWinnerPDF from "./generateWinnerPDF";
 import { useTotalVenta } from "@/context/TotalVentasContext";
 import { Html5Qrcode } from "html5-qrcode";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 const WinnerTicket = () => {
   const [premiados, setPremiados] = useState([]);
@@ -71,56 +72,42 @@ const WinnerTicket = () => {
   };
 
   // ESCÁNER QR - SIMPLIFICADO: Solo pone el texto en el search
-  const startQrScanner = async () => {
-  try {
-    const readerElement = document.getElementById("reader");
-    if (!readerElement) return;
+  const startQrScanner = () => {
+  const readerElement = document.getElementById("reader");
+  if (!readerElement) return;
 
-    readerElement.style.display = "block";
+  readerElement.style.display = "block";
 
-    // 👉 Crear la instancia SOLO UNA VEZ
-    if (!qrCodeRef.current) {
-      qrCodeRef.current = new Html5Qrcode("reader");
-    }
+  const scanner = new Html5QrcodeScanner(
+    "reader",
+    {
+      fps: 10,
+      qrbox: 250,
+      rememberLastUsedCamera: true,
+    },
+    false
+  );
 
-    const cameras = await Html5Qrcode.getCameras();
-    if (!cameras || cameras.length === 0) {
-      Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
-      readerElement.style.display = "none";
-      return;
-    }
+  scanner.render(
+    (decodedText) => {
+      if (!decodedText || decodedText.trim() === "") return;
 
-    const backCamera =
-      cameras.find((cam) =>
-        cam.label.toLowerCase().includes("back") ||
-        cam.label.toLowerCase().includes("trasera")
-      ) || cameras[0];
+      setSearch(decodedText.trim());
 
-    await qrCodeRef.current.start(
-      { deviceId: { exact: backCamera.id } },
-      { fps: 10, qrbox: 200 },
-      (decodedText) => {
-        // AQUÍ ya puedes hacer lo que sea con decodedText
-        // sin que el lector se muera
+      Swal.fire({
+        title: "QR detectado ✅",
+        text: decodedText,
+        icon: "success",
+        timer: 1200,
+        showConfirmButton: false,
+      });
 
-        Swal.fire({
-          title: "QR detectado ✅",
-          text: "QR leído correctamente",
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-
-        qrCodeRef.current.stop().then(() => {
-          readerElement.style.display = "none";
-        });
-      },
-      () => {}
-    );
-  } catch (err) {
-    console.error(err);
-    Swal.fire("Error", "No se pudo acceder a la cámara", "error");
-  }
+      scanner.clear().then(() => {
+        readerElement.style.display = "none";
+      });
+    },
+    () => {}
+  );
 };
 
   // Función para comprimir imagen antes de convertir a base64
