@@ -101,7 +101,7 @@ const ViewTickets = () => {
 
 
   const filteredTickets = Array.isArray(tickets)
-      ? tickets.filter((ticket) => String(ticket.Boleto).includes(search))
+      ? tickets.filter((ticket) => String(ticket.boleto).includes(search))
       : [];
 
     const esFechaValida = (fecha) => {
