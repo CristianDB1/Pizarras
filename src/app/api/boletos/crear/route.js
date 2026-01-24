@@ -117,14 +117,8 @@ export async function POST(request) {
         
         const idBoleto = result.insertId;
         
-        // 6. Generar QR con mejor información
-        const qrData = JSON.stringify({
-            id_boleto: idBoleto,
-            sorteo_id: id_sorteo,
-            numero_boleto: numero_boleto,
-            colegio_id: colegio_id,
-            fecha: new Date().toISOString().split('T')[0]
-        });
+        // 6. MODIFICADO: Generar QR solo con "N" + id del boleto
+        const qrData = `N${idBoleto}`;
         
         const qrCodeBase64 = await QRCode.toDataURL(qrData);
         
@@ -161,7 +155,9 @@ export async function POST(request) {
                 leyenda1: sorteoData.leyenda1 || '',
                 leyenda2: sorteoData.leyenda2 || '',
                 nombreVendedor: nombreVendedor,
-                precio_boleto: sorteoData.precio_boleto
+                precio_boleto: sorteoData.precio_boleto,
+                // Agregar el formato N para el QR
+                qr_formato: `N${idBoleto}`
             },
             sorteo: {
                 nombre: sorteoData.nombre,
