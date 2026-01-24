@@ -337,27 +337,57 @@ const WinnerTicket = () => {
     }
   };
 
-  // Función para buscar boleto por ID en los datos cargados
-  const buscarBoletoPorId = (idBoleto) => {
-    try {
-      // Buscar en los datos ya cargados
-      const boletoEncontrado = premiados.find(boleto => {
-        // Buscar por diferentes campos posibles
-        const idGanador = boleto.id_ganador?.toString();
-        const idBoletoDb = boleto.id_boleto?.toString();
-        const numeroBoleto = boleto.boleto?.toString();
-        
-        return (
-          idGanador === idBoleto.toString() ||
-          idBoletoDb === idBoleto.toString() ||
-          numeroBoleto === idBoleto.toString()
-        );
-      });
+  // Función para buscar boleto por ID en los datos cargados y/o API
+const buscarBoletoPorId = async (idBoleto) => {
+  try {
+    // Primero buscar en los datos ya cargados
+    const boletoEncontradoLocal = premiados.find(boleto => {
+      return boleto.id_ganador?.toString() === idBoleto.toString();
+    });
+    
+    if (boletoEncontradoLocal) {
+      // Usar el folio para la búsqueda en la tabla
+      const folio = boletoEncontradoLocal.folio || '';
+      if (folio) {
+        setSearch(folio);
+      }
       
-      if (boletoEncontrado) {
-        // Usar el folio para la búsqueda en la tabla
-        const folio = boletoEncontrado.folio || boletoEncontrado.Folio || '';
+      Swal.fire({
+        title: "✅ Boleto encontrado (en datos locales)",
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Folio:</strong> ${folio}</p>
+            <p><strong>Número de boleto:</strong> ${boletoEncontradoLocal.boleto || 'N/A'}</p>
+            <p><strong>Cliente:</strong> ${boletoEncontradoLocal.cliente || 'N/A'}</p>
+            <p><strong>Premio:</strong> $${boletoEncontradoLocal.premio || '0'}</p>
+            <p><strong>Estado:</strong> ${boletoEncontradoLocal.estatus || 'pendiente'}</p>
+          </div>
+        `,
+        icon: "success",
+        showConfirmButton: true,
+        confirmButtonText: "Ver en tabla",
+      });
+      return;
+    }
+    
+    // Si no está en los datos locales, buscar en la API
+    setIsLoading(true);
+    
+    let url = `/api/winner?id_boleto=${idBoleto}`;
+    if (colegioId) {
+      url += `&colegio_id=${colegioId}`;
+    }
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.success) {
+      if (data.ganadorEncontrado) {
+        // Recargar datos para incluir el nuevo ganador
+        await fetchPremiados();
         
+        // Buscar el folio para la búsqueda
+        const folio = data.ganador?.folio || '';
         if (folio) {
           setSearch(folio);
           
@@ -366,52 +396,52 @@ const WinnerTicket = () => {
             html: `
               <div style="text-align: left;">
                 <p><strong>Folio:</strong> ${folio}</p>
-                <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
-                <p><strong>Cliente:</strong> ${boletoEncontrado.cliente || 'N/A'}</p>
-                <p><strong>Premio:</strong> $${boletoEncontrado.premio || '0'}</p>
-                <p><strong>Estado:</strong> ${boletoEncontrado.estatus || 'pendiente'}</p>
+                <p><strong>Número de boleto:</strong> ${data.ganador.boleto || 'N/A'}</p>
+                <p><strong>Cliente:</strong> ${data.ganador.cliente || 'N/A'}</p>
+                <p><strong>Premio:</strong> $${data.ganador.premio || '0'}</p>
+                <p><strong>Estado:</strong> ${data.ganador.estatus || 'pendiente'}</p>
               </div>
             `,
             icon: "success",
             showConfirmButton: true,
             confirmButtonText: "Ver en tabla",
           });
-        } else {
-          Swal.fire({
-            title: "⚠️ Boleto encontrado sin folio",
-            text: "El boleto existe pero no tiene folio asignado",
-            icon: "warning",
-            showConfirmButton: true,
-          });
         }
+      } else if (data.boletoEncontrado) {
+        Swal.fire({
+          title: "⚠️ Boleto no ganador",
+          html: `
+            <p>El boleto <strong>${data.numeroBoleto}</strong> existe pero no está registrado como ganador.</p>
+            <p class="text-sm mt-2">El usuario debe verificar si realmente ganó un premio.</p>
+          `,
+          icon: "warning",
+          showConfirmButton: true,
+          confirmButtonText: "Entendido",
+        });
       } else {
         Swal.fire({
           title: "❌ Boleto no encontrado",
-          html: `
-            <p>No se encontró un boleto premiado con ID: <strong>${idBoleto}</strong></p>
-            <p class="text-sm mt-2">Posibles razones:</p>
-            <ul class="text-sm text-left ml-4 mt-1">
-              <li>• El boleto no ha sido registrado como ganador</li>
-              <li>• No pertenece a este colegio</li>
-              <li>• Los datos no se han cargado completamente</li>
-            </ul>
-          `,
+          text: `No existe un boleto con ID: ${idBoleto}`,
           icon: "error",
           showConfirmButton: true,
-          confirmButtonText: "Recargar datos",
-          showCancelButton: true,
-          cancelButtonText: "Cerrar",
-        }).then((result) => {
-          if (result.isConfirmed) {
-            fetchPremiados();
-          }
         });
       }
-    } catch (error) {
-      console.error("Error al buscar boleto:", error);
-      Swal.fire("Error", "Ocurrió un error al buscar el boleto", "error");
+    } else {
+      Swal.fire({
+        title: "❌ Error en la búsqueda",
+        text: data.error || "Ocurrió un error al buscar el boleto",
+        icon: "error",
+        showConfirmButton: true,
+      });
     }
-  };
+    
+  } catch (error) {
+    console.error("Error al buscar boleto:", error);
+    Swal.fire("Error", "Ocurrió un error al buscar el boleto", "error");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Imprimir comprobante de pago
   const imprimirComprobante = (id, folio, boletoActualizado = null) => {

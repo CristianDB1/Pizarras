@@ -7,11 +7,16 @@ import pool from "@/db/MysqlConection";
 // GET: Obtener boletos premiados, con opción de filtrar por colegio_id
 export async function GET(request) {
   try {
-    // Obtener el parámetro de consulta para filtrar por colegio
     const { searchParams } = new URL(request.url);
     const colegioId = searchParams.get('colegio_id');
+    const idBoleto = searchParams.get('id_boleto'); // Nuevo parámetro para buscar por ID de boleto
     
-    // Construir la consulta base
+    // Si se proporciona id_boleto, buscar específicamente ese boleto
+    if (idBoleto) {
+      return await buscarPorIdBoleto(idBoleto, colegioId);
+    }
+    
+    // Construir la consulta base (manteniendo tu lógica original)
     let query = `
       SELECT 
         id_ganador,
@@ -33,19 +38,15 @@ export async function GET(request) {
     
     const queryParams = [];
     
-    // Agregar filtro por colegio si se proporciona
     if (colegioId) {
       query += ' WHERE colegio_id = ?';
       queryParams.push(colegioId);
     }
     
-    // Agregar ordenamiento
     query += ' ORDER BY fecha_sorteo DESC';
     
-    // Ejecutar la consulta
     const [premiados] = await pool.query(query, queryParams);
     
-    // Si se filtró por colegio y no hay resultados, podemos devolver un mensaje
     if (colegioId && premiados.length === 0) {
       return NextResponse.json({
         premiados: [],
@@ -60,7 +61,6 @@ export async function GET(request) {
       });
     }
 
-    // Devolver la respuesta con los datos
     return NextResponse.json({
       premiados,
       success: true,
@@ -81,6 +81,102 @@ export async function GET(request) {
     }, {
       status: 500
     });
+  }
+}
+
+// Función auxiliar para buscar por ID de boleto
+async function buscarPorIdBoleto(idBoleto, colegioId = null) {
+  try {
+    // Primero, obtener el número de boleto desde la tabla boletos usando el id_boleto
+    const [boletoInfo] = await pool.query(
+      'SELECT boleto, colegio_id FROM boletos WHERE id_boleto = ?',
+      [idBoleto]
+    );
+    
+    if (boletoInfo.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: `No se encontró boleto con ID: ${idBoleto}`,
+        boletoEncontrado: false
+      }, { status: 404 });
+    }
+    
+    const numeroBoleto = boletoInfo[0].boleto;
+    const colegioBoleto = boletoInfo[0].colegio_id;
+    
+    // Verificar que el boleto pertenezca al colegio si se especificó
+    if (colegioId && colegioBoleto != colegioId) {
+      return NextResponse.json({
+        success: false,
+        error: `El boleto no pertenece al colegio especificado`,
+        boletoEncontrado: false
+      }, { status: 403 });
+    }
+    
+    // Ahora buscar en ganadores usando el número de boleto
+    let query = `
+      SELECT 
+        id_ganador,
+        folio,
+        boleto,
+        costo,
+        cliente,
+        premio,
+        fecha_sorteo,
+        vendedor,
+        fecha_pago,
+        ine,
+        estatus,
+        liquidado,
+        colegio_id,
+        created_at
+      FROM ganadores
+      WHERE boleto = ?
+    `;
+    
+    const queryParams = [numeroBoleto];
+    
+    // Si se especificó colegio, filtrar también por colegio
+    if (colegioId) {
+      query += ' AND colegio_id = ?';
+      queryParams.push(colegioId);
+    } else if (colegioBoleto) {
+      // Si no se especificó colegio pero el boleto tiene colegio, usarlo
+      query += ' AND colegio_id = ?';
+      queryParams.push(colegioBoleto);
+    }
+    
+    const [ganadores] = await pool.query(query, queryParams);
+    
+    if (ganadores.length === 0) {
+      return NextResponse.json({
+        success: true,
+        boletoEncontrado: true,
+        ganadorEncontrado: false,
+        mensaje: `El boleto ${numeroBoleto} existe pero no está registrado como ganador`,
+        numeroBoleto,
+        idBoleto,
+        colegioId: colegioBoleto
+      });
+    }
+    
+    return NextResponse.json({
+      success: true,
+      boletoEncontrado: true,
+      ganadorEncontrado: true,
+      ganador: ganadores[0],
+      premiados: ganadores,
+      numeroBoleto,
+      idBoleto,
+      colegioId: colegioBoleto
+    });
+    
+  } catch (error) {
+    console.error("Error al buscar por ID de boleto:", error);
+    return NextResponse.json({
+      success: false,
+      error: "Error al buscar por ID de boleto: " + error.message
+    }, { status: 500 });
   }
 }
 
