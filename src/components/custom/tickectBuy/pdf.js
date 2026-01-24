@@ -363,28 +363,17 @@ const generatePDF = async (tickets, fechaSorteo, esCopia = false) => {
     console.log('🔢 Dígitos del boleto configurados:', digitosBoleto);
 
     // ========== GENERAR QR CODES PARA CADA BOLETO ==========
-    console.log('🔳 Generando códigos QR...');
+    console.log('🔳 Generando códigos QR simplificados...');
     const ticketsWithQR = await Promise.all(
       tickets.map(async (ticket) => {
-        // Datos para el QR
-        const qrData = {
-          colegioId: colegioId,
-          colegioNombre: colegioData?.nombre,
-          sorteoId: firstTicket.Idsorteo || firstTicket.id_sorteo,
-          sorteoNumero: numeroSorteo, 
-          sorteoNombre: firstTicket.nombreSorteo,
-          sorteoFecha: fechaSorteo,
-          boletoId: ticket.id_boleto || ticket.id,
-          boletoNumero: ticket.Boleto || ticket.boleto,
-          comprador: ticket.comprador,
-          vendedor: ticket.nombreVendedor,
-          precio: ticket.Costo || ticket.precio,
-          fechaVenta: ticket.fecha_venta || ticket.created_at,
-          esCopia: esCopia,
-          timestamp: new Date().toISOString()
-        };
+        // 1. Obtenemos el ID del boleto de forma segura
+        const idBoleto = ticket.id_boleto || ticket.id;
+
+        // 2. CAMBIO CLAVE: Los datos para el QR ahora son solo la cadena de texto
+        // Esto genera un QR mucho más limpio y fácil de leer
+        const qrData = `N${idBoleto}`; 
         
-        // Generar QR
+        // Generar QR (ahora qrData es un string, no un objeto)
         const qrCode = await generateQRCode(qrData);
         
         return {

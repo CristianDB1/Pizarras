@@ -23,6 +23,7 @@ const CompraOnlineEspecial = () => {
   const [previewModal, setPreviewModal] = useState(false);
   const [showDisponibles, setShowDisponibles] = useState(false);
   const [whatsappColegio, setWhatsappColegio] = useState(null);
+  const [digitosBoleto, setDigitosBoleto] = useState(3); 
   const router = useRouter();
 
   // Cargar datos del sorteo desde localStorage
@@ -32,19 +33,20 @@ const CompraOnlineEspecial = () => {
         const sorteoGuardado = localStorage.getItem('sorteoSeleccionado');
         if (sorteoGuardado) {
           const sorteo = JSON.parse(sorteoGuardado);
-
           if (sorteo.estatus !== 'activo') {
             Swal.fire({
               icon: "warning",
               title: "Sorteo no disponible",
               text: "Este sorteo ya se encuentra cerrado",
             });
-
             localStorage.removeItem("sorteoSeleccionado");
             router.push(colegioId ? `/online?colegio=${colegioId}` : "/online");
             return;
           }
-          //console.log("📦 Sorteo cargado:", sorteo.Idsorteo || sorteo.id_sorteo);
+          
+          // Obtener dígitos del boleto - agrega esta línea
+          setDigitosBoleto(sorteo.digitos_boleto || 3);
+          
           setPrizes(sorteo);
           setPrecioFijo(sorteo.precio_boleto || sorteo.PrecioBoleto || sorteo.precio || "");
         } else {
@@ -57,7 +59,6 @@ const CompraOnlineEspecial = () => {
         Swal.fire("Error", "Error al cargar el sorteo", "error");
       }
     };
-
     cargarSorteo();
   }, []);
 
@@ -82,6 +83,16 @@ const CompraOnlineEspecial = () => {
 
     cargarWhatsapp();
   }, [colegioId]);
+
+  // Función para formatear números según dígitos_boleto
+  const formatearNumeroBoleto = (numero) => {
+    return numero.toString().padStart(digitosBoleto, '0');
+  };
+
+  // Función para generar el valor máximo basado en dígitos
+  const getMaximoNumero = () => {
+    return Math.pow(10, digitosBoleto) - 1;
+  };
 
   // 2. CARGAR BOLETOS CUANDO TENEMOS EL SORTEO
   const cargarBoletos = useCallback(async () => {
@@ -153,15 +164,14 @@ const CompraOnlineEspecial = () => {
       Swal.fire("Sorteo cerrado", "Este sorteo ya no está disponible", "warning");
       return;
     }
-
+    
     try {
       setIsLoading(true);
-
       if (!prizes) {
         Swal.fire("Error", "No hay sorteo cargado", "error");
         return;
       }
-
+      
       const sorteoId = prizes.Idsorteo || prizes.id_sorteo;
       
       // Obtener AMBAS listas
@@ -182,32 +192,32 @@ const CompraOnlineEspecial = () => {
       
       const dataBoletos = await responseBoletos.json();
       const dataOnline = await responseOnline.json();
-
+      
       if (dataBoletos.success && dataOnline.success) {
-        // Convertir a strings formateados a 3 dígitos
+        // Convertir a strings formateados según dígitos_boleto
         const boletosNormalesVendidos = dataBoletos.datos?.map(b => 
-          b.numero_boleto.toString().padStart(3, '0')
+          formatearNumeroBoleto(b.numero_boleto)
         ) || [];
         
         const boletosOnlineVendidos = dataOnline.boletos?.map(b => 
-          b.numero_boleto.toString().padStart(3, '0')
+          formatearNumeroBoleto(b.numero_boleto)
         ) || [];
         
         const todosLosBoletosVendidos = [...boletosNormalesVendidos, ...boletosOnlineVendidos];
-        
         console.log("🎲 Buscando número aleatorio. Vendidos total:", todosLosBoletosVendidos);
-
+        
         // Generar número aleatorio formateado
         let numeroAleatorio;
         let intentos = 0;
         const maxIntentos = 1000;
-
+        const maxNumero = getMaximoNumero();
+        
         do {
-          const num = Math.floor(Math.random() * 1000);
-          numeroAleatorio = num.toString().padStart(3, '0');
+          const num = Math.floor(Math.random() * (maxNumero + 1));
+          numeroAleatorio = formatearNumeroBoleto(num);
           intentos++;
         } while (todosLosBoletosVendidos.includes(numeroAleatorio) && intentos < maxIntentos);
-
+        
         if (intentos >= maxIntentos) {
           Swal.fire({
             icon: 'error',
@@ -216,11 +226,11 @@ const CompraOnlineEspecial = () => {
           });
           return;
         }
-
+        
         setTicketNumber(numeroAleatorio);
         setName(`Comprador ${numeroAleatorio}`);
         setFoundTope(null);
-
+        
         Swal.fire({
           icon: 'success',
           title: 'Número aleatorio generado',
@@ -247,69 +257,55 @@ const CompraOnlineEspecial = () => {
   const handleTicketNumberChange = (e) => {
     let value = e.target.value;
     
-    // Solo números, máximo 3 dígitos
+    // Solo números
     if (!/^[0-9]*$/.test(value)) {
       value = value.slice(0, -1);
     }
     
-    // Limitar a 3 dígitos
-    if (value.length > 3) {
-      value = value.substring(0, 3);
+    // Limitar a la cantidad de dígitos definida
+    if (value.length > digitosBoleto) {
+      value = value.substring(0, digitosBoleto);
     }
     
     setTicketNumber(value);
-
-    if (!value || value.length < 3) {
+    
+    if (!value || value.length < digitosBoleto) {
       setFoundTope(null);
       return;
     }
-
-    // Formatear el boleto buscado a 3 dígitos (con ceros a la izquierda)
-    const boletoBuscado = value.padStart(3, '0');
     
-    // Convertir las listas de boletos a strings formateados a 3 dígitos
+    // Formatear el boleto buscado
+    const boletoBuscado = formatearNumeroBoleto(value);
+    
+    // Formatear las listas de boletos
     const boletosNormalesFormateados = boletosNormales.map(num => 
-      num.toString().padStart(3, '0')
+      formatearNumeroBoleto(num)
     );
-    
     const boletosOnlineFormateados = boletosOnline.map(num => 
-      num.toString().padStart(3, '0')
+      formatearNumeroBoleto(num)
     );
-    
-    /*console.log("🔍 Validando boleto:", {
-      boletoBuscado,
-      enNormales: boletosNormalesFormateados.includes(boletoBuscado),
-      enOnline: boletosOnlineFormateados.includes(boletoBuscado),
-      listaNormales: boletosNormalesFormateados,
-      listaOnline: boletosOnlineFormateados
-    });*/
     
     const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
     const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
     
-    if (enNormales || enOnline) {
-      //console.log(`❌ Boleto ${boletoBuscado} NO disponible`);
-      setFoundTope(true);
-    } else {
-      //console.log(`✅ Boleto ${boletoBuscado} DISPONIBLE`);
-      setFoundTope(null);
-    }
+    setFoundTope(enNormales || enOnline ? true : null);
   };
 
   const handleBlur = (e) => {
     let value = e.target.value;
-    // Siempre formatear a 3 dígitos
-    value = value.padStart(3, "0");
+    
+    // Formatear a la cantidad de dígitos correcta
+    value = formatearNumeroBoleto(value);
     setTicketNumber(value);
     
     // Re-evaluar disponibilidad después de formatear
-    if (value.length === 3) {
+    if (value.length === digitosBoleto) {
       const boletoBuscado = value;
       const boletosNormalesFormateados = boletosNormales.map(num => 
-        num.toString().padStart(3, '0')
+        formatearNumeroBoleto(num)
       );
       const boletosOnlineFormateados = boletosOnline.map(num => 
-        num.toString().padStart(3, '0')
+        formatearNumeroBoleto(num)
       );
       
       const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
@@ -577,7 +573,7 @@ const CompraOnlineEspecial = () => {
           {/* Número de boleto */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Número del Boleto (3 dígitos)
+              Número del Boleto ({digitosBoleto} dígitos)
             </label>
             
             <div className="flex flex-col sm:flex-row gap-3 mb-3">
@@ -587,15 +583,13 @@ const CompraOnlineEspecial = () => {
                   value={ticketNumber}
                   onChange={handleTicketNumberChange}
                   onBlur={handleBlur}
-                  maxLength={3}
+                  maxLength={digitosBoleto}
                   className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg text-center text-xl sm:text-2xl font-bold focus:border-blue-500 focus:outline-none"
-                  placeholder="000"
-                  // Añadir patrón para mejor experiencia móvil
+                  placeholder={'0'.repeat(digitosBoleto)}
                   inputMode="numeric"
                   pattern="[0-9]*"
                 />
               </div>
-              
               <div className="hidden sm:flex gap-2">
                 <button
                   onClick={getRandomNumberEspecialOnline}

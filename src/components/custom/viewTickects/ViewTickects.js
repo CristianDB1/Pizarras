@@ -101,7 +101,7 @@ const ViewTickets = () => {
 
 
   const filteredTickets = Array.isArray(tickets)
-      ? tickets.filter((ticket) => String(ticket.Boleto).includes(search))
+      ? tickets.filter((ticket) => String(ticket.boleto).includes(search))
       : [];
 
     const esFechaValida = (fecha) => {
@@ -215,9 +215,9 @@ const ViewTickets = () => {
                   scope="row"
                   className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white"
                 >
-                  {ticket.Boleto}
+                  {ticket.boleto}
                 </th>
-                <td className="px-6 py-4">{ticket.Costo}</td>
+                <td className="px-6 py-4">{ticket.precio}</td>
                 <td className="px-6 py-4">{ticket.comprador}</td>
                 <td className="px-6 py-4 ">
                   <button
