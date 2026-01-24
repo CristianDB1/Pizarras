@@ -71,71 +71,69 @@ const WinnerTicket = () => {
 
   // ESCÁNER QR - SIMPLIFICADO: Solo pone el texto en el search
   const startQrScanner = async () => {
-    try {
-      const readerElement = document.getElementById("reader");
-      if (!readerElement) return;
+  try {
+    const readerElement = document.getElementById("reader");
+    if (!readerElement) return;
 
-      readerElement.style.display = "block";
+    readerElement.style.display = "block";
 
-      const html5QrCode = new Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: 250 };
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: 250 };
 
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras || cameras.length === 0) {
-        Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
-        readerElement.style.display = "none";
-        return;
-      }
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras || cameras.length === 0) {
+      Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
+      readerElement.style.display = "none";
+      return;
+    }
 
-      const backCamera = cameras.find(cam => 
-        cam.label.toLowerCase().includes("back") || 
+    const backCamera =
+      cameras.find(cam =>
+        cam.label.toLowerCase().includes("back") ||
         cam.label.toLowerCase().includes("trasera")
       ) || cameras[0];
 
-      console.log("Iniciando escáner con cámara:", backCamera.label);
+    await html5QrCode.start(
+      backCamera.id,
+      config,
+      async (decodedText) => {
+        console.log("QR leído:", decodedText);
 
-      await html5QrCode.start(
-        backCamera.id,
-        config,
-        (decodedText) => {
-          console.log("✅ QR detectado:", decodedText);
-          
-          // DETENER EL ESCÁNER
-          html5QrCode.stop().then(() => {
-            readerElement.style.display = "none";
-            
-            // ¡ESTO ES LO ÚNICO QUE NECESITAS!
-            // Poner el texto del QR en el campo de búsqueda
-            setSearch(decodedText);
-            
-            // Mostrar confirmación
-            Swal.fire({
-              title: "✅ QR detectado",
-              text: `Búsqueda: ${decodedText}`,
-              icon: "success",
-              timer: 1500,
-              showConfirmButton: false,
-            });
-          }).catch(err => {
-            console.error("Error al detener escáner:", err);
-            readerElement.style.display = "none";
-            setSearch(decodedText);
-          });
-        },
-        (errorMessage) => {
-          // Ignorar errores de lectura continua
-        }
-      ).catch(err => {
-        console.error("❌ Error al iniciar escáner:", err);
-        Swal.fire("Error", "No se pudo iniciar la cámara", "error");
+        // 🔴 EXTRAER SOLO N + NÚMERO
+        const match = decodedText.match(/N\d+/);
+
+        await html5QrCode.stop();
         readerElement.style.display = "none";
-      });
-      
-    } catch (err) {
-      console.error("❌ Error en startQrScanner:", err);
-      Swal.fire("Error", "No se pudo acceder a la cámara", "error");
-    }
-  };
+
+        if (!match) {
+          Swal.fire(
+            "QR inválido",
+            "Este QR no contiene un número de boleto válido",
+            "warning"
+          );
+          return;
+        }
+
+        // ✅ ESTO ES TODO LO QUE NECESITAS
+        setSearch(match[0]); // Ej: N60
+
+        Swal.fire({
+          title: "QR detectado",
+          text: `Búsqueda: ${match[0]}`,
+          icon: "success",
+          timer: 1200,
+          showConfirmButton: false,
+        });
+      },
+      () => {
+        // errores de lectura continua se ignoran
+      }
+    );
+  } catch (error) {
+    console.error("Error al iniciar escáner:", error);
+    Swal.fire("Error", "No se pudo acceder a la cámara", "error");
+  }
+};
 
   // Función para comprimir imagen antes de convertir a base64
   const comprimirImagen = (file, maxWidth = 800, maxHeight = 800, quality = 0.8) => {
