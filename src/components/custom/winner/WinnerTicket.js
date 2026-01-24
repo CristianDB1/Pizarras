@@ -19,6 +19,7 @@ const WinnerTicket = () => {
   const fileInputRef = useRef(null);
   const router = useRouter();
   const { addVenta } = useTotalVenta();
+  const qrCodeRef = useRef(null);
 
   // Obtener datos del usuario y colegio al cargar
   useEffect(() => {
@@ -77,8 +78,10 @@ const WinnerTicket = () => {
 
     readerElement.style.display = "block";
 
-    const html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: 200 };
+    // 👉 Crear la instancia SOLO UNA VEZ
+    if (!qrCodeRef.current) {
+      qrCodeRef.current = new Html5Qrcode("reader");
+    }
 
     const cameras = await Html5Qrcode.getCameras();
     if (!cameras || cameras.length === 0) {
@@ -93,42 +96,29 @@ const WinnerTicket = () => {
         cam.label.toLowerCase().includes("trasera")
       ) || cameras[0];
 
-    await html5QrCode.start(
+    await qrCodeRef.current.start(
       { deviceId: { exact: backCamera.id } },
-      config,
+      { fps: 10, qrbox: 200 },
       (decodedText) => {
-        // 1️⃣ Aseguramos string limpio
-        const rawText = String(decodedText).trim();
-
-        // 2️⃣ Mantenemos lógica antigua (compatibilidad total)
-        const numeroSerie = rawText.split("-")[0].trim();
-
-        if (!numeroSerie) {
-          Swal.fire("QR inválido", "No se pudo obtener el número de serie", "error");
-          return;
-        }
-
-        // 3️⃣ Seteamos el search
-        setSearch(numeroSerie);
+        // AQUÍ ya puedes hacer lo que sea con decodedText
+        // sin que el lector se muera
 
         Swal.fire({
           title: "QR detectado ✅",
-          text: `Número de serie: ${numeroSerie}`,
+          text: "QR leído correctamente",
           icon: "success",
-          timer: 2000,
+          timer: 1500,
           showConfirmButton: false,
         });
 
-        html5QrCode.stop().then(() => {
+        qrCodeRef.current.stop().then(() => {
           readerElement.style.display = "none";
         });
       },
-      () => {
-        // errores de lectura continua ignorados
-      }
+      () => {}
     );
   } catch (err) {
-    console.error("Error al iniciar el lector QR:", err);
+    console.error(err);
     Swal.fire("Error", "No se pudo acceder a la cámara", "error");
   }
 };
