@@ -283,95 +283,155 @@ const WinnerTicket = () => {
   };
 
   // Función para procesar el código QR escaneado
-  const procesarQR = (decodedText) => {
-    console.log("Procesando QR:", decodedText);
+  const procesarQR = async (decodedText) => {
+  console.log("Procesando QR:", decodedText);
+  
+  // Intentar extraer el ID del boleto
+  let idBoleto = null;
+  
+  // Formato NUEVO: N152
+  if (decodedText.startsWith('N') && !isNaN(decodedText.substring(1))) {
+    idBoleto = decodedText.substring(1);
+    console.log("Formato N detectado, ID del boleto:", idBoleto);
     
-    // Intentar extraer el ID del boleto
-    let idBoleto = null;
+    // IMPORTANTE: Necesitamos buscar el NÚMERO de boleto en la tabla boletos
+    // usando el id_boleto, y luego buscar ese número en ganadores
     
-    // Formato NUEVO: N152
-    if (decodedText.startsWith('N') && !isNaN(decodedText.substring(1))) {
-      idBoleto = decodedText.substring(1);
-      console.log("Formato N detectado, ID:", idBoleto);
-    } 
-    // Formato JSON antiguo
-    else if (decodedText.startsWith('{')) {
-      try {
-        const qrData = JSON.parse(decodedText);
-        idBoleto = qrData.id_boleto || qrData.idBoleto;
-        console.log("Formato JSON detectado, ID:", idBoleto);
-      } catch (e) {
-        console.error("Error parseando JSON:", e);
-      }
-    }
-    // Texto plano (podría ser solo el número)
-    else {
-      idBoleto = decodedText;
-      console.log("Formato texto plano, ID:", idBoleto);
-    }
-    
-    if (idBoleto) {
-      // Buscar en los datos cargados por número de boleto
-      const boletoEncontrado = premiados.find(boleto => 
-        boleto.boleto?.toString() === idBoleto.toString() ||
-        boleto.id_ganador?.toString() === idBoleto.toString() ||
-        boleto.folio?.toString().includes(idBoleto.toString())
-      );
+    try {
+      setIsLoading(true);
       
-      if (boletoEncontrado) {
-        // Usar el folio para la búsqueda
-        const folio = boletoEncontrado.folio || '';
-        if (folio) {
-          setSearch(folio);
-          
-          Swal.fire({
-            title: "✅ Boleto encontrado",
-            html: `
-              <div style="text-align: left;">
-                <p><strong>Folio:</strong> ${folio}</p>
-                <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
-                <p><strong>Cliente:</strong> ${boletoEncontrado.cliente || 'N/A'}</p>
-                <p><strong>Premio:</strong> $${boletoEncontrado.premio || '0'}</p>
-              </div>
-            `,
-            icon: "success",
-            showConfirmButton: true,
-            confirmButtonText: "Ver en tabla",
-          });
+      // 1. Buscar en la tabla boletos para obtener el número de boleto
+      const response = await fetch(`/api/boletos/${idBoleto}?colegio_id=${colegioId || ''}`);
+      const data = await response.json();
+      
+      if (data.success && data.boleto) {
+        const numeroBoleto = data.boleto.boleto;
+        console.log("Número de boleto encontrado:", numeroBoleto);
+        
+        // 2. Ahora buscar en los datos de ganadores por número de boleto
+        const boletoEncontrado = premiados.find(boleto => 
+          boleto.boleto?.toString() === numeroBoleto.toString()
+        );
+        
+        if (boletoEncontrado) {
+          // Usar el folio para la búsqueda
+          const folio = boletoEncontrado.folio || '';
+          if (folio) {
+            setSearch(folio);
+            
+            Swal.fire({
+              title: "✅ Boleto encontrado",
+              html: `
+                <div style="text-align: left;">
+                  <p><strong>Folio:</strong> ${folio}</p>
+                  <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
+                  <p><strong>Cliente:</strong> ${boletoEncontrado.cliente || 'N/A'}</p>
+                  <p><strong>Premio:</strong> $${boletoEncontrado.premio || '0'}</p>
+                </div>
+              `,
+              icon: "success",
+              showConfirmButton: true,
+              confirmButtonText: "Ver en tabla",
+            });
+          } else {
+            Swal.fire({
+              title: "Boleto encontrado",
+              text: "Pero no tiene folio asignado",
+              icon: "info"
+            });
+          }
         } else {
           Swal.fire({
-            title: "Boleto encontrado",
-            text: "Pero no tiene folio asignado",
-            icon: "info"
+            title: "⚠️ Boleto no es ganador",
+            html: `
+              <p>El boleto <strong>${numeroBoleto}</strong> existe pero no está registrado como ganador.</p>
+              <p class="text-sm mt-2">El usuario debe verificar si realmente ganó un premio.</p>
+            `,
+            icon: "warning",
+            showConfirmButton: true,
+            confirmButtonText: "Entendido",
           });
         }
       } else {
         Swal.fire({
           title: "❌ Boleto no encontrado",
-          html: `
-            <p>No se encontró el boleto <strong>${idBoleto}</strong> en los datos cargados.</p>
-            <p class="text-sm mt-2">Posibles razones:</p>
-            <ul class="text-sm text-left ml-4 mt-1">
-              <li>• El boleto no es ganador</li>
-              <li>• No pertenece a este colegio</li>
-              <li>• Los datos no están actualizados</li>
-            </ul>
-          `,
-          icon: "warning",
+          text: `No existe un boleto con ID: ${idBoleto}`,
+          icon: "error",
           showConfirmButton: true,
-          confirmButtonText: "Recargar datos",
-          showCancelButton: true,
-          cancelButtonText: "Cerrar",
-        }).then((result) => {
-          if (result.isConfirmed) {
-            fetchPremiados();
-          }
         });
       }
-    } else {
-      Swal.fire("Error", "No se pudo leer el código QR", "error");
+    } catch (error) {
+      console.error("Error al buscar boleto:", error);
+      Swal.fire("Error", "Ocurrió un error al buscar el boleto", "error");
+    } finally {
+      setIsLoading(false);
     }
-  };
+    
+    return;
+  } 
+  
+  // Formato JSON antiguo
+  else if (decodedText.startsWith('{')) {
+    try {
+      const qrData = JSON.parse(decodedText);
+      idBoleto = qrData.id_boleto || qrData.idBoleto;
+      console.log("Formato JSON detectado, ID:", idBoleto);
+      
+      // Buscar directamente por número de boleto (ya que el JSON antiguo tenía el número)
+      const boletoEncontrado = premiados.find(boleto => 
+        boleto.boleto?.toString() === idBoleto?.toString()
+      );
+      
+      if (boletoEncontrado) {
+        const folio = boletoEncontrado.folio || '';
+        if (folio) setSearch(folio);
+        
+        Swal.fire({
+          title: "✅ Boleto encontrado",
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Folio:</strong> ${folio}</p>
+              <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
+            </div>
+          `,
+          icon: "success",
+          showConfirmButton: true,
+        });
+      }
+      
+    } catch (e) {
+      console.error("Error parseando JSON:", e);
+    }
+  }
+  // Texto plano (podría ser solo el número de boleto)
+  else {
+    idBoleto = decodedText;
+    console.log("Formato texto plano, buscando como número:", idBoleto);
+    
+    // Buscar directamente por número de boleto
+    const boletoEncontrado = premiados.find(boleto => 
+      boleto.boleto?.toString() === idBoleto.toString() ||
+      boleto.folio?.toString().includes(idBoleto.toString())
+    );
+    
+    if (boletoEncontrado) {
+      const folio = boletoEncontrado.folio || '';
+      if (folio) setSearch(folio);
+      
+      Swal.fire({
+        title: "✅ Boleto encontrado",
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Folio:</strong> ${folio}</p>
+            <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
+          </div>
+        `,
+        icon: "success",
+        showConfirmButton: true,
+      });
+    }
+  }
+};
 
   // Imprimir comprobante de pago
   const imprimirComprobante = (id, folio, boletoActualizado = null) => {
