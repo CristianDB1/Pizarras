@@ -255,8 +255,7 @@ const WinnerTicket = () => {
         cam.label.toLowerCase().includes("trasera")
       ) || cameras[0];
 
-      await html5QrCode.start(
-        backCamera.id,
+      await html5QrCode.start({ deviceId: backCamera.id },
         config,
         async (decodedText) => {
           console.log("QR escaneado:", decodedText);
