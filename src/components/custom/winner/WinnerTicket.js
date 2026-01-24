@@ -69,6 +69,74 @@ const WinnerTicket = () => {
     }
   };
 
+  // ESCÁNER QR - SIMPLIFICADO: Solo pone el texto en el search
+  const startQrScanner = async () => {
+    try {
+      const readerElement = document.getElementById("reader");
+      if (!readerElement) return;
+
+      readerElement.style.display = "block";
+
+      const html5QrCode = new Html5Qrcode("reader");
+      const config = { fps: 10, qrbox: 250 };
+
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) {
+        Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
+        readerElement.style.display = "none";
+        return;
+      }
+
+      const backCamera = cameras.find(cam => 
+        cam.label.toLowerCase().includes("back") || 
+        cam.label.toLowerCase().includes("trasera")
+      ) || cameras[0];
+
+      console.log("Iniciando escáner con cámara:", backCamera.label);
+
+      await html5QrCode.start(
+        backCamera.id,
+        config,
+        (decodedText) => {
+          console.log("✅ QR detectado:", decodedText);
+          
+          // DETENER EL ESCÁNER
+          html5QrCode.stop().then(() => {
+            readerElement.style.display = "none";
+            
+            // ¡ESTO ES LO ÚNICO QUE NECESITAS!
+            // Poner el texto del QR en el campo de búsqueda
+            setSearch(decodedText);
+            
+            // Mostrar confirmación
+            Swal.fire({
+              title: "✅ QR detectado",
+              text: `Búsqueda: ${decodedText}`,
+              icon: "success",
+              timer: 1500,
+              showConfirmButton: false,
+            });
+          }).catch(err => {
+            console.error("Error al detener escáner:", err);
+            readerElement.style.display = "none";
+            setSearch(decodedText);
+          });
+        },
+        (errorMessage) => {
+          // Ignorar errores de lectura continua
+        }
+      ).catch(err => {
+        console.error("❌ Error al iniciar escáner:", err);
+        Swal.fire("Error", "No se pudo iniciar la cámara", "error");
+        readerElement.style.display = "none";
+      });
+      
+    } catch (err) {
+      console.error("❌ Error en startQrScanner:", err);
+      Swal.fire("Error", "No se pudo acceder a la cámara", "error");
+    }
+  };
+
   // Función para comprimir imagen antes de convertir a base64
   const comprimirImagen = (file, maxWidth = 800, maxHeight = 800, quality = 0.8) => {
     return new Promise((resolve, reject) => {
@@ -231,207 +299,6 @@ const WinnerTicket = () => {
       setIsLoading(false);
     }
   };
-
-  // ESCÁNER QR - MODIFICADO para manejar formato "N152"
-  const startQrScanner = async () => {
-    try {
-      const readerElement = document.getElementById("reader");
-      if (!readerElement) return;
-
-      readerElement.style.display = "block";
-
-      const html5QrCode = new Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: 250 };
-
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras || cameras.length === 0) {
-        Swal.fire("Error", "No se encontró ninguna cámara disponible", "error");
-        readerElement.style.display = "none";
-        return;
-      }
-
-      const backCamera = cameras.find(cam => 
-        cam.label.toLowerCase().includes("back") || 
-        cam.label.toLowerCase().includes("trasera")
-      ) || cameras[0];
-
-      await html5QrCode.start({ deviceId: backCamera.id },
-        config,
-        async (decodedText) => {
-          console.log("QR escaneado:", decodedText);
-          
-          // Detener el escáner inmediatamente
-          await html5QrCode.stop();
-          readerElement.style.display = "none";
-          
-          // Procesar el QR
-          procesarQR(decodedText);
-        },
-        (errorMessage) => {
-          // Ignorar errores de lectura continua
-        }
-      ).catch(err => {
-        console.error("Error al iniciar escáner:", err);
-        Swal.fire("Error", "No se pudo iniciar la cámara", "error");
-        readerElement.style.display = "none";
-      });
-      
-    } catch (err) {
-      console.error("Error en startQrScanner:", err);
-      Swal.fire("Error", "No se pudo acceder a la cámara", "error");
-    }
-  };
-
-  // Función para procesar el código QR escaneado
-  const procesarQR = async (decodedText) => {
-  console.log("Procesando QR:", decodedText);
-  
-  // Intentar extraer el ID del boleto
-  let idBoleto = null;
-  
-  // Formato NUEVO: N152
-  if (decodedText.startsWith('N') && !isNaN(decodedText.substring(1))) {
-    idBoleto = decodedText.substring(1);
-    console.log("Formato N detectado, ID del boleto:", idBoleto);
-    
-    // IMPORTANTE: Necesitamos buscar el NÚMERO de boleto en la tabla boletos
-    // usando el id_boleto, y luego buscar ese número en ganadores
-    
-    try {
-      setIsLoading(true);
-      
-      // 1. Buscar en la tabla boletos para obtener el número de boleto
-      const response = await fetch(`/api/boletos/${idBoleto}?colegio_id=${colegioId || ''}`);
-      const data = await response.json();
-      
-      if (data.success && data.boleto) {
-        const numeroBoleto = data.boleto.boleto;
-        console.log("Número de boleto encontrado:", numeroBoleto);
-        
-        // 2. Ahora buscar en los datos de ganadores por número de boleto
-        const boletoEncontrado = premiados.find(boleto => 
-          boleto.boleto?.toString() === numeroBoleto.toString()
-        );
-        
-        if (boletoEncontrado) {
-          // Usar el folio para la búsqueda
-          const folio = boletoEncontrado.folio || '';
-          if (folio) {
-            setSearch(folio);
-            
-            Swal.fire({
-              title: "✅ Boleto encontrado",
-              html: `
-                <div style="text-align: left;">
-                  <p><strong>Folio:</strong> ${folio}</p>
-                  <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
-                  <p><strong>Cliente:</strong> ${boletoEncontrado.cliente || 'N/A'}</p>
-                  <p><strong>Premio:</strong> $${boletoEncontrado.premio || '0'}</p>
-                </div>
-              `,
-              icon: "success",
-              showConfirmButton: true,
-              confirmButtonText: "Ver en tabla",
-            });
-          } else {
-            Swal.fire({
-              title: "Boleto encontrado",
-              text: "Pero no tiene folio asignado",
-              icon: "info"
-            });
-          }
-        } else {
-          Swal.fire({
-            title: "⚠️ Boleto no es ganador",
-            html: `
-              <p>El boleto <strong>${numeroBoleto}</strong> existe pero no está registrado como ganador.</p>
-              <p class="text-sm mt-2">El usuario debe verificar si realmente ganó un premio.</p>
-            `,
-            icon: "warning",
-            showConfirmButton: true,
-            confirmButtonText: "Entendido",
-          });
-        }
-      } else {
-        Swal.fire({
-          title: "❌ Boleto no encontrado",
-          text: `No existe un boleto con ID: ${idBoleto}`,
-          icon: "error",
-          showConfirmButton: true,
-        });
-      }
-    } catch (error) {
-      console.error("Error al buscar boleto:", error);
-      Swal.fire("Error", "Ocurrió un error al buscar el boleto", "error");
-    } finally {
-      setIsLoading(false);
-    }
-    
-    return;
-  } 
-  
-  // Formato JSON antiguo
-  else if (decodedText.startsWith('{')) {
-    try {
-      const qrData = JSON.parse(decodedText);
-      idBoleto = qrData.id_boleto || qrData.idBoleto;
-      console.log("Formato JSON detectado, ID:", idBoleto);
-      
-      // Buscar directamente por número de boleto (ya que el JSON antiguo tenía el número)
-      const boletoEncontrado = premiados.find(boleto => 
-        boleto.boleto?.toString() === idBoleto?.toString()
-      );
-      
-      if (boletoEncontrado) {
-        const folio = boletoEncontrado.folio || '';
-        if (folio) setSearch(folio);
-        
-        Swal.fire({
-          title: "✅ Boleto encontrado",
-          html: `
-            <div style="text-align: left;">
-              <p><strong>Folio:</strong> ${folio}</p>
-              <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
-            </div>
-          `,
-          icon: "success",
-          showConfirmButton: true,
-        });
-      }
-      
-    } catch (e) {
-      console.error("Error parseando JSON:", e);
-    }
-  }
-  // Texto plano (podría ser solo el número de boleto)
-  else {
-    idBoleto = decodedText;
-    console.log("Formato texto plano, buscando como número:", idBoleto);
-    
-    // Buscar directamente por número de boleto
-    const boletoEncontrado = premiados.find(boleto => 
-      boleto.boleto?.toString() === idBoleto.toString() ||
-      boleto.folio?.toString().includes(idBoleto.toString())
-    );
-    
-    if (boletoEncontrado) {
-      const folio = boletoEncontrado.folio || '';
-      if (folio) setSearch(folio);
-      
-      Swal.fire({
-        title: "✅ Boleto encontrado",
-        html: `
-          <div style="text-align: left;">
-            <p><strong>Folio:</strong> ${folio}</p>
-            <p><strong>Número de boleto:</strong> ${boletoEncontrado.boleto || 'N/A'}</p>
-          </div>
-        `,
-        icon: "success",
-        showConfirmButton: true,
-      });
-    }
-  }
-};
 
   // Imprimir comprobante de pago
   const imprimirComprobante = (id, folio, boletoActualizado = null) => {
@@ -615,9 +482,9 @@ const WinnerTicket = () => {
       }
     }).then((result) => {
       if (result.isConfirmed) {
-        const previewImage = document.getElementById("previewImage");
-        if (previewImage && previewImage.src) {
-          marcarComoPagado(id, previewImage.src);
+        const previewImageElement = document.getElementById("previewImage");
+        if (previewImageElement && previewImageElement.src) {
+          marcarComoPagado(id, previewImageElement.src);
         }
       } else {
         setSelectedImage(null);
@@ -680,7 +547,7 @@ const WinnerTicket = () => {
     }
   }, [colegioId]);
 
-  // Cargar datos al montar el componente
+  // Limpiar al desmontar
   useEffect(() => {
     return () => {
       const readerElement = document.getElementById("reader");
@@ -692,18 +559,16 @@ const WinnerTicket = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl text-white font-bold mb-4 text-center">Boletos Premiados</h1>
       
-      {/* Mostrar colegio actual */}
       {colegioId && (
         <div className="bg-blue-900 p-3 rounded-md mb-4 text-white text-center">
           <p className="font-semibold">Mostrando ganadores del Colegio</p>
-          <p className="text-sm mt-1">Formato QR: N + ID del boleto</p>
+          <p className="text-sm mt-1">El QR contiene: N + ID del boleto (Ej: N152)</p>
         </div>
       )}
       
-      {/* Estadísticas */}
       <div className="flex flex-col md:flex-row justify-between mb-4 text-white">
         <div className="bg-gray-800 p-3 rounded-md mb-2 md:mb-0 md:mr-2 flex-1">
-          <p className="font-semibold">Total boletos premiados: {premiados.length}</p>
+          <p className="font-semibold">Total: {premiados.length}</p>
         </div>
         <div className="bg-gray-800 p-3 rounded-md mb-2 md:mb-0 md:mx-2 flex-1">
           <p className="font-semibold">Pagados: {premiados.filter(b => b.estatus === "pagado").length}</p>
@@ -756,7 +621,7 @@ const WinnerTicket = () => {
         onChange={handleImageChange}
       />
       
-      {/* Tabla de boletos premiados */}
+      {/* Tabla de resultados */}
       {filteredPremiados.length > 0 ? (
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
@@ -824,13 +689,6 @@ const WinnerTicket = () => {
           <p className="text-lg">Ingrese al menos 3 caracteres para buscar</p>
         </div>
       ) : null}
-      
-      {/* Mensaje cuando no hay búsqueda */}
-      {search.length > 0 && search.length < 5 && (
-        <div className="text-center text-white mt-8 mb-8">
-          <p className="text-lg">Ingrese al menos 5 caracteres para buscar</p>
-        </div>
-      )}
       
       {/* Botón para volver al menú */}
       <button
