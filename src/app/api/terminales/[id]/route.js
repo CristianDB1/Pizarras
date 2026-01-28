@@ -40,7 +40,7 @@ export async function PUT(request, { params }) {
       Color, 
       CobroTarjeta, 
       Colegio, 
-      Asignado,  // Texto libre
+      Asignado,  
       FechaEntrega, 
       FechaRecoger, 
       Costo, 
@@ -114,7 +114,7 @@ export async function PUT(request, { params }) {
           Color?.trim() || '',
           CobroTarjeta || 'NO',
           Colegio?.trim() || '',
-          Asignado.trim(), // Texto libre
+          Asignado.trim(), 
           FechaEntrega || null,
           FechaRecoger || null,
           parseFloat(Costo) || 0,

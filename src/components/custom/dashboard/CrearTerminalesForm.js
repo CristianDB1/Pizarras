@@ -46,10 +46,26 @@ export default function CrearTerminalForm() {
             const response = await fetch('/api/colegios?estatus=activo')
             if (response.ok) {
                 const data = await response.json()
-                setColegios(data)
+                // Asegurarse de que sea un array
+                if (Array.isArray(data)) {
+                    setColegios(data)
+                } else if (data && Array.isArray(data.data)) {
+                    // Si la respuesta tiene formato { data: [...] }
+                    setColegios(data.data)
+                } else if (data && data.colegios) {
+                    // Si la respuesta tiene formato { colegios: [...] }
+                    setColegios(data.colegios)
+                } else {
+                    console.error('Formato de respuesta inesperado:', data)
+                    setColegios([])
+                }
+            } else {
+                console.error('Error en la respuesta de colegios:', response.status)
+                setColegios([])
             }
         } catch (error) {
             console.error('Error cargando colegios:', error)
+            setColegios([])
         }
     }
 
@@ -58,7 +74,7 @@ export default function CrearTerminalForm() {
         
         // Si cambia ColegioID, actualizar Colegio pero NO Asignado
         if (name === 'ColegioID') {
-            const colegio = colegios.find(c => c.id_colegio === parseInt(value))
+            const colegio = Array.isArray(colegios) ? colegios.find(c => c.id_colegio === parseInt(value)) : null
             setFormData(prev => ({
                 ...prev,
                 ColegioID: value,
@@ -210,11 +226,17 @@ export default function CrearTerminalForm() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                 >
                                     <option value="">Seleccionar colegio...</option>
-                                    {colegios.map(colegio => (
-                                        <option key={colegio.id_colegio} value={colegio.id_colegio}>
-                                            {colegio.nombre}
+                                    {Array.isArray(colegios) && colegios.length > 0 ? (
+                                        colegios.map(colegio => (
+                                            <option key={colegio.id_colegio} value={colegio.id_colegio}>
+                                                {colegio.nombre}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option value="" disabled>
+                                            {colegios.length === 0 ? 'Cargando colegios...' : 'No hay colegios disponibles'}
                                         </option>
-                                    ))}
+                                    )}
                                 </select>
                             </div>
 

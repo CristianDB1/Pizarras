@@ -15,7 +15,7 @@ export default function AsignarTerminalForm() {
         ColegioID: '',
         Colegio: '',
         FechaEntrega: '',
-        Asignado: 'Sí'
+        Asignado: '' // Cambiado de 'Sí' a vacío
     })
 
     const hasLoaded = useRef(false)
@@ -49,7 +49,8 @@ export default function AsignarTerminalForm() {
                     ColegioID: data.ColegioID || '',
                     Colegio: data.Colegio || '',
                     FechaEntrega: data.FechaEntrega || '',
-                    Asignado: data.Asignado || 'Sí'
+                    // Mantener el valor actual si existe, de lo contrario vacío
+                    Asignado: data.Asignado || ''
                 })
             }
         } catch (error) {
@@ -62,10 +63,26 @@ export default function AsignarTerminalForm() {
             const response = await fetch('/api/colegios?estatus=activo')
             if (response.ok) {
                 const data = await response.json()
-                setColegios(data)
+                // Asegurarse de que sea un array
+                if (Array.isArray(data)) {
+                    setColegios(data)
+                } else if (data && Array.isArray(data.data)) {
+                    // Si la respuesta tiene formato { data: [...] }
+                    setColegios(data.data)
+                } else if (data && data.colegios) {
+                    // Si la respuesta tiene formato { colegios: [...] }
+                    setColegios(data.colegios)
+                } else {
+                    console.error('Formato de respuesta inesperado:', data)
+                    setColegios([])
+                }
+            } else {
+                console.error('Error en la respuesta de colegios:', response.status)
+                setColegios([])
             }
         } catch (error) {
             console.error('Error cargando colegios:', error)
+            setColegios([])
         }
     }
 
@@ -89,6 +106,13 @@ export default function AsignarTerminalForm() {
         e.preventDefault()
         setLoading(true)
 
+        // Validar que se haya especificado a quién está asignado
+        if (!formData.Asignado.trim()) {
+            alert('Por favor, especifica a quién está asignado el terminal')
+            setLoading(false)
+            return
+        }
+
         try {
             const response = await fetch(`/api/terminales/${params.id}`, {
                 method: 'PUT',
@@ -98,7 +122,8 @@ export default function AsignarTerminalForm() {
                 body: JSON.stringify({
                     ...terminal,
                     ...formData,
-                    Asignado: 'Sí'
+                    // Si hay colegio pero no se especificó Asignado, usar el colegio
+                    Asignado: formData.Asignado.trim() || (formData.ColegioID ? formData.Colegio : 'No asignado')
                 })
             })
 
@@ -138,7 +163,7 @@ export default function AsignarTerminalForm() {
                                 🎯 Asignar Terminal
                             </h1>
                             <p className="text-gray-600 mt-2">
-                                Asigna este terminal a un colegio
+                                Asigna este terminal a un colegio y especifica quién lo tiene
                             </p>
                             <p className="text-sm text-gray-500 mt-1">
                                 N° Serie: <span className="font-mono font-bold">{terminal.NumeroSerie}</span>
@@ -187,7 +212,7 @@ export default function AsignarTerminalForm() {
                                     <div>
                                         <p className="text-sm text-gray-600">Estado Actual</p>
                                         <span className={`px-2 py-1 rounded text-xs ${
-                                            terminal.Asignado === 'Sí' 
+                                            terminal.Asignado && terminal.Asignado !== 'No' && terminal.Asignado !== 'No asignado'
                                                 ? 'bg-green-100 text-green-800' 
                                                 : 'bg-yellow-100 text-yellow-800'
                                         }`}>
@@ -210,12 +235,37 @@ export default function AsignarTerminalForm() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                 >
                                     <option value="">Seleccionar colegio...</option>
-                                    {colegios.map(colegio => (
-                                        <option key={colegio.id_colegio} value={colegio.id_colegio}>
-                                            {colegio.nombre}
+                                    {Array.isArray(colegios) && colegios.length > 0 ? (
+                                        colegios.map(colegio => (
+                                            <option key={colegio.id_colegio} value={colegio.id_colegio}>
+                                                {colegio.nombre}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option value="" disabled>
+                                            {colegios.length === 0 ? 'Cargando colegios...' : 'No hay colegios disponibles'}
                                         </option>
-                                    ))}
+                                    )}
                                 </select>
+                            </div>
+
+                            {/* Asignado a (Persona/Lugar) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Asignado a (Persona/Lugar) *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="Asignado"
+                                    value={formData.Asignado}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    placeholder="Ej: Juan Pérez, Almacén Central, Bodega 3"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Especifica la persona o lugar donde está asignado el terminal
+                                </p>
                             </div>
 
                             {/* Fecha de Entrega */}
@@ -239,6 +289,24 @@ export default function AsignarTerminalForm() {
                                     <p className="text-green-700">{formData.Colegio}</p>
                                 </div>
                             )}
+
+                            {/* Resumen de lo que se va a asignar */}
+                            {(formData.ColegioID || formData.Asignado) && (
+                                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                    <h3 className="font-medium text-blue-800 mb-2">Resumen de Asignación</h3>
+                                    <div className="space-y-1">
+                                        {formData.Colegio && (
+                                            <p className="text-blue-700">✅ Colegio: <span className="font-semibold">{formData.Colegio}</span></p>
+                                        )}
+                                        {formData.Asignado && (
+                                            <p className="text-blue-700">✅ Asignado a: <span className="font-semibold">{formData.Asignado}</span></p>
+                                        )}
+                                        {formData.FechaEntrega && (
+                                            <p className="text-blue-700">✅ Fecha de entrega: <span className="font-semibold">{formData.FechaEntrega}</span></p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Botones */}
@@ -251,8 +319,8 @@ export default function AsignarTerminalForm() {
                             </Link>
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                                disabled={loading || !formData.ColegioID || !formData.Asignado.trim()}
+                                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Asignando...' : 'Asignar Terminal'}
                             </button>
