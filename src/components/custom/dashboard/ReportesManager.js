@@ -177,30 +177,99 @@ const ReportesManager = ({ colegioId }) => {
     
     const prepararDatosCSV = () => {
         if (activeReport === 'ventas') {
-            return reporteVentas.map(venta => ({
+            // Calcular totales
+            const totalVentas = reporteVentas.reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
+            const totalPagado = reporteVentas
+                .filter(v => v.estado === 'pagado')
+                .reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
+            const totalPendiente = reporteVentas
+                .filter(v => v.estado !== 'pagado')
+                .reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
+            
+            // Crear array de datos
+            const csvData = reporteVentas.map(venta => ({
                 'ID Boleto': venta.id,
                 'Fecha': venta.fecha,
                 'Vendedor': venta.vendedor_nombre,
                 'Sorteo': venta.sorteo_nombre,
                 'Número': venta.numero,
-                'Comprador': venta.comprador,
-                'Monto': `$${venta.monto}`,
+                'Comprador': venta.comprador || 'Sin nombre',
+                'Monto': `$${parseFloat(venta.monto).toFixed(2)}`,
                 'Estado': venta.estado
             }))
+            
+            // Agregar filas de totales al final
+            csvData.push({}) // Fila vacía para separación
+            csvData.push({
+                'ID Boleto': '',
+                'Fecha': '',
+                'Vendedor': '',
+                'Sorteo': '',
+                'Número': '',
+                'Comprador': 'TOTAL VENTAS:',
+                'Monto': `$${totalVentas.toFixed(2)}`,
+                'Estado': ''
+            })
+            csvData.push({
+                'ID Boleto': '',
+                'Fecha': '',
+                'Vendedor': '',
+                'Sorteo': '',
+                'Número': '',
+                'Comprador': 'TOTAL PAGADO:',
+                'Monto': `$${totalPagado.toFixed(2)}`,
+                'Estado': 'Pagado'
+            })
+            csvData.push({
+                'ID Boleto': '',
+                'Fecha': '',
+                'Vendedor': '',
+                'Sorteo': '',
+                'Número': '',
+                'Comprador': 'TOTAL PENDIENTE:',
+                'Monto': `$${totalPendiente.toFixed(2)}`,
+                'Estado': 'Pendiente'
+            })
+            
+            return csvData
         } else {
-            return reporteCortes.map(corte => ({
+            // Para reporte de cortes, calcular totales similares
+            const totalVenta = reporteCortes.reduce((sum, corte) => sum + parseFloat(corte.venta_total), 0)
+            const totalEntregado = reporteCortes.reduce((sum, corte) => sum + parseFloat(corte.total_entregado), 0)
+            const totalPendiente = reporteCortes.reduce((sum, corte) => sum + parseFloat(corte.saldo_pendiente), 0)
+            const totalDeuda = reporteCortes.reduce((sum, corte) => sum + parseFloat(corte.deuda_vendedor), 0)
+            
+            const csvData = reporteCortes.map(corte => ({
                 'ID Corte': corte.id_corte,
                 'Fecha': corte.fecha,
                 'Vendedor': corte.vendedor_nombre,
                 'Sorteo': corte.sorteo_nombre,
                 'Boletos Vendidos': corte.boletos_vendidos,
-                'Venta Total': `$${corte.venta_total}`,
+                'Venta Total': `$${parseFloat(corte.venta_total).toFixed(2)}`,
                 'Comisión %': `${corte.porcentaje_comision}%`,
-                'Total Entregado': `$${corte.total_entregado}`,
-                'Saldo Pendiente': `$${corte.saldo_pendiente}`,
-                'Deuda Vendedor': `$${corte.deuda_vendedor}`,
+                'Total Entregado': `$${parseFloat(corte.total_entregado).toFixed(2)}`,
+                'Saldo Pendiente': `$${parseFloat(corte.saldo_pendiente).toFixed(2)}`,
+                'Deuda Vendedor': `$${parseFloat(corte.deuda_vendedor).toFixed(2)}`,
                 'Estado': corte.estado
             }))
+            
+            // Agregar filas de totales al final
+            csvData.push({}) // Fila vacía para separación
+            csvData.push({
+                'ID Corte': '',
+                'Fecha': '',
+                'Vendedor': '',
+                'Sorteo': '',
+                'Boletos Vendidos': '',
+                'Venta Total': `$${totalVenta.toFixed(2)}`,
+                'Comisión %': 'TOTALES:',
+                'Total Entregado': `$${totalEntregado.toFixed(2)}`,
+                'Saldo Pendiente': `$${totalPendiente.toFixed(2)}`,
+                'Deuda Vendedor': `$${totalDeuda.toFixed(2)}`,
+                'Estado': ''
+            })
+            
+            return csvData
         }
     }
     
@@ -211,43 +280,108 @@ const ReportesManager = ({ colegioId }) => {
 
             const doc = new jsPDF()
 
+            // Configuración inicial
             doc.setFontSize(16)
             doc.text('Reporte de Ventas', 14, 15)
 
             doc.setFontSize(10)
             doc.text(`Colegio: ${colegio?.nombre || '—'}`, 14, 25)
-
             doc.text(
                 `Período: ${fechaInicio.toLocaleDateString()} - ${fechaFin.toLocaleDateString()}`,
                 14,
                 30
             )
 
+            // Logo del colegio
             if (colegio?.logo_url) {
                 const logoBase64 = await getImageBase64(colegio.logo_url)
                 doc.addImage(logoBase64, 'PNG', 150, 10, 40, 20)
             }
 
+            // Preparar datos de la tabla
             const tableData = reporteVentas.map(v => [
                 v.fecha,
                 v.vendedor_nombre,
                 v.sorteo_nombre,
                 v.numero,
                 v.comprador || 'Sin nombre',
-                `$${v.monto}`,
+                `$${parseFloat(v.monto).toFixed(2)}`,
                 v.estado
             ])
 
+            // Calcular totales
+            const totalVentas = reporteVentas.reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
+            const totalPagado = reporteVentas
+                .filter(v => v.estado === 'pagado')
+                .reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
+            const totalPendiente = reporteVentas
+                .filter(v => v.estado !== 'pagado')
+                .reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
+
+            // Generar la tabla
             autoTable(doc, {
                 startY: 40,
                 head: [['Fecha', 'Vendedor', 'Sorteo', 'Número', 'Comprador', 'Monto', 'Estado']],
                 body: tableData,
                 theme: 'grid',
                 styles: { fontSize: 8 },
-                headStyles: { fillColor: [220, 53, 69] }
+                headStyles: { fillColor: [220, 53, 69] },
+                foot: [
+                    [
+                        '',
+                        '',
+                        '',
+                        '',
+                        'TOTAL VENTAS:',
+                        `$${totalVentas.toFixed(2)}`,
+                        ''
+                    ],
+                    [
+                        '',
+                        '',
+                        '',
+                        '',
+                        'TOTAL PAGADO:',
+                        `$${totalPagado.toFixed(2)}`,
+                        ''
+                    ],
+                    [
+                        '',
+                        '',
+                        '',
+                        '',
+                        'TOTAL PENDIENTE:',
+                        `$${totalPendiente.toFixed(2)}`,
+                        ''
+                    ]
+                ],
+                footStyles: { 
+                    fillColor: [240, 240, 240],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    fontSize: 9
+                }
             })
 
-            doc.save(`reporte_ventas_${colegioId}.pdf`)
+            // Agregar resumen adicional debajo de la tabla
+            const finalY = doc.lastAutoTable.finalY + 10
+            
+            doc.setFontSize(10)
+            doc.setFont(undefined, 'bold')
+            doc.text('Resumen Financiero:', 14, finalY)
+            
+            doc.setFont(undefined, 'normal')
+            doc.text(`Total de ventas generadas: ${reporteVentas.length} boletos`, 14, finalY + 8)
+            doc.text(`Monto total en ventas: $${totalVentas.toFixed(2)}`, 14, finalY + 16)
+            doc.text(`Porcentaje pagado: ${totalVentas > 0 ? ((totalPagado / totalVentas) * 100).toFixed(2) : '0'}%`, 14, finalY + 24)
+            doc.text(`Porcentaje pendiente: ${totalVentas > 0 ? ((totalPendiente / totalVentas) * 100).toFixed(2) : '0'}%`, 14, finalY + 32)
+
+            // Fecha de generación
+            doc.setFontSize(8)
+            doc.text(`Reporte generado el: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 280)
+
+            // Guardar PDF
+            doc.save(`reporte_ventas_${colegioId}_${new Date().toISOString().split('T')[0]}.pdf`)
         } catch (error) {
             console.error('Error al exportar PDF:', error)
             alert('Error al generar el PDF')
@@ -255,11 +389,9 @@ const ReportesManager = ({ colegioId }) => {
     }
 
 
-    
-    // ... (resto del código de renderReporteVentas y renderReporteCortes se mantiene igual)
-    const renderReporteVentas = () => (
+        const renderReporteVentas = () => (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
                     <div className="text-sm text-blue-700 font-medium">Total Ventas</div>
                     <div className="text-2xl font-bold text-blue-900">${resumen.totalVentas.toLocaleString()}</div>
@@ -272,10 +404,6 @@ const ReportesManager = ({ colegioId }) => {
                 <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-lg border border-yellow-200">
                     <div className="text-sm text-yellow-700 font-medium">Por Pagar</div>
                     <div className="text-2xl font-bold text-yellow-900">${resumen.totalPorPagar.toLocaleString()}</div>
-                </div>
-                <div className="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-lg border border-red-200">
-                    <div className="text-sm text-red-700 font-medium">Deuda Pendiente</div>
-                    <div className="text-2xl font-bold text-red-900">${resumen.deudaPendiente.toLocaleString()}</div>
                 </div>
             </div>
             
@@ -316,6 +444,55 @@ const ReportesManager = ({ colegioId }) => {
                                 ))}
                             </tbody>
                         </table>
+                        {reporteVentas.length > 0 && (
+                            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-lg p-6 mt-6">
+                                <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                                    📊 Resumen Financiero
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-white rounded-lg p-4 shadow border border-blue-200">
+                                        <div className="text-sm text-blue-700 font-medium">Total Dinero Pagado</div>
+                                        <div className="text-2xl font-bold text-green-600">
+                                            ${resumen.totalPagado.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className="text-xs text-blue-600 mt-1">
+                                            {resumen.totalVentas > 0 ? 
+                                                ((resumen.totalPagado / resumen.totalVentas) * 100).toFixed(2) : 0}% del total
+                                        </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 shadow border border-yellow-200">
+                                        <div className="text-sm text-yellow-700 font-medium">Total Dinero Pendiente</div>
+                                        <div className="text-2xl font-bold text-yellow-600">
+                                            ${resumen.totalPorPagar.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className="text-xs text-yellow-600 mt-1">
+                                            {resumen.totalVentas > 0 ? 
+                                                ((resumen.totalPorPagar / resumen.totalVentas) * 100).toFixed(2) : 0}% del total
+                                        </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 shadow border border-gray-200">
+                                        <div className="text-sm text-gray-700 font-medium">Resumen General</div>
+                                        <div className="space-y-2 mt-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600">Total Ventas:</span>
+                                                <span className="font-medium">${resumen.totalVentas.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600">Total Boletos:</span>
+                                                <span className="font-medium">{resumen.totalRegistros}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600">Promedio por boleto:</span>
+                                                <span className="font-medium">
+                                                    ${resumen.totalRegistros > 0 ? 
+                                                        (resumen.totalVentas / resumen.totalRegistros).toFixed(2) : 0}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -457,19 +634,6 @@ const ReportesManager = ({ colegioId }) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
                         </svg>
                         Reporte de Ventas
-                    </button>
-                    <button
-                        onClick={() => setActiveReport('cortes')}
-                        className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                            activeReport === 'cortes'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Reporte de Cortes
                     </button>
                 </div>
                 
