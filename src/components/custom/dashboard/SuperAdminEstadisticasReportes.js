@@ -111,10 +111,13 @@ export default function EstadisticasSuperAdmin() {
             'Estatus': colegio.estatus === 'activo' ? 'Activo' : 'Inactivo',
             'Sorteos Activos': colegio.sorteos_activos || 0,
             'Boletos Vendidos': colegio.boletos_vendidos || 0,
-            'Venta Total': formatCurrencyForCSV(colegio.venta_total || 0),
+            'Recaudación Actual': formatCurrencyForCSV(colegio.recaudacion_actual || 0),
             'Recaudación Esperada': formatCurrencyForCSV(colegio.recaudacion_esperada_total || 0),
-            'Comisión Total': formatCurrencyForCSV(colegio.comision_total || 0),
-            'Porcentaje Venta': `${colegio.porcentaje_venta || 0}%`
+            'Comisión Actual': formatCurrencyForCSV(colegio.comision_actual_total || 0),
+            'Comisión Esperada': formatCurrencyForCSV(colegio.comision_esperada_total || 0),
+            'Porcentaje Venta': `${colegio.porcentaje_venta || 0}%`,
+            'Neto Actual': formatCurrencyForCSV((colegio.recaudacion_actual || 0) - (colegio.comision_actual_total || 0)),
+            'Neto Esperado': formatCurrencyForCSV((colegio.recaudacion_esperada_total || 0) - (colegio.comision_esperada_total || 0))
         }))
 
         setCsvData(csvData)
@@ -384,7 +387,7 @@ export default function EstadisticasSuperAdmin() {
                                             Sorteos Activos
                                         </th>
                                         <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Venta Total
+                                            Recaudación Actual
                                         </th>
                                         <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             % Venta
@@ -456,7 +459,7 @@ export default function EstadisticasSuperAdmin() {
                                                 </span>
                                             </td>
                                             <td className="p-4 font-bold text-green-600">
-                                                {formatCurrency(colegio.venta_total || 0)}
+                                                {formatCurrency(colegio.recaudacion_actual || 0)}
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center">
@@ -581,201 +584,201 @@ export default function EstadisticasSuperAdmin() {
 
                                 {/* Sorteos Activos */}
                                 <div>
-    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        🎰 Sorteos Activos ({colegioDetallado.sorteos_activos?.length || 0})
-    </h3>
-    
-    {colegioDetallado.sorteos_activos && colegioDetallado.sorteos_activos.length > 0 ? (
-        <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Sorteo
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Dígitos
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Fecha
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Boletos
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Recaudación
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            % Venta
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Comisión Esperada
-                        </th>
-                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Comisión Actual
-                        </th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                    {colegioDetallado.sorteos_activos.map((sorteo) => (
-                        <tr key={sorteo.id_sorteo} className="hover:bg-gray-50">
-                            <td className="p-4">
-                                <div className="font-medium text-gray-900">
-                                    {sorteo.nombre_sorteo}
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                        🎰 Sorteos Activos ({colegioDetallado.sorteos_activos?.length || 0})
+                                    </h3>
+                                    
+                                    {colegioDetallado.sorteos_activos && colegioDetallado.sorteos_activos.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Sorteo
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Dígitos
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Fecha
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Boletos
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Recaudación
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            % Venta
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Comisión Esperada
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Comisión Actual
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-200">
+                                                    {colegioDetallado.sorteos_activos.map((sorteo) => (
+                                                        <tr key={sorteo.id_sorteo} className="hover:bg-gray-50">
+                                                            <td className="p-4">
+                                                                <div className="font-medium text-gray-900">
+                                                                    {sorteo.nombre_sorteo}
+                                                                </div>
+                                                                <div className="text-sm text-gray-500">
+                                                                    #{sorteo.numero_sorteo}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <span className="font-mono font-bold text-purple-600">
+                                                                    {sorteo.digitos || 'N/A'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-4 text-gray-600">
+                                                                {formatDate(sorteo.fecha_sorteo)}
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <div className="flex flex-col">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="font-bold">{sorteo.boletos_vendidos || 0}</span>
+                                                                        <span className="text-gray-400">/</span>
+                                                                        <span className="text-gray-600">{sorteo.boletos_totales?.toLocaleString()}</span>
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500 mt-1">
+                                                                        {sorteo.boletos_disponibles?.toLocaleString()} disponibles
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-medium text-green-600">
+                                                                        {formatCurrency(sorteo.recaudacion_actual || 0)}
+                                                                    </span>
+                                                                    <span className="text-xs text-gray-500">
+                                                                        de {formatCurrency(sorteo.recaudacion_esperada || 0)}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-lg text-purple-600">
+                                                                        {formatPorcentaje(sorteo.porcentaje_venta)}
+                                                                    </span>
+                                                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                                                        <div 
+                                                                            className="bg-green-500 h-1.5 rounded-full"
+                                                                            style={{ width: `${Math.min(parseFloat(sorteo.porcentaje_venta || 0), 100)}%` }}
+                                                                        ></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {/* Comisión Esperada */}
+                                                            <td className="p-4 font-bold text-blue-600">
+                                                                {formatCurrency(sorteo.comision_esperada || 0)}
+                                                            </td>
+                                                            {/* Comisión Actual */}
+                                                            <td className="p-4 font-bold text-green-600">
+                                                                {formatCurrency(sorteo.comision_actual || 0)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {/* Total - FILA MODIFICADA */}
+                                                    {colegioDetallado.resumen_financiero && (
+                                                        <tr className="bg-gray-50 font-bold">
+                                                            <td colSpan="4" className="p-4 text-right">
+                                                                TOTALES:
+                                                            </td>
+                                                            {/* Recaudación Total */}
+                                                            <td className="p-4">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-blue-700">
+                                                                        {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_actual_total || 0)}
+                                                                    </span>
+                                                                    <span className="text-xs text-gray-500">
+                                                                        de {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_esperada_total || 0)}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            {/* Porcentaje de Venta Total */}
+                                                            <td className="p-4 text-purple-700">
+                                                                {formatPorcentaje(colegioDetallado.resumen_financiero.porcentaje_venta_total)}
+                                                            </td>
+                                                            {/* Comisión Esperada Total */}
+                                                            <td className="p-4 text-blue-700">
+                                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_esperada_total || 0)}
+                                                            </td>
+                                                            {/* Comisión Actual Total */}
+                                                            <td className="p-4 text-green-700">
+                                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_actual_total || 0)}
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <div className="text-4xl mb-4">🎰</div>
+                                            <p className="text-lg">No hay sorteos activos para este colegio</p>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="text-sm text-gray-500">
-                                    #{sorteo.numero_sorteo}
-                                </div>
-                            </td>
-                            <td className="p-4">
-                                <span className="font-mono font-bold text-purple-600">
-                                    {sorteo.digitos || 'N/A'}
-                                </span>
-                            </td>
-                            <td className="p-4 text-gray-600">
-                                {formatDate(sorteo.fecha_sorteo)}
-                            </td>
-                            <td className="p-4">
-                                <div className="flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold">{sorteo.boletos_vendidos || 0}</span>
-                                        <span className="text-gray-400">/</span>
-                                        <span className="text-gray-600">{sorteo.boletos_totales?.toLocaleString()}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        {sorteo.boletos_disponibles?.toLocaleString()} disponibles
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="p-4">
-                                <div className="flex flex-col">
-                                    <span className="font-medium text-green-600">
-                                        {formatCurrency(sorteo.recaudacion_actual || 0)}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                        de {formatCurrency(sorteo.recaudacion_esperada || 0)}
-                                    </span>
-                                </div>
-                            </td>
-                            <td className="p-4">
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-lg text-purple-600">
-                                        {formatPorcentaje(sorteo.porcentaje_venta)}
-                                    </span>
-                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                                        <div 
-                                            className="bg-green-500 h-1.5 rounded-full"
-                                            style={{ width: `${Math.min(parseFloat(sorteo.porcentaje_venta || 0), 100)}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            </td>
-                            {/* Comisión Esperada */}
-                            <td className="p-4 font-bold text-blue-600">
-                                {formatCurrency(sorteo.comision_esperada || 0)}
-                            </td>
-                            {/* Comisión Actual */}
-                            <td className="p-4 font-bold text-green-600">
-                                {formatCurrency(sorteo.comision_actual || 0)}
-                            </td>
-                        </tr>
-                    ))}
-                    {/* Total - FILA MODIFICADA */}
-                    {colegioDetallado.resumen_financiero && (
-                        <tr className="bg-gray-50 font-bold">
-                            <td colSpan="4" className="p-4 text-right">
-                                TOTALES:
-                            </td>
-                            {/* Recaudación Total */}
-                            <td className="p-4">
-                                <div className="flex flex-col">
-                                    <span className="text-blue-700">
-                                        {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_actual_total || 0)}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                        de {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_esperada_total || 0)}
-                                    </span>
-                                </div>
-                            </td>
-                            {/* Porcentaje de Venta Total */}
-                            <td className="p-4 text-purple-700">
-                                {formatPorcentaje(colegioDetallado.resumen_financiero.porcentaje_venta_total)}
-                            </td>
-                            {/* Comisión Esperada Total */}
-                            <td className="p-4 text-blue-700">
-                                {formatCurrency(colegioDetallado.resumen_financiero.comision_esperada_total || 0)}
-                            </td>
-                            {/* Comisión Actual Total */}
-                            <td className="p-4 text-green-700">
-                                {formatCurrency(colegioDetallado.resumen_financiero.comision_actual_total || 0)}
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    ) : (
-        <div className="text-center py-8 text-gray-500">
-            <div className="text-4xl mb-4">🎰</div>
-            <p className="text-lg">No hay sorteos activos para este colegio</p>
-        </div>
-    )}
-</div>
 
-{/* Resumen Financiero */}
-{colegioDetallado.resumen_financiero && (
-    <div className="mt-8 grid grid-cols-1 md:grid-cols-5 gap-6">
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white">
-            <h4 className="text-lg font-semibold mb-2">💰 Recaudación Actual</h4>
-            <p className="text-2xl font-bold">
-                {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_actual_total || 0)}
-            </p>
-            <p className="text-sm opacity-90 mt-1">
-                de {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_esperada_total || 0)}
-            </p>
-        </div>
-        
-        <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white">
-            <h4 className="text-lg font-semibold mb-2">📈 Porcentaje Venta</h4>
-            <p className="text-2xl font-bold">
-                {formatPorcentaje(colegioDetallado.resumen_financiero.porcentaje_venta_total)}
-            </p>
-            <p className="text-sm opacity-90 mt-1">
-                {colegioDetallado.colegio?.total_boletos_vendidos || 0} boletos vendidos
-            </p>
-        </div>
-        
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-xl text-white">
-            <h4 className="text-lg font-semibold mb-2">💸 Comisión Esperada</h4>
-            <p className="text-2xl font-bold">
-                {formatCurrency(colegioDetallado.resumen_financiero.comision_esperada_total || 0)}
-            </p>
-            <p className="text-sm opacity-90 mt-1">
-                Sobre recaudación esperada
-            </p>
-        </div>
-        
-        <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-6 rounded-xl text-white">
-            <h4 className="text-lg font-semibold mb-2">💵 Comisión Actual</h4>
-            <p className="text-2xl font-bold">
-                {formatCurrency(colegioDetallado.resumen_financiero.comision_actual_total || 0)}
-            </p>
-            <p className="text-sm opacity-90 mt-1">
-                Sobre venta actual
-            </p>
-        </div>
-        
-        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-xl text-white">
-            <h4 className="text-lg font-semibold mb-2">🎯 Sorteos Activos</h4>
-            <p className="text-2xl font-bold">
-                {colegioDetallado.colegio?.sorteos_activos_count || 0}
-            </p>
-            <p className="text-sm opacity-90 mt-1">
-                Total: {colegioDetallado.colegio?.total_sorteos || 0} sorteos
-            </p>
-        </div>
-    </div>
-)}
+                                {/* Resumen Financiero */}
+                                {colegioDetallado.resumen_financiero && (
+                                    <div className="mt-8 grid grid-cols-1 md:grid-cols-5 gap-6">
+                                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white">
+                                            <h4 className="text-lg font-semibold mb-2">💰 Recaudación Actual</h4>
+                                            <p className="text-2xl font-bold">
+                                                {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_actual_total || 0)}
+                                            </p>
+                                            <p className="text-sm opacity-90 mt-1">
+                                                de {formatCurrency(colegioDetallado.resumen_financiero.recaudacion_esperada_total || 0)}
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-xl text-white">
+                                            <h4 className="text-lg font-semibold mb-2">📈 Porcentaje Venta</h4>
+                                            <p className="text-2xl font-bold">
+                                                {formatPorcentaje(colegioDetallado.resumen_financiero.porcentaje_venta_total)}
+                                            </p>
+                                            <p className="text-sm opacity-90 mt-1">
+                                                {colegioDetallado.colegio?.total_boletos_vendidos || 0} boletos vendidos
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-xl text-white">
+                                            <h4 className="text-lg font-semibold mb-2">💸 Comisión Esperada</h4>
+                                            <p className="text-2xl font-bold">
+                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_esperada_total || 0)}
+                                            </p>
+                                            <p className="text-sm opacity-90 mt-1">
+                                                Sobre recaudación esperada
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-6 rounded-xl text-white">
+                                            <h4 className="text-lg font-semibold mb-2">💵 Comisión Actual</h4>
+                                            <p className="text-2xl font-bold">
+                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_actual_total || 0)}
+                                            </p>
+                                            <p className="text-sm opacity-90 mt-1">
+                                                Sobre venta actual
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-6 rounded-xl text-white">
+                                            <h4 className="text-lg font-semibold mb-2">🎯 Sorteos Activos</h4>
+                                            <p className="text-2xl font-bold">
+                                                {colegioDetallado.colegio?.sorteos_activos_count || 0}
+                                            </p>
+                                            <p className="text-sm opacity-90 mt-1">
+                                                Total: {colegioDetallado.colegio?.total_sorteos || 0} sorteos
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="p-8 text-center text-gray-500">

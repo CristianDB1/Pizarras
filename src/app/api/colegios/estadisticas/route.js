@@ -1,4 +1,4 @@
-// app/api/colegios/estadisticas/route.js
+// app/api/colegios/estadisticas/route.js (versión final)
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
 import { cerrarSorteosVencidos } from "@/lib/cerrarSorteosVencidos";
@@ -58,58 +58,68 @@ export async function GET(request) {
         
         // Obtener datos de recaudación y comisiones para cada colegio
         for (const colegio of colegios) {
-            // 1. Obtener recaudación total esperada (todos los boletos posibles)
-            const [recaudacionData] = await pool.query(
+            // 1. Obtener datos de sorteos activos individualmente
+            const [sorteosData] = await pool.query(
                 `SELECT 
-                    SUM(s.precio_boleto * POW(10, s.digitos_boleto)) as recaudacion_potencial,
-                    SUM(b.precio) as recaudacion_actual
+                    s.id_sorteo,
+                    s.precio_boleto,
+                    s.digitos_boleto,
+                    s.comision_vendedor,
+                    -- Boletos vendidos por sorteo
+                    (SELECT COUNT(*) FROM boletos b WHERE b.id_sorteo = s.id_sorteo) as boletos_vendidos_sorteo,
+                    -- Venta por sorteo
+                    (SELECT SUM(b.precio) FROM boletos b WHERE b.id_sorteo = s.id_sorteo) as venta_sorteo
                  FROM sorteo s
-                 LEFT JOIN boletos b ON s.id_sorteo = b.id_sorteo
                  WHERE s.colegio_id = ? AND s.estatus = 'activo'`,
                 [colegio.id_colegio]
             );
             
-            // 2. Obtener comisiones totales (de cortes de caja)
-            const [comisionData] = await pool.query(
-                `SELECT 
-                    SUM(comision) as comision_total
+            // Inicializar acumuladores
+            let recaudacionEsperadaTotal = 0;
+            let recaudacionActualTotal = 0;
+            let boletosVendidosTotal = 0;
+            let comisionEsperadaTotal = 0;
+            let totalBoletosPotenciales = 0;
+            
+            // Calcular por cada sorteo
+            sorteosData.forEach(sorteo => {
+                const boletosPotencialesSorteo = Math.pow(10, sorteo.digitos_boleto);
+                const recaudacionEsperadaSorteo = boletosPotencialesSorteo * sorteo.precio_boleto;
+                const recaudacionActualSorteo = sorteo.venta_sorteo || 0;
+                const comisionEsperadaSorteo = recaudacionEsperadaSorteo * (sorteo.comision_vendedor / 100);
+                
+                recaudacionEsperadaTotal += recaudacionEsperadaSorteo;
+                recaudacionActualTotal += recaudacionActualSorteo;
+                boletosVendidosTotal += sorteo.boletos_vendidos_sorteo || 0;
+                comisionEsperadaTotal += comisionEsperadaSorteo;
+                totalBoletosPotenciales += boletosPotencialesSorteo;
+            });
+            
+            // 2. Obtener comisiones actuales (de cortes de caja)
+            const [comisionActualData] = await pool.query(
+                `SELECT SUM(comision) as comision_actual_total
                  FROM cortesdecaja
                  WHERE colegio_id = ?`,
                 [colegio.id_colegio]
             );
             
-            // 3. Obtener boletos vendidos
-            const [boletosData] = await pool.query(
-                `SELECT 
-                    COUNT(*) as boletos_vendidos,
-                    SUM(b.precio) as venta_total
-                 FROM boletos b
-                 JOIN sorteo s ON b.id_sorteo = s.id_sorteo
-                 WHERE s.colegio_id = ? AND s.estatus = 'activo'`,
-                [colegio.id_colegio]
-            );
-            
-            colegio.recaudacion_esperada_total = recaudacionData[0]?.recaudacion_potencial || 0;
-            colegio.recaudacion_actual = recaudacionData[0]?.recaudacion_actual || 0;
-            colegio.comision_total = comisionData[0]?.comision_total || 0;
-            colegio.boletos_vendidos = boletosData[0]?.boletos_vendidos || 0;
-            colegio.venta_total = boletosData[0]?.venta_total || 0;
+            // Asignar valores al colegio
+            colegio.recaudacion_esperada_total = recaudacionEsperadaTotal;
+            colegio.recaudacion_actual = recaudacionActualTotal;
+            colegio.comision_actual_total = comisionActualData[0]?.comision_actual_total || 0;
+            colegio.comision_esperada_total = comisionEsperadaTotal;
+            colegio.boletos_vendidos = boletosVendidosTotal;
+            // Mantener venta_total para compatibilidad (opcional)
+            colegio.venta_total = colegio.recaudacion_actual;
             
             // Calcular porcentaje de venta
-            // Primero obtener precio promedio para calcular boletos potenciales
-            const [precioData] = await pool.query(
-                `SELECT AVG(precio_boleto) as precio_promedio 
-                 FROM sorteo 
-                 WHERE colegio_id = ? AND estatus = 'activo'`,
-                [colegio.id_colegio]
-            );
-            
-            const precioPromedio = precioData[0]?.precio_promedio || 1;
-            const totalBoletosPotenciales = colegio.recaudacion_esperada_total / precioPromedio;
-            
             colegio.porcentaje_venta = totalBoletosPotenciales > 0 
-                ? (colegio.boletos_vendidos / totalBoletosPotenciales * 100).toFixed(2)
+                ? (boletosVendidosTotal / totalBoletosPotenciales * 100).toFixed(2)
                 : 0;
+                
+            // Calcular netos
+            colegio.neto_actual = colegio.recaudacion_actual - colegio.comision_actual_total;
+            colegio.neto_esperado = colegio.recaudacion_esperada_total - colegio.comision_esperada_total;
         }
         
         return NextResponse.json({
