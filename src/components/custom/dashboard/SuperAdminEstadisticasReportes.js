@@ -410,25 +410,24 @@ export default function EstadisticasSuperAdmin() {
                                                 <div className="flex items-center gap-3">
                                                     {/* LOGO - usar colegio.logo_url */}
                                                     {colegio.logo_url ? (
-                                                    <Image 
-                                                        src={colegio.logo_url}
-                                                        width={40}
-                                                        height={40}
-                                                        alt={`Logo de ${colegio.nombre}`}
-                                                        className="w-10 h-10 rounded-full object-cover"
-                                                        onError={(e) => {
-                                                        e.target.style.display = 'none'
-                                                        e.target.parentNode.innerHTML = `
-                                                            <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                                            ${colegio.nombre?.charAt(0) || 'C'}
-                                                            </div>
-                                                        `
-                                                        }}
-                                                    />
+                                                        <div className="relative">
+                                                            <img 
+                                                                src={colegio.logo_url}
+                                                                alt={`Logo de ${colegio.nombre}`}
+                                                                className="w-10 h-10 rounded-full object-cover"
+                                                                onError={(e) => {
+                                                                    e.target.style.display = 'none';
+                                                                    const fallbackDiv = document.createElement('div');
+                                                                    fallbackDiv.className = "w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold";
+                                                                    fallbackDiv.textContent = colegio.nombre?.charAt(0) || 'C';
+                                                                    e.target.parentNode.appendChild(fallbackDiv);
+                                                                }}
+                                                            />
+                                                        </div>
                                                     ) : (
-                                                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                                        {colegio.nombre?.charAt(0) || 'C'}
-                                                    </div>
+                                                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                            {colegio.nombre?.charAt(0) || 'C'}
+                                                        </div>
                                                     )}
                                                     {/* NOMBRE - usar colegio.nombre */}
                                                     <div>
