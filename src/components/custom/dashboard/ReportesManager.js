@@ -6,6 +6,26 @@ import "react-datepicker/dist/react-datepicker.css"
 import { CSVLink } from 'react-csv'
 import dynamic from 'next/dynamic'
 
+// Función para formatear números al formato mexicano
+const formatoMexicano = (numero, decimales = 2) => {
+    if (numero === null || numero === undefined) return '$0.00'
+    
+    const numeroFloat = typeof numero === 'string' ? parseFloat(numero) : numero
+    
+    if (isNaN(numeroFloat)) return '$0.00'
+    
+    // Formatear con separadores mexicanos
+    return numeroFloat.toLocaleString('es-MX', {
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales
+    })
+}
+
+// Función para formatear como moneda mexicana
+const formatoMonedaMexicana = (numero, decimales = 2) => {
+    return `$${formatoMexicano(numero, decimales)}`
+}
+
 // Importar jsPDF dinámicamente para evitar problemas con SSR
 const ReportesManager = ({ colegioId }) => {
     const [loading, setLoading] = useState(false)
@@ -186,7 +206,7 @@ const ReportesManager = ({ colegioId }) => {
                 .filter(v => v.estado !== 'pagado')
                 .reduce((sum, venta) => sum + parseFloat(venta.monto), 0)
             
-            // Crear array de datos
+            // Crear array de datos con formato mexicano
             const csvData = reporteVentas.map(venta => ({
                 'ID Boleto': venta.id,
                 'Fecha': venta.fecha,
@@ -194,7 +214,7 @@ const ReportesManager = ({ colegioId }) => {
                 'Sorteo': venta.sorteo_nombre,
                 'Número': venta.numero,
                 'Comprador': venta.comprador || 'Sin nombre',
-                'Monto': `$${parseFloat(venta.monto).toFixed(2)}`,
+                'Monto': formatoMonedaMexicana(venta.monto, 2),
                 'Estado': venta.estado
             }))
             
@@ -207,7 +227,7 @@ const ReportesManager = ({ colegioId }) => {
                 'Sorteo': '',
                 'Número': '',
                 'Comprador': 'TOTAL VENTAS:',
-                'Monto': `$${totalVentas.toFixed(2)}`,
+                'Monto': formatoMonedaMexicana(totalVentas, 2),
                 'Estado': ''
             })
             csvData.push({
@@ -217,7 +237,7 @@ const ReportesManager = ({ colegioId }) => {
                 'Sorteo': '',
                 'Número': '',
                 'Comprador': 'TOTAL PAGADO:',
-                'Monto': `$${totalPagado.toFixed(2)}`,
+                'Monto': formatoMonedaMexicana(totalPagado, 2),
                 'Estado': 'Pagado'
             })
             csvData.push({
@@ -227,7 +247,7 @@ const ReportesManager = ({ colegioId }) => {
                 'Sorteo': '',
                 'Número': '',
                 'Comprador': 'TOTAL PENDIENTE:',
-                'Monto': `$${totalPendiente.toFixed(2)}`,
+                'Monto': formatoMonedaMexicana(totalPendiente, 2),
                 'Estado': 'Pendiente'
             })
             
@@ -245,11 +265,11 @@ const ReportesManager = ({ colegioId }) => {
                 'Vendedor': corte.vendedor_nombre,
                 'Sorteo': corte.sorteo_nombre,
                 'Boletos Vendidos': corte.boletos_vendidos,
-                'Venta Total': `$${parseFloat(corte.venta_total).toFixed(2)}`,
+                'Venta Total': formatoMonedaMexicana(corte.venta_total, 2),
                 'Comisión %': `${corte.porcentaje_comision}%`,
-                'Total Entregado': `$${parseFloat(corte.total_entregado).toFixed(2)}`,
-                'Saldo Pendiente': `$${parseFloat(corte.saldo_pendiente).toFixed(2)}`,
-                'Deuda Vendedor': `$${parseFloat(corte.deuda_vendedor).toFixed(2)}`,
+                'Total Entregado': formatoMonedaMexicana(corte.total_entregado, 2),
+                'Saldo Pendiente': formatoMonedaMexicana(corte.saldo_pendiente, 2),
+                'Deuda Vendedor': formatoMonedaMexicana(corte.deuda_vendedor, 2),
                 'Estado': corte.estado
             }))
             
@@ -261,11 +281,11 @@ const ReportesManager = ({ colegioId }) => {
                 'Vendedor': '',
                 'Sorteo': '',
                 'Boletos Vendidos': '',
-                'Venta Total': `$${totalVenta.toFixed(2)}`,
+                'Venta Total': formatoMonedaMexicana(totalVenta, 2),
                 'Comisión %': 'TOTALES:',
-                'Total Entregado': `$${totalEntregado.toFixed(2)}`,
-                'Saldo Pendiente': `$${totalPendiente.toFixed(2)}`,
-                'Deuda Vendedor': `$${totalDeuda.toFixed(2)}`,
+                'Total Entregado': formatoMonedaMexicana(totalEntregado, 2),
+                'Saldo Pendiente': formatoMonedaMexicana(totalPendiente, 2),
+                'Deuda Vendedor': formatoMonedaMexicana(totalDeuda, 2),
                 'Estado': ''
             })
             
@@ -298,14 +318,14 @@ const ReportesManager = ({ colegioId }) => {
                 doc.addImage(logoBase64, 'PNG', 150, 10, 40, 20)
             }
 
-            // Preparar datos de la tabla
+            // Preparar datos de la tabla con formato mexicano
             const tableData = reporteVentas.map(v => [
                 v.fecha,
                 v.vendedor_nombre,
                 v.sorteo_nombre,
                 v.numero,
                 v.comprador || 'Sin nombre',
-                `$${parseFloat(v.monto).toFixed(2)}`,
+                formatoMonedaMexicana(v.monto, 2),
                 v.estado
             ])
 
@@ -333,7 +353,7 @@ const ReportesManager = ({ colegioId }) => {
                         '',
                         '',
                         'TOTAL VENTAS:',
-                        `$${totalVentas.toFixed(2)}`,
+                        formatoMonedaMexicana(totalVentas, 2),
                         ''
                     ],
                     [
@@ -342,7 +362,7 @@ const ReportesManager = ({ colegioId }) => {
                         '',
                         '',
                         'TOTAL PAGADO:',
-                        `$${totalPagado.toFixed(2)}`,
+                        formatoMonedaMexicana(totalPagado, 2),
                         ''
                     ],
                     [
@@ -351,7 +371,7 @@ const ReportesManager = ({ colegioId }) => {
                         '',
                         '',
                         'TOTAL PENDIENTE:',
-                        `$${totalPendiente.toFixed(2)}`,
+                        formatoMonedaMexicana(totalPendiente, 2),
                         ''
                     ]
                 ],
@@ -372,7 +392,7 @@ const ReportesManager = ({ colegioId }) => {
             
             doc.setFont(undefined, 'normal')
             doc.text(`Total de ventas generadas: ${reporteVentas.length} boletos`, 14, finalY + 8)
-            doc.text(`Monto total en ventas: $${totalVentas.toFixed(2)}`, 14, finalY + 16)
+            doc.text(`Monto total en ventas: ${formatoMonedaMexicana(totalVentas, 2)}`, 14, finalY + 16)
             doc.text(`Porcentaje pagado: ${totalVentas > 0 ? ((totalPagado / totalVentas) * 100).toFixed(2) : '0'}%`, 14, finalY + 24)
             doc.text(`Porcentaje pendiente: ${totalVentas > 0 ? ((totalPendiente / totalVentas) * 100).toFixed(2) : '0'}%`, 14, finalY + 32)
 
@@ -388,22 +408,21 @@ const ReportesManager = ({ colegioId }) => {
         }
     }
 
-
-        const renderReporteVentas = () => (
+    const renderReporteVentas = () => (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
                     <div className="text-sm text-blue-700 font-medium">Total Ventas</div>
-                    <div className="text-2xl font-bold text-blue-900">${resumen.totalVentas.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-blue-900">{formatoMonedaMexicana(resumen.totalVentas)}</div>
                     <div className="text-xs text-blue-600 mt-1">{resumen.totalRegistros} boletos</div>
                 </div>
                 <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
                     <div className="text-sm text-green-700 font-medium">Total Pagado</div>
-                    <div className="text-2xl font-bold text-green-900">${resumen.totalPagado.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-green-900">{formatoMonedaMexicana(resumen.totalPagado)}</div>
                 </div>
                 <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-lg border border-yellow-200">
                     <div className="text-sm text-yellow-700 font-medium">Por Pagar</div>
-                    <div className="text-2xl font-bold text-yellow-900">${resumen.totalPorPagar.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-yellow-900">{formatoMonedaMexicana(resumen.totalPorPagar)}</div>
                 </div>
             </div>
             
@@ -430,7 +449,9 @@ const ReportesManager = ({ colegioId }) => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{venta.sorteo_nombre}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">{venta.numero}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{venta.comprador || 'Sin nombre'}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${venta.monto}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {formatoMonedaMexicana(venta.monto)}
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                                 venta.estado === 'pagado' 
@@ -453,7 +474,7 @@ const ReportesManager = ({ colegioId }) => {
                                     <div className="bg-white rounded-lg p-4 shadow border border-blue-200">
                                         <div className="text-sm text-blue-700 font-medium">Total Dinero Pagado</div>
                                         <div className="text-2xl font-bold text-green-600">
-                                            ${resumen.totalPagado.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {formatoMonedaMexicana(resumen.totalPagado)}
                                         </div>
                                         <div className="text-xs text-blue-600 mt-1">
                                             {resumen.totalVentas > 0 ? 
@@ -463,7 +484,7 @@ const ReportesManager = ({ colegioId }) => {
                                     <div className="bg-white rounded-lg p-4 shadow border border-yellow-200">
                                         <div className="text-sm text-yellow-700 font-medium">Total Dinero Pendiente</div>
                                         <div className="text-2xl font-bold text-yellow-600">
-                                            ${resumen.totalPorPagar.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {formatoMonedaMexicana(resumen.totalPorPagar)}
                                         </div>
                                         <div className="text-xs text-yellow-600 mt-1">
                                             {resumen.totalVentas > 0 ? 
@@ -475,7 +496,7 @@ const ReportesManager = ({ colegioId }) => {
                                         <div className="space-y-2 mt-2">
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Total Ventas:</span>
-                                                <span className="font-medium">${resumen.totalVentas.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                <span className="font-medium">{formatoMonedaMexicana(resumen.totalVentas)}</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Total Boletos:</span>
@@ -484,8 +505,8 @@ const ReportesManager = ({ colegioId }) => {
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Promedio por boleto:</span>
                                                 <span className="font-medium">
-                                                    ${resumen.totalRegistros > 0 ? 
-                                                        (resumen.totalVentas / resumen.totalRegistros).toFixed(2) : 0}
+                                                    {resumen.totalRegistros > 0 ? 
+                                                        formatoMonedaMexicana(resumen.totalVentas / resumen.totalRegistros) : '$0.00'}
                                                 </span>
                                             </div>
                                         </div>
@@ -536,17 +557,21 @@ const ReportesManager = ({ colegioId }) => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{corte.vendedor_nombre}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{corte.sorteo_nombre}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{corte.boletos_vendidos}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${corte.venta_total}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${corte.total_entregado}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {formatoMonedaMexicana(corte.venta_total)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                                                {formatoMonedaMexicana(corte.total_entregado)}
+                                            </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                                                 corte.saldo_pendiente > 0 ? 'text-red-600' : 'text-gray-900'
                                             }`}>
-                                                ${corte.saldo_pendiente}
+                                                {formatoMonedaMexicana(corte.saldo_pendiente)}
                                             </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                                                 corte.deuda_vendedor > 0 ? 'text-orange-600' : 'text-gray-900'
                                             }`}>
-                                                ${corte.deuda_vendedor}
+                                                {formatoMonedaMexicana(corte.deuda_vendedor)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -584,11 +609,11 @@ const ReportesManager = ({ colegioId }) => {
                                                 <p className="text-sm text-gray-600">ID: {vendedor.id_vendedor}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-xl font-bold text-red-600">${vendedor.total_adeudo}</p>
+                                                <p className="text-xl font-bold text-red-600">{formatoMonedaMexicana(vendedor.total_adeudo)}</p>
                                                 <div className="flex text-xs text-gray-500 gap-2">
-                                                    <span>Saldo: ${vendedor.saldo_pendiente}</span>
+                                                    <span>Saldo: {formatoMonedaMexicana(vendedor.saldo_pendiente)}</span>
                                                     <span>•</span>
-                                                    <span>Deuda: ${vendedor.deuda_vendedor}</span>
+                                                    <span>Deuda: {formatoMonedaMexicana(vendedor.deuda_vendedor)}</span>
                                                 </div>
                                             </div>
                                         </div>
