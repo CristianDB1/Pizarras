@@ -111,10 +111,13 @@ export default function EstadisticasSuperAdmin() {
             'Estatus': colegio.estatus === 'activo' ? 'Activo' : 'Inactivo',
             'Sorteos Activos': colegio.sorteos_activos || 0,
             'Boletos Vendidos': colegio.boletos_vendidos || 0,
-            'Venta Total': formatCurrencyForCSV(colegio.venta_total || 0),
+            'Recaudación Actual': formatCurrencyForCSV(colegio.recaudacion_actual || 0),
             'Recaudación Esperada': formatCurrencyForCSV(colegio.recaudacion_esperada_total || 0),
-            'Comisión Total': formatCurrencyForCSV(colegio.comision_total || 0),
-            'Porcentaje Venta': `${colegio.porcentaje_venta || 0}%`
+            'Comisión Actual': formatCurrencyForCSV(colegio.comision_actual_total || 0),
+            'Comisión Esperada': formatCurrencyForCSV(colegio.comision_esperada_total || 0),
+            'Porcentaje Venta': `${colegio.porcentaje_venta || 0}%`,
+            'Neto Actual': formatCurrencyForCSV((colegio.recaudacion_actual || 0) - (colegio.comision_actual_total || 0)),
+            'Neto Esperado': formatCurrencyForCSV((colegio.recaudacion_esperada_total || 0) - (colegio.comision_esperada_total || 0))
         }))
 
         setCsvData(csvData)
@@ -384,7 +387,7 @@ export default function EstadisticasSuperAdmin() {
                                             Sorteos Activos
                                         </th>
                                         <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Venta Total
+                                            Recaudación Actual
                                         </th>
                                         <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             % Venta
@@ -405,37 +408,39 @@ export default function EstadisticasSuperAdmin() {
                                         >
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
+                                                    {/* LOGO - usar colegio.logo_url */}
                                                     {colegio.logo_url ? (
-                                                        <Image 
-                                                            src={colegio.logo_url}
-                                                            width={120}
-                                                            height={120} 
-                                                            alt={colegio.nombre}
-                                                            className="w-10 h-10 rounded-full object-cover"
-                                                            onError={(e) => {
-                                                                e.target.style.display = 'none'
-                                                                e.target.parentNode.innerHTML = `
-                                                                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                                                        ${colegio.nombre?.charAt(0) || 'C'}
-                                                                    </div>
-                                                                `
-                                                            }}
-                                                        />
+                                                    <Image 
+                                                        src={colegio.logo_url}
+                                                        width={40}
+                                                        height={40}
+                                                        alt={`Logo de ${colegio.nombre}`}
+                                                        className="w-10 h-10 rounded-full object-cover"
+                                                        onError={(e) => {
+                                                        e.target.style.display = 'none'
+                                                        e.target.parentNode.innerHTML = `
+                                                            <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                            ${colegio.nombre?.charAt(0) || 'C'}
+                                                            </div>
+                                                        `
+                                                        }}
+                                                    />
                                                     ) : (
-                                                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                                                            {colegio.nombre?.charAt(0) || 'C'}
-                                                        </div>
+                                                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                        {colegio.nombre?.charAt(0) || 'C'}
+                                                    </div>
                                                     )}
+                                                    {/* NOMBRE - usar colegio.nombre */}
                                                     <div>
-                                                        <div className="font-medium text-gray-900">
-                                                            {colegio.nombre}
-                                                        </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            {colegio.boletos_vendidos || 0} boletos vendidos
-                                                        </div>
+                                                    <div className="font-medium text-gray-900">
+                                                        {colegio.nombre || 'Sin nombre'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {colegio.boletos_vendidos || 0} boletos vendidos
+                                                    </div>
                                                     </div>
                                                 </div>
-                                            </td>
+                                                </td>
                                             <td className="p-4 text-gray-600">
                                                 {formatDate(colegio.created_at)}
                                             </td>
@@ -454,7 +459,7 @@ export default function EstadisticasSuperAdmin() {
                                                 </span>
                                             </td>
                                             <td className="p-4 font-bold text-green-600">
-                                                {formatCurrency(colegio.venta_total || 0)}
+                                                {formatCurrency(colegio.recaudacion_actual || 0)}
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center">
@@ -607,7 +612,10 @@ export default function EstadisticasSuperAdmin() {
                                                             % Venta
                                                         </th>
                                                         <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Comisión
+                                                            Comisión Esperada
+                                                        </th>
+                                                        <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Comisión Actual
                                                         </th>
                                                     </tr>
                                                 </thead>
@@ -665,17 +673,23 @@ export default function EstadisticasSuperAdmin() {
                                                                     </div>
                                                                 </div>
                                                             </td>
+                                                            {/* Comisión Esperada */}
+                                                            <td className="p-4 font-bold text-blue-600">
+                                                                {formatCurrency(sorteo.comision_esperada || 0)}
+                                                            </td>
+                                                            {/* Comisión Actual */}
                                                             <td className="p-4 font-bold text-green-600">
-                                                                {formatCurrency(sorteo.comision || 0)}
+                                                                {formatCurrency(sorteo.comision_actual || 0)}
                                                             </td>
                                                         </tr>
                                                     ))}
-                                                    {/* Total */}
+                                                    {/* Total - FILA MODIFICADA */}
                                                     {colegioDetallado.resumen_financiero && (
                                                         <tr className="bg-gray-50 font-bold">
                                                             <td colSpan="4" className="p-4 text-right">
                                                                 TOTALES:
                                                             </td>
+                                                            {/* Recaudación Total */}
                                                             <td className="p-4">
                                                                 <div className="flex flex-col">
                                                                     <span className="text-blue-700">
@@ -686,11 +700,17 @@ export default function EstadisticasSuperAdmin() {
                                                                     </span>
                                                                 </div>
                                                             </td>
+                                                            {/* Porcentaje de Venta Total */}
                                                             <td className="p-4 text-purple-700">
                                                                 {formatPorcentaje(colegioDetallado.resumen_financiero.porcentaje_venta_total)}
                                                             </td>
+                                                            {/* Comisión Esperada Total */}
+                                                            <td className="p-4 text-blue-700">
+                                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_esperada_total || 0)}
+                                                            </td>
+                                                            {/* Comisión Actual Total */}
                                                             <td className="p-4 text-green-700">
-                                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_total || 0)}
+                                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_actual_total || 0)}
                                                             </td>
                                                         </tr>
                                                     )}
@@ -707,7 +727,7 @@ export default function EstadisticasSuperAdmin() {
 
                                 {/* Resumen Financiero */}
                                 {colegioDetallado.resumen_financiero && (
-                                    <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+                                    <div className="mt-8 grid grid-cols-1 md:grid-cols-5 gap-6">
                                         <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-xl text-white">
                                             <h4 className="text-lg font-semibold mb-2">💰 Recaudación Actual</h4>
                                             <p className="text-2xl font-bold">
@@ -729,12 +749,22 @@ export default function EstadisticasSuperAdmin() {
                                         </div>
                                         
                                         <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-xl text-white">
-                                            <h4 className="text-lg font-semibold mb-2">💸 Comisión Total</h4>
+                                            <h4 className="text-lg font-semibold mb-2">💸 Comisión Esperada</h4>
                                             <p className="text-2xl font-bold">
-                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_total || 0)}
+                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_esperada_total || 0)}
                                             </p>
                                             <p className="text-sm opacity-90 mt-1">
-                                                {formatCurrency(colegioDetallado.resumen_financiero.neto_actual || 0)} neto
+                                                Sobre recaudación esperada
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-6 rounded-xl text-white">
+                                            <h4 className="text-lg font-semibold mb-2">💵 Comisión Actual</h4>
+                                            <p className="text-2xl font-bold">
+                                                {formatCurrency(colegioDetallado.resumen_financiero.comision_actual_total || 0)}
+                                            </p>
+                                            <p className="text-sm opacity-90 mt-1">
+                                                Sobre venta actual
                                             </p>
                                         </div>
                                         

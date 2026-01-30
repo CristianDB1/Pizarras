@@ -1,6 +1,7 @@
 // app/api/resultados-loteria-nacional/[id]/route.js
 import { NextResponse } from "next/server";
 import pool from "@/db/MysqlConection";
+import { procesarResultadoLN } from "@/lib/loteria/procesarResultadoLN";
 
 export const dynamic = 'force-dynamic';
 
@@ -104,6 +105,14 @@ export async function PUT(request, { params }) {
         // Si se publica, actualizar fecha_publicacion y publicado_por
         if (estado === 'publicado') {
           updateFields.push('fecha_publicacion = NOW()');
+          try {
+            console.log(`[DEBUG] Procesando ganadores para resultado ID: ${id}`);
+            await procesarResultadoLN(id);
+          } catch (error) {
+            console.error('[DEBUG] Error al procesar ganadores:', error);
+            await connection.rollback();
+            throw error;
+          }
           if (publicado_por !== undefined) {
             updateFields.push('publicado_por = ?');
             updateValues.push(publicado_por);
@@ -129,6 +138,10 @@ export async function PUT(request, { params }) {
       `;
       
       await connection.query(query, updateValues);
+
+      if (estado === 'publicado') {
+        await procesarResultadoLN(id);
+      }
       
       // En la función PUT, actualiza la consulta que obtiene el registro actualizado
         const [updated] = await connection.query(

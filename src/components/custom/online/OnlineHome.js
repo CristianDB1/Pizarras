@@ -155,20 +155,17 @@ const OnlineHome = () => {
                     {/* Mismo patrón que en SuperAdmin */}
                     {colegio?.logo_url ? (
                       <div className="relative h-20 w-20">
-                        <Image 
+                        <img 
                           src={colegio.logo_url}
                           alt={colegio.nombre}
-                          width={80}
-                          height={80}
-                          className="object-contain"
+                          className="object-contain h-20 w-20"
                           onError={(e) => {
-                            // Mismo manejador de errores
+                            // Manejador de errores simplificado
                             e.target.style.display = 'none';
-                            e.target.parentNode.innerHTML = `
-                              <div class="h-20 w-20 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                                ${colegio.nombre?.charAt(0) || 'C'}
-                              </div>
-                            `;
+                            const fallbackDiv = document.createElement('div');
+                            fallbackDiv.className = "h-20 w-20 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-2xl";
+                            fallbackDiv.textContent = colegio.nombre?.charAt(0) || 'C';
+                            e.target.parentNode.appendChild(fallbackDiv);
                           }}
                         />
                       </div>

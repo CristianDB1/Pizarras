@@ -1,74 +1,82 @@
 import pool from "@/db/MysqlConection";
 import { NextResponse } from "next/server";
 
-// POST: Recibe { Idvendedor, sucursal, fechaInicio, fechaFin, modo }
+// POST: Recibe { Idvendedor, colegio_id, fechaInicio, fechaFin, modo }
 // modo: 'dia' o 'semana'
+// NOTA: Cambiamos 'sucursal' por 'colegio_id'
 export async function POST(req) {
   try {
     const data = await req.json();
-    const { Idvendedor, sucursal, fechaInicio, fechaFin, modo } = data;
-    // Consulta para boletos especiales
-    let sqlEspeciales = `
-      SELECT b.*, s.Fecha AS FechaSorteo, v.Nombre AS nombreVendedor, v.Comision AS comisiones, v.sucursal AS sucursalVendedor, d.cantidad AS deuda
+    const { Idvendedor, colegio_id, fechaInicio, fechaFin, modo } = data;
+    
+    // Validar que el vendedor pertenezca al colegio
+    const [vendedorValido] = await pool.query(
+      `SELECT id_vendedor FROM vendedores 
+       WHERE id_vendedor = ? AND colegio_id = ?`,
+      [Idvendedor, colegio_id]
+    );
+    
+    if (vendedorValido.length === 0) {
+      return NextResponse.json(
+        { error: 'El vendedor no pertenece a este colegio' },
+        { status: 400 }
+      );
+    }
+    
+    // 1. Consulta UNIFICADA para todos los boletos
+    let sqlBoletos = `
+      SELECT 
+        b.id_boleto,
+        b.boleto AS numero_boleto,
+        b.fecha_venta, 
+        b.precio AS costo_boleto, 
+        s.fecha AS fecha_sorteo, 
+        s.comision_vendedor AS porcentaje_comision, 
+        v.nombre AS nombre_vendedor, 
+        v.colegio_id, 
+        c.nombre AS nombre_colegio
       FROM boletos b
-      JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-      JOIN vendedores v ON b.Idvendedor = v.Idvendedor
-      LEFT JOIN deuda d ON v.Idvendedor = d.usuario
-      WHERE s.Tipo_sorteo = 'especial'
-        AND b.Idvendedor = ?
-        AND v.sucursal = ?
-        AND DATE(b.Fecha_venta) BETWEEN ? AND ?
+      JOIN sorteo s ON b.id_sorteo = s.id_sorteo 
+      JOIN vendedores v ON b.id_vendedor = v.id_vendedor 
+      JOIN colegios c ON v.colegio_id = c.id_colegio
+      WHERE b.id_vendedor = ? 
+        AND v.colegio_id = ?
+        AND DATE(b.fecha_venta) BETWEEN ? AND ?
     `;
 
-    // Consulta para boletos normales
-    let sqlNormales = `
-      SELECT b.*, s.Fecha AS FechaSorteo, v.Nombre AS nombreVendedor, v.Comision AS comisiones, v.sucursal AS sucursalVendedor, d.cantidad AS deuda
-      FROM boletos b
-      JOIN sorteo s ON b.tipo_sorteo = s.Idsorteo
-      JOIN vendedores v ON b.Idvendedor = v.Idvendedor
-      LEFT JOIN deuda d ON v.Idvendedor = d.usuario
-      WHERE (s.Tipo_sorteo = 'normal' OR (s.Tipo_sorteo = 'domingo' AND DAYOFWEEK(s.Fecha) = 1))
-        AND b.Idvendedor = ?
-        AND v.sucursal = ?
-        AND DATE(b.Fecha_venta) BETWEEN ? AND ?
-    `;
+    let [boletos] = await pool.query(sqlBoletos, [Idvendedor, colegio_id, fechaInicio, fechaFin]);
 
-    // Ejecutar las consultas
-    let [boletosEspeciales] = await pool.query(sqlEspeciales, [Idvendedor, sucursal, fechaInicio, fechaFin]);
-    let [boletosNormales] = await pool.query(sqlNormales, [Idvendedor, sucursal, fechaInicio, fechaFin]);
-
-    // Agrupar por día
+    // 2. Agrupación por día corregida
     let diasMap = {};
-    const agrupa = (arr) => {
-      arr.forEach((boleto) => {
-        // Usar la fecha de venta (Fecha_venta) para agrupar, y formatear a YYYY-MM-DD
-        let dia = boleto.Fecha_venta;
-        if (dia instanceof Date) {
-          dia = dia.toISOString().split("T")[0];
-        } else if (typeof dia === "string" && dia.includes("T")) {
-          dia = dia.split("T")[0];
-        } else if (typeof dia === "string" && dia.length > 10) {
-          dia = dia.substring(0, 10);
-        }
-        if (!diasMap[dia]) {
-          diasMap[dia] = {
-            dia,
-            boletosvendidos: 0,
-            venta: 0,
-            comision: 0,
-            totalcaja: 0,
-            totalentregado: 0,
-          };
-        }
-        diasMap[dia].boletosvendidos += 1;
-        diasMap[dia].venta += boleto.Costo;
-        diasMap[dia].comision += (boleto.Costo * (boleto.comisiones || 0)) / 100;
-        diasMap[dia].totalcaja += boleto.Costo - (boleto.Costo * (boleto.comisiones || 0)) / 100;
-        diasMap[dia].totalentregado += boleto.Costo - boleto.Costo * 0.1;
-      });
-    };
-    agrupa(boletosEspeciales);
-    agrupa(boletosNormales);
+    boletos.forEach((b) => {
+      // Ajuste de fecha para agrupación
+      let dia = b.fecha_venta;
+      if (dia instanceof Date) {
+        dia = dia.toISOString().split("T")[0];
+      } else if (typeof dia === "string") {
+        dia = dia.substring(0, 10);
+      }
+
+      if (!diasMap[dia]) {
+        diasMap[dia] = {
+          dia,
+          boletosvendidos: 0,
+          venta: 0,
+          comision: 0,
+          totalcaja: 0,
+          nombreColegio: b.nombre_colegio || ''
+        };
+      }
+
+      const costo = Number(b.costo_boleto) || 0;
+      const comisionPct = Number(b.porcentaje_comision) || 0;
+      const montoComision = (costo * comisionPct) / 100;
+
+      diasMap[dia].boletosvendidos += 1;
+      diasMap[dia].venta += costo;
+      diasMap[dia].comision += montoComision;
+      diasMap[dia].totalcaja += (costo - montoComision);
+    });
 
     // Convertir a array y ordenar por día ascendente
     let dias = Object.values(diasMap).sort((a, b) => a.dia.localeCompare(b.dia));
@@ -81,34 +89,28 @@ export async function POST(req) {
         acc.venta += Number(row.venta);
         acc.comision += Number(row.comision);
         acc.totalcaja += Number(row.totalcaja);
-        acc.totalentregado += Number(row.totalentregado);
         return acc;
       }, {
-        boletosvendidos: 0, venta: 0, comision: 0, totalcaja: 0, totalentregado: 0
+        boletosvendidos: 0, venta: 0, comision: 0, totalcaja: 0
       });
     }
 
-    // Traer todos los boletos vendidos en el rango
-    const boletosTodos = [...boletosEspeciales, ...boletosNormales];
-    const boletosNumeros = boletosTodos.map(b => b.Boleto);
+    // 3. Consultar cancelados - ACTUALIZADA
+    const boletosNumeros = boletos.map(b => b.numero_boleto);
 
-    // Consultar cancelados para esos boletos y sucursal
+    // 4. Consultar cancelados 
     let sqlCancelados = `
       SELECT c.*
       FROM Cancelados c
-      JOIN vendedores v ON c.Idvendedor = v.Idvendedor
+      JOIN vendedores v ON c.Idvendedor = v.id_vendedor
       WHERE c.Idvendedor = ?
-        AND v.sucursal = ?
+        AND v.colegio_id = ?
         AND DATE(c.Hora_cancelacion) BETWEEN ? AND ?
     `;
-    let cancelados = [];
-    // Usamos los parámetros de fecha en lugar de los boletos
-    [cancelados] = await pool.query(sqlCancelados, [Idvendedor, sucursal, fechaInicio, fechaFin]);
+    let [cancelados] = await pool.query(sqlCancelados, [Idvendedor, colegio_id, fechaInicio, fechaFin]);
 
-    // Calcular total de cancelados para el resumen semanal
-    const totalCancelados = cancelados.reduce((acc, c) => acc + (Number(c.Costo) || 0), 0);
+    const totalCancelados = cancelados.reduce((acc, c) => acc + (Number(c.costo) || 0), 0);
 
-    // Si es modo semana, agregar info de cancelados al resumen
     if (modo === 'semana' && resumen) {
       resumen.canceladosTotal = totalCancelados;
       resumen.canceladosCount = cancelados.length;
@@ -141,21 +143,28 @@ export async function POST(req) {
     // Convertir a array para facilitar el acceso en el frontend
     const canceladosDias = Object.values(canceladosPorDia);
 
-    // Consultar ganadores para esos boletos y sucursal (solo por Boleto y Fecha_sorteo)
-    let sqlGanadores = `
-      SELECT g.*, 
-        CONVERT_TZ(g.Fecha_pago, '+00:00', '-06:00') AS Fecha_pago
-      FROM Ganadores g
-      WHERE DATE(CONVERT_TZ(g.Fecha_pago, '+00:00', '-06:00')) BETWEEN ? AND ?
-        AND g.Vendedor = (SELECT Nombre FROM vendedores WHERE Idvendedor = ?)
-    `;
+    // 5. Consultar ganadores - AJUSTADO A id_vendedor
     let ganadores = [];
-    [ganadores] = await pool.query(sqlGanadores, [fechaInicio, fechaFin, Idvendedor]);
+    let totalPremios = 0;
+    try {
+        let sqlGanadores = `
+          SELECT g.*, 
+            CONVERT_TZ(g.fecha_pago, '+00:00', '-06:00') AS fecha_pago
+          FROM ganadores g
+          WHERE DATE(CONVERT_TZ(g.fecha_pago, '+00:00', '-06:00')) BETWEEN ? AND ?
+            AND g.vendedor = (SELECT nombre FROM vendedores WHERE id_vendedor = ? AND colegio_id = ?)
+        `;
+        [ganadores] = await pool.query(sqlGanadores, [fechaInicio, fechaFin, Idvendedor, colegio_id]);
+        totalPremios = ganadores.reduce((acc, g) => acc + (Number(g.premio) || 0), 0);
+        
+        if (modo === 'semana' && resumen) {
+          resumen.ganadoresTotal = totalPremios;
+          resumen.ganadoresCount = ganadores.length;
+        }
+    } catch (e) {
+        console.log("Tabla ganadores no encontrada o vacía, saltando...");
+    }
 
-    // Calcular total de premios pagados para el resumen semanal
-    const totalPremios = ganadores.reduce((acc, g) => acc + (Number(g.Premio) || 0), 0);
-
-    // Si es modo semana, agregar info de ganadores al resumen
     if (modo === 'semana' && resumen) {
       resumen.ganadoresTotal = totalPremios;
       resumen.ganadoresCount = ganadores.length;
@@ -188,20 +197,18 @@ export async function POST(req) {
     // Convertir a array para facilitar el acceso en el frontend
     const ganadoresDias = Object.values(ganadoresPorDia);
 
-    // Consultar información bancaria
-    let sqlBancos = `SELECT IdBanco, Banco, Cuenta FROM Bancos`;
-    let [bancos] = await pool.query(sqlBancos);
+    // 6. Bancos
+    let [bancos] = await pool.query(`SELECT id_banco, banco, cuenta FROM bancos`);
 
     return NextResponse.json({
       dias,
       resumen,
-      cancelados,
-      canceladosDias,
-      canceladosTotal: totalCancelados,
+      cancelados: [],       
+      canceladosTotal: 0,  
       ganadores,
-      ganadoresDias,
       ganadoresTotal: totalPremios,
-      bancos
+      bancos,
+      nombreColegio: boletos[0]?.nombre_colegio || ''
     });
   } catch (error) {
     console.error("[boxCutLotery] ERROR:", error);

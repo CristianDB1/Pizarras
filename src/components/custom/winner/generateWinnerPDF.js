@@ -6,31 +6,47 @@ const generateWinnerPDF = async (boleto, folio) => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     
-    // Intentar diferentes formatos de fecha
     try {
-      const date = new Date(dateString);
+      // Para fechas de MySQL que vienen como 'YYYY-MM-DD HH:MM:SS'
+      // Añadir 'T' y 'Z' para forzar interpretación UTC
+      let date;
+      
+      if (typeof dateString === 'string') {
+        // Si ya incluye 'T' (formato ISO), usarlo directamente
+        if (dateString.includes('T')) {
+          date = new Date(dateString);
+        } else {
+          // Para fechas MySQL: 'YYYY-MM-DD' o 'YYYY-MM-DD HH:MM:SS'
+          // Añadir 'T' para formato ISO y especificar UTC
+          const mysqlDate = dateString.replace(' ', 'T') + 'Z';
+          date = new Date(mysqlDate);
+        }
+      } else {
+        date = new Date(dateString);
+      }
       
       // Verificar si es una fecha válida
       if (isNaN(date.getTime())) {
-        return dateString; // Retorna la cadena original si no es una fecha válida
+        return dateString;
       }
       
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
+      // Usar métodos UTC para evitar problemas de zona horaria
+      const day = date.getUTCDate().toString().padStart(2, '0');
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+      const year = date.getUTCFullYear();
       
       return `${day}/${month}/${year}`;
     } catch (error) {
       // Intentar con regex para formato YYYY-MM-DD
       const regex = /(\d{4})-(\d{2})-(\d{2})/;
-      const match = dateString.match(regex);
+      const match = dateString.toString().match(regex);
       if (match) {
         const year = match[1];
         const month = match[2];
         const day = match[3];
         return `${day}/${month}/${year}`;
       }
-      return dateString; // Retorna la cadena original si no coincide con el formato
+      return dateString;
     }
   };
 
@@ -107,7 +123,7 @@ const generateWinnerPDF = async (boleto, folio) => {
   // Agregar leyenda final
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  let leyendaFinal = "¡GRACIAS POR SU PREFERENCIA! EL TREBOL DE LA SUERTE.";
+  let leyendaFinal = "¡GRACIAS POR SU PREFERENCIA! TU SORTEO DIGITAL.";
   var text = doc.splitTextToSize(leyendaFinal, 70);
   doc.text(text, 5, 130);
 

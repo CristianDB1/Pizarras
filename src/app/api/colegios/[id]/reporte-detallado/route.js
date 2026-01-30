@@ -63,7 +63,8 @@ export async function GET(request, { params }) {
         const sorteosConEstadisticas = [];
         let recaudacionTotalEsperada = 0;
         let recaudacionTotalActual = 0;
-        let comisionTotal = 0;
+        let comisionEsperadaTotal = 0;
+        let comisionActualTotal = 0;
         let boletosTotalesVendidos = 0;
         let totalBoletosPosiblesTodosSorteos = 0;
         
@@ -75,12 +76,18 @@ export async function GET(request, { params }) {
             // Calcular recaudación esperada (potencial)
             const recaudacionEsperada = totalBoletosPosibles * sorteo.precio_boleto;
             
-            // Calcular comisión esperada
+            // Calcular comisión esperada (sobre recaudación potencial)
             const comisionEsperada = recaudacionEsperada * (sorteo.porcentaje_comision / 100);
+            
+            // Calcular comisión actual (sobre ventas reales)
+            const comisionActual = (sorteo.venta_total || 0) * (sorteo.porcentaje_comision / 100);
+            
+            // Usar comisión acumulada si existe, sino calcular
+            const comisionAcumulada = sorteo.comision_acumulada || comisionActual;
             
             // Calcular porcentaje de venta
             const porcentajeVenta = totalBoletosPosibles > 0 
-                ? (sorteo.boletos_vendidos / totalBoletosPosibles * 100).toFixed(2)
+                ? ((sorteo.boletos_vendidos || 0) / totalBoletosPosibles * 100).toFixed(2)
                 : 0;
             
             // Agregar al array
@@ -90,7 +97,8 @@ export async function GET(request, { params }) {
                 boletos_vendidos: sorteo.boletos_vendidos || 0,
                 recaudacion_esperada: recaudacionEsperada,
                 recaudacion_actual: sorteo.venta_total || 0,
-                comision: sorteo.comision_acumulada || comisionEsperada,
+                comision_esperada: comisionEsperada, // NUEVO: Comisión sobre recaudación esperada
+                comision_actual: comisionAcumulada, // NUEVO: Comisión actual (acumulada o calculada)
                 porcentaje_venta: porcentajeVenta,
                 boletos_disponibles: totalBoletosPosibles - (sorteo.boletos_vendidos || 0)
             });
@@ -98,7 +106,8 @@ export async function GET(request, { params }) {
             // Sumar a totales
             recaudacionTotalEsperada += recaudacionEsperada;
             recaudacionTotalActual += sorteo.venta_total || 0;
-            comisionTotal += sorteo.comision_acumulada || comisionEsperada;
+            comisionEsperadaTotal += comisionEsperada;
+            comisionActualTotal += comisionAcumulada;
             boletosTotalesVendidos += sorteo.boletos_vendidos || 0;
         }
         
@@ -120,9 +129,9 @@ export async function GET(request, { params }) {
                  JOIN sorteo s ON b.id_sorteo = s.id_sorteo 
                  WHERE s.colegio_id = ?) as total_ventas,
                 
-                -- Totales de comisiones
+                -- Totales de comisiones (actuales)
                 (SELECT SUM(comision) FROM cortesdecaja 
-                 WHERE colegio_id = ?) as total_comisiones
+                 WHERE colegio_id = ?) as total_comisiones_actuales
                 
              FROM sorteo 
              WHERE colegio_id = ?`,
@@ -144,15 +153,16 @@ export async function GET(request, { params }) {
                 total_sorteos: estadisticas.total_sorteos || 0,
                 total_boletos_vendidos: estadisticas.total_boletos_vendidos || 0,
                 total_ventas: estadisticas.total_ventas || 0,
-                total_comisiones: estadisticas.total_comisiones || 0
+                total_comisiones: estadisticas.total_comisiones_actuales || 0
             },
             sorteos_activos: sorteosConEstadisticas,
             resumen_financiero: {
                 recaudacion_esperada_total: recaudacionTotalEsperada,
                 recaudacion_actual_total: recaudacionTotalActual,
-                comision_total: comisionTotal,
-                neto_esperado: recaudacionTotalEsperada - comisionTotal,
-                neto_actual: recaudacionTotalActual - comisionTotal,
+                comision_esperada_total: comisionEsperadaTotal, // NUEVO
+                comision_actual_total: comisionActualTotal,     // NUEVO
+                neto_esperado: recaudacionTotalEsperada - comisionEsperadaTotal,
+                neto_actual: recaudacionTotalActual - comisionActualTotal,
                 porcentaje_venta_total: porcentajeVentaTotal
             },
             estadisticas_ventas: {

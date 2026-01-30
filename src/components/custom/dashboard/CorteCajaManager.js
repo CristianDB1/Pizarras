@@ -177,27 +177,15 @@ const CorteCajaManager = ({ colegioId }) => {
 
   // Manejar liquidación
   const handleLiquidar = async (vendedor) => {
-    const key = `${vendedor.id_vendedor}_${vendedor.id_sorteo}`
-    
-    // Obtener monto y asegurar que sea número
-    const montoInput = montoEntregado[key];
-    let monto;
-    
-    if (montoInput === undefined || montoInput === '' || montoInput === null) {
-      monto = vendedor.totalEntregar;
-    } else {
-      monto = parseFloat(montoInput);
-      if (isNaN(monto)) {
-        monto = vendedor.totalEntregar;
-      }
-    }
+    // EL MONTO SIEMPRE SERÁ EL TOTAL A ENTREGAR
+    let monto = vendedor.totalEntregar || 0; 
     
     if (typeof monto !== 'number' || isNaN(monto) || monto <= 0) {
-      showError('Monto inválido', 'Ingrese un monto válido para la liquidación');
+      showError('Monto inválido', 'No se puede liquidar con monto cero o negativo');
       return;
     }
     
-    monto = Math.round(monto * 100) / 100;
+    monto = Math.round(monto * 100) / 100; 
     
     if (!vendedor.id_sorteo) {
       showError('Error en datos', 'El ID del sorteo no está definido');
@@ -220,6 +208,7 @@ const CorteCajaManager = ({ colegioId }) => {
     )
     
     if (result.isConfirmed) {
+      const key = `${vendedor.id_vendedor}_${vendedor.id_sorteo}`
       setLiquidando(key)
       
       Swal.fire({
@@ -240,13 +229,10 @@ const CorteCajaManager = ({ colegioId }) => {
           porcentaje_comision: vendedor.comision || 0,
           comision: vendedor.comisionGanada || 0,
           total_caja: vendedor.ventaTotal || 0,
-          total_entregado: monto,
+          total_entregado: monto, 
           id_sorteo: vendedor.id_sorteo,
           colegio_id: colegioId,
         };
-
-        
-        console.log('Payload completo con colegio_id:', payload);
         
         const response = await fetch('/api/corte-caja/liquidar', {
           method: 'POST',
@@ -268,11 +254,6 @@ const CorteCajaManager = ({ colegioId }) => {
           
           // Recargar datos
           fetchVendedoresConCorte()
-          setMontoEntregado(prev => {
-            const nuevo = { ...prev }
-            delete nuevo[key]
-            return nuevo
-          })
         } else {
           const error = await response.json()
           console.error('Error detallado:', error);
@@ -571,39 +552,11 @@ const CorteCajaManager = ({ colegioId }) => {
                       <td className="px-6 py-4">
                         {vendedor.estado === 'pendiente' && vendedor.boletosVendidos > 0 ? (
                           <div className="flex flex-col gap-2">
-                            <div className="relative">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={montoEntregado[key] !== undefined 
-                                  ? (montoEntregado[key] === '' ? '' : montoEntregado[key])
-                                  : vendedor.totalEntregar?.toString() || ''}
-                                onChange={(e) => {
-                                  let value = e.target.value;
-                                  
-                                  // CORRECCIÓN: Usar [^\d.] para remover lo que NO sean dígitos o punto
-                                  value = value.replace(/[^\d.]/g, '');
-                                  
-                                  // Evitar múltiples puntos decimales
-                                  const parts = value.split('.');
-                                  if (parts.length > 2) {
-                                    value = parts[0] + '.' + parts.slice(1).join('');
-                                  }
-                                  
-                                  // Limitar a 2 decimales
-                                  if (parts.length === 2 && parts[1].length > 2) {
-                                    value = parts[0] + '.' + parts[1].substring(0, 2);
-                                  }
-                                  
-                                  handleMontoChange(vendedor.id_vendedor, vendedor.id_sorteo, value);
-                                }}
-                                className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 hover:border-green-400"
-                                placeholder="0.00"
-                              />
-                            </div>
+                            {/* Input de solo lectura con el monto fijo */}
+                            
                             <div className="flex items-center justify-between px-1">
                               <div className="text-sm text-gray-600 font-medium">
-                                Sugerido:
+                                Total a entregar:
                               </div>
                               <div className="text-base font-bold text-green-700">
                                 {formatCurrency(vendedor.totalEntregar)}

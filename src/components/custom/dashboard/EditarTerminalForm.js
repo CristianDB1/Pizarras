@@ -17,7 +17,7 @@ export default function EditarTerminalForm() {
         Color: '',
         CobroTarjeta: 'NO',
         Colegio: '',
-        Asignado: 'No',
+        Asignado: '',
         FechaEntrega: '',
         FechaRecoger: '',
         Costo: '',
@@ -26,7 +26,6 @@ export default function EditarTerminalForm() {
 
     const hasLoaded = useRef(false)
     const authChecked = useRef(false)
-
 
     useEffect(() => {
         if (!session.isLoggedIn() || session.getUserType() !== 'superadmin') {
@@ -57,7 +56,8 @@ export default function EditarTerminalForm() {
                     Color: data.Color || '',
                     CobroTarjeta: data.CobroTarjeta || 'NO',
                     Colegio: data.Colegio || '',
-                    Asignado: data.Asignado || 'No',
+                    // Mantener el valor actual, no forzar 'No'
+                    Asignado: data.Asignado || '',
                     FechaEntrega: data.FechaEntrega ? data.FechaEntrega.split('T')[0] : '',
                     FechaRecoger: data.FechaRecoger ? data.FechaRecoger.split('T')[0] : '',
                     Costo: data.Costo || '',
@@ -74,10 +74,26 @@ export default function EditarTerminalForm() {
             const response = await fetch('/api/colegios?estatus=activo')
             if (response.ok) {
                 const data = await response.json()
-                setColegios(data)
+                // Asegurarse de que sea un array
+                if (Array.isArray(data)) {
+                    setColegios(data)
+                } else if (data && Array.isArray(data.data)) {
+                    // Si la respuesta tiene formato { data: [...] }
+                    setColegios(data.data)
+                } else if (data && data.colegios) {
+                    // Si la respuesta tiene formato { colegios: [...] }
+                    setColegios(data.colegios)
+                } else {
+                    console.error('Formato de respuesta inesperado:', data)
+                    setColegios([])
+                }
+            } else {
+                console.error('Error en la respuesta de colegios:', response.status)
+                setColegios([])
             }
         } catch (error) {
             console.error('Error cargando colegios:', error)
+            setColegios([])
         }
     }
 
@@ -89,11 +105,11 @@ export default function EditarTerminalForm() {
         }))
 
         if (name === 'ColegioID') {
-            const colegio = colegios.find(c => c.id_colegio === parseInt(value))
+            const colegio = Array.isArray(colegios) ? colegios.find(c => c.id_colegio === parseInt(value)) : null
             setFormData(prev => ({
                 ...prev,
-                Colegio: colegio ? colegio.nombre : '',
-                Asignado: value ? 'Sí' : 'No'
+                Colegio: colegio ? colegio.nombre : ''
+                // NO cambiar Asignado automáticamente aquí
             }))
         }
     }
@@ -111,7 +127,10 @@ export default function EditarTerminalForm() {
                 body: JSON.stringify({
                     ...formData,
                     ColegioID: formData.ColegioID || null,
-                    Costo: parseFloat(formData.Costo) || 0
+                    Costo: parseFloat(formData.Costo) || 0,
+                    // Si hay colegio pero no se especificó Asignado, usar el colegio
+                    Asignado: formData.Asignado.trim() || 
+                              (formData.ColegioID ? formData.Colegio : 'No asignado')
                 })
             })
 
@@ -242,12 +261,37 @@ export default function EditarTerminalForm() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                 >
                                     <option value="">Sin asignar</option>
-                                    {colegios.map(colegio => (
-                                        <option key={colegio.id_colegio} value={colegio.id_colegio}>
-                                            {colegio.nombre}
+                                    {Array.isArray(colegios) && colegios.length > 0 ? (
+                                        colegios.map(colegio => (
+                                            <option key={colegio.id_colegio} value={colegio.id_colegio}>
+                                                {colegio.nombre}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option value="" disabled>
+                                            {colegios.length === 0 ? 'Cargando colegios...' : 'No hay colegios disponibles'}
                                         </option>
-                                    ))}
+                                    )}
                                 </select>
+                            </div>
+
+                            {/* Asignado a (Persona/Lugar) */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Asignado a (Persona/Lugar) *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="Asignado"
+                                    value={formData.Asignado}
+                                    onChange={handleChange}
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    placeholder="Ej: Juan Pérez, Almacén Central, Bodega 3"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Especifica la persona o lugar donde está asignado el terminal
+                                </p>
                             </div>
 
                             {/* Costo */}
@@ -302,11 +346,11 @@ export default function EditarTerminalForm() {
                                     <div>
                                         <p className="text-sm text-gray-600">Asignado</p>
                                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                            terminal.Asignado === 'Sí'
+                                            terminal.Asignado && terminal.Asignado !== 'No' && terminal.Asignado !== 'No asignado'
                                                 ? 'bg-green-100 text-green-800'
                                                 : 'bg-yellow-100 text-yellow-800'
                                         }`}>
-                                            {terminal.Asignado || 'No'}
+                                            {terminal.Asignado || 'No asignado'}
                                         </span>
                                     </div>
                                     <div>
@@ -341,8 +385,8 @@ export default function EditarTerminalForm() {
                             </Link>
                             <button
                                 type="submit"
-                                disabled={loading}
-                                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                                disabled={loading || !formData.Asignado.trim()}
+                                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Actualizando...' : 'Actualizar Terminal'}
                             </button>

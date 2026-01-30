@@ -246,11 +246,30 @@ const BoxCutLotery = () => {
   const { monday, sunday } = getMondayAndSundayOfCurrentWeek();
 
   useEffect(() => {
+  const fetchUserData = async () => {
     if (typeof window !== "undefined") {
-      const localUserData = JSON.parse(localStorage.getItem("userData"));
+      let localUserData = JSON.parse(localStorage.getItem("userData"));
+      
+      if (localUserData && !localUserData.colegio_id) {
+        try {
+          // Obtener el colegio_id desde el backend
+          const response = await fetch(`/api/vendedores/colegio/${localUserData.Idvendedor}`);
+          if (response.ok) {
+            const data = await response.json();
+            localUserData.colegio_id = data.colegio_id;
+            localStorage.setItem("userData", JSON.stringify(localUserData));
+          }
+        } catch (error) {
+          console.error("Error obteniendo colegio_id:", error);
+        }
+      }
+      
       setUserData(localUserData);
     }
-  }, []);
+  };
+  
+  fetchUserData();
+}, []);
 
   useEffect(() => {
     if (userData) {
@@ -272,23 +291,25 @@ const BoxCutLotery = () => {
   const handleConsultar = async () => {
     setLoading(true);
     try {
+      console.log("PAYLOAD CORTE", {
+          Idvendedor: userData.id_vendedor,
+          colegio_id: userData.colegio_id
+        });
       // Esperar a que se calculen las semanas
       if (weeks.length === 0) {
         console.log("Waiting for weeks to be calculated...");
-        // Si las semanas no están calculadas aún, usamos getMondayAndSundayOfCurrentWeek
         const { monday: inicio, sunday: fin } = getMondayAndSundayOfCurrentWeek();
         
         /*console.log("Initial API request using:", {
           fechaInicio: inicio,
           fechaFin: fin
         });*/
-        
         const res = await fetch("/api/boxCutLotery", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            Idvendedor: userData.Idvendedor,
-            sucursal: userData.sucursal,
+            Idvendedor: userData.id_vendedor || userData.Idvendedor,
+            colegio_id: userData.colegio_id, 
             fechaInicio: inicio,
             fechaFin: fin,
             modo: "semana",
@@ -297,26 +318,18 @@ const BoxCutLotery = () => {
         const data = await res.json();
         setResult(data);
         
-        // Seleccionar automáticamente la semana actual
         if (weeks.length > 0) {
           setSelectedWeek({ start: weeks[0].start, end: weeks[0].end });
         }
       } else {
-        // Usar la primera semana (actual) de nuestras semanas calculadas
         const currentWeek = weeks[0];
-        
-        /*console.log("API request using calculated week:", {
-          fechaInicio: currentWeek.startDate,
-          fechaFin: currentWeek.endDate,
-          display: `${currentWeek.start} a ${currentWeek.end}`
-        });*/
         
         const res = await fetch("/api/boxCutLotery", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            Idvendedor: userData.Idvendedor,
-            sucursal: userData.sucursal,
+            Idvendedor: userData.id_vendedor || userData.Idvendedor,
+            colegio_id: userData.colegio_id,  
             fechaInicio: currentWeek.startDate,
             fechaFin: currentWeek.endDate,
             modo: "semana",
@@ -325,11 +338,72 @@ const BoxCutLotery = () => {
         const data = await res.json();
         setResult(data);
         
-        // Seleccionar automáticamente la semana actual para la UI
         setSelectedWeek({ start: currentWeek.start, end: currentWeek.end });
       }
     } catch (e) {
       console.error("Error en handleConsultar:", e);
+      Swal.fire({ icon: "error", title: "Error consultando" });
+    }
+    setLoading(false);
+  };
+
+  // Consulta por día
+  const handleDayClick = async (date) => {
+    setLoading(true);
+    setSelectedDay(date);
+    setSelectedWeek(null);
+    
+    try {
+      const res = await fetch("/api/boxCutLotery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Idvendedor: userData.id_vendedor || userData.Idvendedor,
+          colegio_id: userData.colegio_id,  
+          fechaInicio: date,
+          fechaFin: date,
+          modo: "dia",
+        }),
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Error consultando" });
+    }
+    setLoading(false);
+  };
+
+  // Consulta por semana
+  const handleWeekClick = async (start, end) => {
+    setLoading(true);
+    setSelectedDay(null);
+    setSelectedWeek({ start, end });
+    
+    try {
+      const selectedWeekObj = weeks.find(w => w.start === start && w.end === end);
+      
+      if (!selectedWeekObj) {
+        console.error("No se encontró la semana seleccionada", { start, end, weeks });
+        throw new Error("No se encontró la semana seleccionada");
+      }
+      
+      const fechaInicio = selectedWeekObj.startDate;
+      const fechaFin = selectedWeekObj.endDate;
+      
+      const res = await fetch("/api/boxCutLotery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Idvendedor: userData.id_vendedor || userData.Idvendedor,
+          colegio_id: userData.colegio_id, 
+          fechaInicio,
+          fechaFin,
+          modo: "semana",
+        }),
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (e) {
       Swal.fire({ icon: "error", title: "Error consultando" });
     }
     setLoading(false);
@@ -357,78 +431,6 @@ const BoxCutLotery = () => {
     //console.log("Component mounted, calculated weeks:", calculatedWeeks);
   }, []);
 
-  // Consulta por día
-  const handleDayClick = async (date) => {
-    setLoading(true);
-    setSelectedDay(date);
-    setSelectedWeek(null);
-    
-    try {
-      // Ensure we're using the exact date that was passed without any timezone conversion issues
-      //console.log("Selected date for API request:", date);
-      
-      const res = await fetch("/api/boxCutLotery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          Idvendedor: userData.Idvendedor,
-          sucursal: userData.sucursal,
-          fechaInicio: date, // Use the exact date string that was passed in
-          fechaFin: date,    // Use the exact date string that was passed in
-          modo: "dia",
-        }),
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch (e) {
-      Swal.fire({ icon: "error", title: "Error consultando" });
-    }
-    setLoading(false);
-  };
-
-  // Consulta por semana
-  const handleWeekClick = async (start, end) => {
-    setLoading(true);
-    setSelectedDay(null);
-    setSelectedWeek({ start, end });
-    
-    try {
-      // Encontrar la semana seleccionada en nuestro arreglo de semanas
-      const selectedWeekObj = weeks.find(w => w.start === start && w.end === end);
-      
-      if (!selectedWeekObj) {
-        console.error("No se encontró la semana seleccionada", { start, end, weeks });
-        throw new Error("No se encontró la semana seleccionada");
-      }
-      
-      // Usar las fechas en formato YYYY-MM-DD que ya calculamos en getLastNWeeks
-      const fechaInicio = selectedWeekObj.startDate;
-      const fechaFin = selectedWeekObj.endDate;
-      
-      /*console.log("API request for week:", {
-        display: `${start} a ${end}`,
-        apiDates: `${fechaInicio} a ${fechaFin}`,
-        weekObj: selectedWeekObj
-      });*/
-      
-      const res = await fetch("/api/boxCutLotery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          Idvendedor: userData.Idvendedor,
-          sucursal: userData.sucursal,
-          fechaInicio,
-          fechaFin,
-          modo: "semana",
-        }),
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch (e) {
-      Swal.fire({ icon: "error", title: "Error consultando" });
-    }
-    setLoading(false);
-  };
 
   return (
     <div className="relative min-h-screen bg-[rgb(38,38,38)]">

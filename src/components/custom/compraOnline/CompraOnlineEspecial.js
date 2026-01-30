@@ -17,14 +17,14 @@ const CompraOnlineEspecial = () => {
   const [precioFijo, setPrecioFijo] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [boletosNormales, setBoletosNormales] = useState([]);
-  const [boletosOnline, setBoletosOnline] = useState([]);
+  const [boletosVendidos, setBoletosVendidos] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true); 
   const [previewModal, setPreviewModal] = useState(false);
   const [showDisponibles, setShowDisponibles] = useState(false);
   const [whatsappColegio, setWhatsappColegio] = useState(null);
   const [digitosBoleto, setDigitosBoleto] = useState(3); 
   const router = useRouter();
+  const [nombreColegio, setNombreColegio] = useState("Cargando...");
 
   // Cargar datos del sorteo desde localStorage
    useEffect(() => {
@@ -44,7 +44,7 @@ const CompraOnlineEspecial = () => {
             return;
           }
           
-          // Obtener dígitos del boleto - agrega esta línea
+          // Obtener dígitos del boleto
           setDigitosBoleto(sorteo.digitos_boleto || 3);
           
           setPrizes(sorteo);
@@ -61,6 +61,31 @@ const CompraOnlineEspecial = () => {
     };
     cargarSorteo();
   }, []);
+
+  useEffect(() => {
+    if (!colegioId) {
+      setNombreColegio("General");
+      return;
+    }
+
+    const obtenerDatosCompletosColegio = async () => {
+      try {
+        const res = await fetch(`/api/colegios/${colegioId}`);
+        const data = await res.json();
+
+        if (res.ok && data.nombre) {
+          setNombreColegio(data.nombre);
+        } else {
+          setNombreColegio(`ID: ${colegioId}`);
+        }
+      } catch (error) {
+        console.error("Error cargando nombre del colegio:", error);
+        setNombreColegio("Colegio");
+      }
+    };
+
+    obtenerDatosCompletosColegio();
+  }, [colegioId]);
 
   useEffect(() => {
     if (!colegioId) return;
@@ -94,66 +119,44 @@ const CompraOnlineEspecial = () => {
     return Math.pow(10, digitosBoleto) - 1;
   };
 
-  // 2. CARGAR BOLETOS CUANDO TENEMOS EL SORTEO
+  // Cargar boletos vendidos desde la tabla boletos
   const cargarBoletos = useCallback(async () => {
     if (!prizes) {
-      //console.log("⏳ Esperando sorteo...");
       return;
     }
 
     try {
       setCargandoDatos(true);
       const sorteoId = prizes.Idsorteo || prizes.id_sorteo;
-      //console.log("📡 Cargando boletos para sorteo:", sorteoId);
 
-      // Cargar boletos NORMALES
-      let urlBoletosNormales = `/api/boletos/sorteo/${sorteoId}`;
+      // Cargar boletos vendidos SOLO desde la tabla boletos
+      let urlBoletos = `/api/boletos/sorteo/${sorteoId}`;
       if (colegioId) {
-        urlBoletosNormales += `?colegio_id=${colegioId}`;
+        urlBoletos += `?colegio_id=${colegioId}`;
       }
       
-      //console.log("🔗 URL boletos normales:", urlBoletosNormales);
-      const responseBoletos = await fetch(urlBoletosNormales);
+      const responseBoletos = await fetch(urlBoletos);
       const dataBoletos = await responseBoletos.json();
       
       if (dataBoletos.success) {
         const numerosVendidos = dataBoletos.datos?.map(b => b.numero_boleto) || [];
-        setBoletosNormales(numerosVendidos);
-        //console.log(`✅ ${numerosVendidos.length} boletos normales cargados`);
+        setBoletosVendidos(numerosVendidos);
+        console.log(`✅ ${numerosVendidos.length} boletos vendidos cargados (solo tabla boletos)`);
       } else {
-        console.error("❌ Error boletos normales:", dataBoletos.error);
-      }
-
-      // Cargar boletos ONLINE
-      let urlBoletosOnline = `/api/boletosOnline?id_sorteo=${sorteoId}`;
-      if (colegioId) {
-        urlBoletosOnline += `&colegio=${colegioId}`;
-      }
-      
-      //console.log("🔗 URL boletos online:", urlBoletosOnline);
-      const responseOnline = await fetch(urlBoletosOnline);
-      const dataOnline = await responseOnline.json();
-      
-      if (dataOnline.success) {
-        const numerosOnline = dataOnline.boletos?.map(b => b.numero_boleto) || [];
-        setBoletosOnline(numerosOnline);
-        //console.log(`✅ ${numerosOnline.length} boletos online cargados`);
-      } else {
-        console.error("❌ Error boletos online:", dataOnline.error);
+        console.error("❌ Error cargando boletos vendidos:", dataBoletos.error);
       }
 
     } catch (error) {
       console.error("💥 Error cargando boletos:", error);
-      Swal.fire("Error", "Error al cargar los boletos", "error");
+      Swal.fire("Error", "Error al cargar los boletos vendidos", "error");
     } finally {
       setCargandoDatos(false);
     }
   }, [prizes, colegioId]);
 
-  // 3. Ejecutar carga de boletos cuando prizes esté listo
+  // Ejecutar carga de boletos cuando prizes esté listo
   useEffect(() => {
     if (prizes) {
-      //console.log("🎯 Iniciando carga de boletos...");
       cargarBoletos();
     }
   }, [prizes, cargarBoletos]);
@@ -174,37 +177,22 @@ const CompraOnlineEspecial = () => {
       
       const sorteoId = prizes.Idsorteo || prizes.id_sorteo;
       
-      // Obtener AMBAS listas
-      let urlBoletosNormales = `/api/boletos/sorteo/${sorteoId}`;
+      // Obtener boletos vendidos SOLO desde la tabla boletos
+      let urlBoletos = `/api/boletos/sorteo/${sorteoId}`;
       if (colegioId) {
-        urlBoletosNormales += `?colegio_id=${colegioId}`;
+        urlBoletos += `?colegio_id=${colegioId}`;
       }
       
-      let urlBoletosOnline = `/api/boletosOnline?id_sorteo=${sorteoId}`;
-      if (colegioId) {
-        urlBoletosOnline += `&colegio=${colegioId}`;
-      }
-      
-      const [responseBoletos, responseOnline] = await Promise.all([
-        fetch(urlBoletosNormales),
-        fetch(urlBoletosOnline)
-      ]);
-      
+      const responseBoletos = await fetch(urlBoletos);
       const dataBoletos = await responseBoletos.json();
-      const dataOnline = await responseOnline.json();
       
-      if (dataBoletos.success && dataOnline.success) {
+      if (dataBoletos.success) {
         // Convertir a strings formateados según dígitos_boleto
-        const boletosNormalesVendidos = dataBoletos.datos?.map(b => 
+        const boletosVendidosFormateados = dataBoletos.datos?.map(b => 
           formatearNumeroBoleto(b.numero_boleto)
         ) || [];
         
-        const boletosOnlineVendidos = dataOnline.boletos?.map(b => 
-          formatearNumeroBoleto(b.numero_boleto)
-        ) || [];
-        
-        const todosLosBoletosVendidos = [...boletosNormalesVendidos, ...boletosOnlineVendidos];
-        console.log("🎲 Buscando número aleatorio. Vendidos total:", todosLosBoletosVendidos);
+        console.log("🎲 Buscando número aleatorio. Vendidos:", boletosVendidosFormateados);
         
         // Generar número aleatorio formateado
         let numeroAleatorio;
@@ -216,7 +204,7 @@ const CompraOnlineEspecial = () => {
           const num = Math.floor(Math.random() * (maxNumero + 1));
           numeroAleatorio = formatearNumeroBoleto(num);
           intentos++;
-        } while (todosLosBoletosVendidos.includes(numeroAleatorio) && intentos < maxIntentos);
+        } while (boletosVendidosFormateados.includes(numeroAleatorio) && intentos < maxIntentos);
         
         if (intentos >= maxIntentos) {
           Swal.fire({
@@ -252,8 +240,7 @@ const CompraOnlineEspecial = () => {
     }
   };
 
-  // Validar disponibilidad del boleto (chequear AMBAS tablas)
-  // Modificar la función handleTicketNumberChange
+  // Validar disponibilidad del boleto (chequear SOLO tabla boletos)
   const handleTicketNumberChange = (e) => {
     let value = e.target.value;
     
@@ -277,18 +264,14 @@ const CompraOnlineEspecial = () => {
     // Formatear el boleto buscado
     const boletoBuscado = formatearNumeroBoleto(value);
     
-    // Formatear las listas de boletos
-    const boletosNormalesFormateados = boletosNormales.map(num => 
-      formatearNumeroBoleto(num)
-    );
-    const boletosOnlineFormateados = boletosOnline.map(num => 
+    // Formatear la lista de boletos vendidos
+    const boletosVendidosFormateados = boletosVendidos.map(num => 
       formatearNumeroBoleto(num)
     );
     
-    const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
-    const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
+    const yaVendido = boletosVendidosFormateados.includes(boletoBuscado);
     
-    setFoundTope(enNormales || enOnline ? true : null);
+    setFoundTope(yaVendido ? true : null);
   };
 
   const handleBlur = (e) => {
@@ -301,19 +284,16 @@ const CompraOnlineEspecial = () => {
     // Re-evaluar disponibilidad después de formatear
     if (value.length === digitosBoleto) {
       const boletoBuscado = value;
-      const boletosNormalesFormateados = boletosNormales.map(num => 
-        formatearNumeroBoleto(num)
-      );
-      const boletosOnlineFormateados = boletosOnline.map(num => 
+      const boletosVendidosFormateados = boletosVendidos.map(num => 
         formatearNumeroBoleto(num)
       );
       
-      const enNormales = boletosNormalesFormateados.includes(boletoBuscado);
-      const enOnline = boletosOnlineFormateados.includes(boletoBuscado);
+      const yaVendido = boletosVendidosFormateados.includes(boletoBuscado);
       
-      setFoundTope(enNormales || enOnline ? true : null);
+      setFoundTope(yaVendido ? true : null);
     }
   };
+
   const enviarDatosNormal = () => {
     if (prizes.estatus !== 'activo') {
       Swal.fire("Sorteo cerrado", "No puedes comprar boletos de este sorteo", "warning");
@@ -375,7 +355,6 @@ const CompraOnlineEspecial = () => {
       if (data.error) {
         Swal.fire("❌ Error", "Error al registrar la compra", "error");
       } else {
-
         if (!whatsappColegio || !whatsappColegio.numero) {
           Swal.fire(
             "WhatsApp no configurado",
@@ -385,6 +364,7 @@ const CompraOnlineEspecial = () => {
           setIsLoading(false);
           return;
         }
+
         // Mensaje de WhatsApp
         const fechaCorta = new Date(prizes.Fecha || prizes.fecha).toISOString().split("T")[0];
         const mensaje = encodeURIComponent(
@@ -408,38 +388,23 @@ const CompraOnlineEspecial = () => {
           window.open(`https://wa.me/${whatsappNumber}?text=${mensaje}`, "_blank");
         }
 
-        // Recargar listas de boletos después de la compra
+        // Recargar lista de boletos vendidos después de la compra
         try {
-          // Recargar boletos normales
-          let urlBoletosNormales = `/api/boletos/sorteo/${prizes.Idsorteo || prizes.id_sorteo}`;
+          const sorteoId = prizes.Idsorteo || prizes.id_sorteo;
+          let urlBoletos = `/api/boletos/sorteo/${sorteoId}`;
           if (colegioId) {
-            urlBoletosNormales += `?colegio_id=${colegioId}`;
+            urlBoletos += `?colegio_id=${colegioId}`;
           }
           
-          const responseBoletos = await fetch(urlBoletosNormales);
+          const responseBoletos = await fetch(urlBoletos);
           const dataBoletos = await responseBoletos.json();
           
           if (dataBoletos.success) {
-            const boletosVendidos = dataBoletos.datos?.map(b => b.numero_boleto) || [];
-            setBoletosNormales(boletosVendidos);
-          }
-
-          // Recargar boletos online
-          const fechaFormateada = (prizes.Fecha || prizes.fecha).split('T')[0];
-          let urlBoletosOnline = `/api/boletosOnline?fecha=${fechaFormateada}`;
-          if (colegioId) {
-            urlBoletosOnline += `&colegio=${colegioId}`;
-          }
-          
-          const responseOnline = await fetch(urlBoletosOnline);
-          const dataOnline = await responseOnline.json();
-          
-          if (dataOnline.success) {
-            const boletosOnlineVendidos = dataOnline.boletos?.map(b => b.numero_boleto) || [];
-            setBoletosOnline(boletosOnlineVendidos);
+            const numerosVendidos = dataBoletos.datos?.map(b => b.numero_boleto) || [];
+            setBoletosVendidos(numerosVendidos);
           }
         } catch (error) {
-          console.error("Error recargando datos:", error);
+          console.error("Error recargando datos de boletos vendidos:", error);
         }
 
         Swal.fire({
@@ -504,16 +469,11 @@ const CompraOnlineEspecial = () => {
           <div>
             <h1 className="text-3xl font-bold text-purple-800">Compra de Boletos Online</h1>
             <div className="flex items-center gap-4 mt-2">
-              {colegioId && (
                 <span className="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">
-                  Colegio ID: {colegioId}
+                  Colegio: {nombreColegio}
                 </span>
-              )}
               <span className="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full">
-                Sorteo: {prizes.Idsorteo || prizes.id_sorteo}
-              </span>
-              <span className="bg-yellow-100 text-yellow-800 text-xs px-3 py-1 rounded-full">
-                Boletos cargados: {boletosNormales.length + boletosOnline.length}
+                Sorteo: {prizes.nombre}
               </span>
             </div>
           </div>
@@ -672,10 +632,10 @@ const CompraOnlineEspecial = () => {
       {showDisponibles && (
         <EspecialBoletosDisponiblesModalOnline
           tickets={{
-            boletosNormal: boletosNormales, 
-            boletosOnline: boletosOnline     
+            boletosVendidos: boletosVendidos 
           }}
-          colegioId={colegioId} 
+          colegioNombre={nombreColegio}
+          cifras={digitosBoleto}
           onClose={() => setShowDisponibles(false)}
         />
       )}
