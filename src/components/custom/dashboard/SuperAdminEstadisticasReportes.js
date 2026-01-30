@@ -525,20 +525,17 @@ export default function EstadisticasSuperAdmin() {
                                 <div className="mb-8 p-6 bg-gray-50 rounded-xl">
                                     <div className="flex items-start gap-6">
                                         {colegioDetallado.colegio?.logo_url ? (
-                                            <Image 
-                                                src={colegioDetallado.colegio.logo_url}
-                                                width={150}
-                                                height={150} 
-                                                alt={colegioDetallado.colegio.nombre}
-                                                className="w-24 h-24 rounded-xl object-cover"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none'
-                                                    e.target.parentNode.innerHTML = `
-                                                        <div class="w-24 h-24 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-4xl">
-                                                            ${colegioDetallado.colegio.nombre?.charAt(0) || 'C'}
-                                                        </div>
-                                                    `
-                                                }}
+                                            <img 
+                                            src={colegioDetallado.colegio.logo_url}
+                                            alt={`Logo de ${colegioDetallado.colegio.nombre}`}
+                                            className="w-10 h-10 rounded-full object-cover"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                const fallbackDiv = document.createElement('div');
+                                                fallbackDiv.className = "w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold";
+                                                fallbackDiv.textContent = colegioDetallado.colegio.nombre?.charAt(0) || 'C';
+                                                e.target.parentNode.appendChild(fallbackDiv);
+                                            }}
                                             />
                                         ) : (
                                             <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-4xl">
